@@ -1,0 +1,29 @@
+﻿# R project ignores
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+.Rapp.history
+
+# RStudio files
+.Rproj.user/
+.Rproj.user/**
+
+# Packrat / renv
+packrat/
+renv/library/
+renv/staging/
+renv/python/
+
+# OS/editor
+.DS_Store
+Thumbs.db
+*.swp
+*.tmp
+
+# Deployment artifacts
+rsconnect/
+
+# Plots and generated files
+Rplots.pdf
+
