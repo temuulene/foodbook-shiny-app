@@ -10,6 +10,7 @@ library(data.table)
 library(DT)
 library(ggplot2)
 library(shinyjs)
+source("src/foodbook_backend.R")
 
 # Suppress SASS contrast warnings
 options(sass.cache = FALSE)
@@ -46,6 +47,9 @@ foodbook_data <- foodbook_data %>%
   group_by(Province.Territory, Exposure) %>%
   filter(n() == 1 | Foodbook_Version == "Foodbook2") %>%
   ungroup()
+
+# Initialise Foodbook backend (labels + microdata)
+fb_init()
 
 # --- 3. Helper Functions ---
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
@@ -329,9 +333,17 @@ ui <- function(request) {
               layout_sidebar(
                 sidebar = sidebar(
                   title = "Analysis Parameters",
-                  selectInput("province", "Select Location(s):",
-                              choices = c("Canada", unique(foodbook_data$Province.Territory[foodbook_data$Province.Territory != "Canada"])),
+                  selectInput("province", "Reference PT(s):",
+                              choices = c("Canada", fb_pt_names()),
                               selected = "Canada",
+                              multiple = TRUE),
+                  selectInput("age_group", "Restrict by Age Group (optional):",
+                              choices = c("All", fb_age_groups()),
+                              selected = "All",
+                              multiple = TRUE),
+                  selectInput("month", "Restrict by Month (optional):",
+                              choices = c("All", fb_months()),
+                              selected = "All",
                               multiple = TRUE),
                   selectInput("food_category", "Filter Category:",
                               choices = c("All", unique(foodbook_data$Foodbook_Version)),
@@ -359,15 +371,49 @@ ui <- function(request) {
                 )
               )
     ),
+
+    nav_panel("Advanced",
+              icon = icon("upload"),
+              layout_sidebar(
+                sidebar = sidebar(
+                  title = "Upload CEDARS Exposure Data (.xlsx)",
+                  fileInput("cedars_file", "Upload Excel", accept = c(".xlsx")),
+                  helpText("Expected sheets: 'case exposure answer' and 'Salmonella Case'."),
+                  hr(),
+                  selectInput("adv_province", "Reference PT(s):",
+                              choices = c("Canada", fb_pt_names()),
+                              selected = "Canada", multiple = TRUE),
+                  selectInput("adv_age_group", "Restrict by Age Group (optional):",
+                              choices = c("All", fb_age_groups()), selected = "All", multiple = TRUE),
+                  selectInput("adv_month", "Restrict by Month (optional):",
+                              choices = c("All", fb_months()), selected = "All", multiple = TRUE)
+                ),
+                card(
+                  card_header("Results"),
+                  card_body(DTOutput("adv_results_table", width = "100%"))
+                )
+              )
+    ),
     
     nav_panel("Data Info",
               icon = icon("database"),
-              card(
-                card_header("Foodbook Data Composition"),
-                card_body(
-                  plotOutput("data_coverage_plot"),
-                  hr(),
-                  DTOutput("data_summary_table")
+              layout_columns(
+                col_widths = c(6, 6),
+                card(
+                  card_header("Reference Settings"),
+                  card_body(uiOutput("ref_summary_ui"))
+                ),
+                card(
+                  card_header("Population Exposure Snapshot (Reference)"),
+                  card_body(DTOutput("ref_top_exposures"))
+                ),
+                card(
+                  card_header("Microdata Coverage by PT (after filters)"),
+                  card_body(plotOutput("ref_pt_plot", height = "350px"))
+                ),
+                card(
+                  card_header("Microdata Coverage by Month (after filters)"),
+                  card_body(plotOutput("ref_month_plot", height = "350px"))
                 )
               )
     ),
@@ -378,27 +424,37 @@ ui <- function(request) {
                 class = "well-panel-about",
                 card_header(h3("About This Tool")),
                 card_body(
-                  h4("What This Tool Does"),
-                  p("This tool helps identify foods that might be linked to foodborne illness outbreaks by comparing:"),
+                  h4("Purpose"),
+                  p("Compare your case exposures to typical population exposures from Foodbook to prioritise hypotheses during outbreak investigations."),
+                  h4("How references are computed"),
                   tags$ul(
-                    tags$li("What people report eating in your investigation"),
-                    tags$li("What Canadians typically eat (from Foodbook data)")
+                    tags$li("References use Foodbook microdata with survey weights (as in OMD’s Stata workflow)."),
+                    tags$li("If multiple PTs are selected, a single combined reference is computed across them."),
+                    tags$li("You can optionally limit the reference by Age Group (0-9, 10-19, 20-64, 65+) and Month."),
+                    tags$li("Defaults like \"Canada\" and \"All\" auto-deselect once you add other selections.")
                   ),
-                  h4("Key Metrics"),
+                  h4("Analysis outputs"),
                   tags$ul(
-                    tags$li(strong("Exposed:"), "People who ate the food (Yes + Probably)"),
-                    tags$li(strong("Observed %:"), "Exposed people in your data"),
-                    tags$li(strong("Reference %:"), "Typical exposure in population"),
-                    tags$li(strong("P-Value:"), "Chance of seeing these results if normal")
+                    tags$li(strong("Observed %"), ": (Yes + Probably) / (Yes + Probably + No) in your cases."),
+                    tags$li(strong("Reference %"), ": Weighted population exposure % from Foodbook for your selected filters (rounded to 1 decimal)."),
+                    tags$li(strong("P-Value"), ": Binomial test of observed vs reference % (upper tail)."),
+                    tags$li(strong("Classification"), ": Alert (≤0.05), Borderline (≤0.10), Not Significant, or Insufficient Data.")
                   ),
-                  h4("Using Results"),
-                  p("Start with Alert items first and compare with lab results and other evidence. Small samples (<5 responses) may be unreliable."),
-                  h4("Need Help?"),
-                  p("Contact your regional foodborne illness team:"),
-                  tags$div(
-                    class = "contact-list",
-                    tags$p(class = "contact-line", icon("phone"), span("555-123-4567")),
-                    tags$p(class = "contact-line", icon("envelope"), span("food.safety@yourorg.ca"))
+                  h4("Advanced (CEDARS upload)"),
+                  tags$ul(
+                    tags$li("Upload the CEDARS Excel export. Expected sheets: ‘case exposure answer’ and ‘Salmonella Case’."),
+                    tags$li("Columns are auto-detected even if the wording changes (we normalise names)."),
+                    tags$li("We analyse confirmed cases if available in the linelist sheet.")
+                  ),
+                  h4("Good practice"),
+                  tags$ul(
+                    tags$li("Interpret alongside lab, trace-back, and epi linkage evidence."),
+                    tags$li("Small totals can be unstable; look for patterns across multiple signals."),
+                    tags$li("Foodbook is de-identified open data; no direct identifiers are used.")
+                  ),
+                  h4("Roadmap"),
+                  tags$ul(
+                    tags$li("Optional Bayesian results to complement binomial tests (per OMD collaboration).")
                   )
                 )
               )
@@ -412,41 +468,44 @@ server <- function(input, output, session) {
     bg = "#f3f6fb",
     fg = "#1f2933",
     accent = "#0f4c81",
-    font = font_spec(font_google("Inter"), scale = 1.1)
+    font = font_spec(font_google("Inter"), scale = 1.25)
   )
 
   
   exposure_module_reactives <- reactiveVal(list())
   
   combinations_reactive <- reactive({
-    req(input$exposure_select, input$province)
-    tidyr::crossing(
-      Exposure = input$exposure_select,
-      Province.Territory = input$province
-    ) %>%
-      mutate(module_id = make_safe_id(Exposure, Province.Territory))
+    req(input$exposure_select)
+    tibble::tibble(
+      ExposureCode = input$exposure_select,
+      module_id = paste0("exp_", gsub("[^a-zA-Z0-9]", "", input$exposure_select))
+    )
   })
   
   observe({
+    ch <- fb_exposure_choices()
     updateSelectizeInput(session, "exposure_select",
-                         choices = unique(foodbook_data$Exposure), server = TRUE)
+                         choices = as.list(ch), server = TRUE)
   })
   
   output$exposure_modules_ui <- renderUI({
     combinations <- combinations_reactive()
     req(nrow(combinations) > 0)
     
-    module_outputs <- purrr::pmap(combinations, function(Exposure, Province.Territory, module_id) {
-      ref_value <- foodbook_data %>%
-        filter(Exposure == !!Exposure, Province.Territory == !!Province.Territory) %>%
-        pull(Proportion) %>%
-        first() %>%
-        replace_na(60)
-      
+    module_outputs <- purrr::pmap(combinations, function(ExposureCode, module_id) {
+      # Determine label for display
+      label <- names(fb_exposure_choices())[match(ExposureCode, fb_exposure_choices())]
+      # Resolve filters
+      pts <- input$province
+      ages <- if (is.null(input$age_group) || (length(input$age_group) == 1 && input$age_group[1] == "All")) NULL else input$age_group
+      months <- if (is.null(input$month) || (length(input$month) == 1 && input$month[1] == "All")) NULL else as.integer(input$month)
+      ref_value <- fb_reference_percents(ExposureCode, pt_names = pts, months = months, age_groups = ages)[[1]]
+      ref_value <- ifelse(is.na(ref_value), 60, round(ref_value, 1))
+
       list(
         ui = exposure_module_ui(
           id = module_id,
-          exposure_name = paste0(Exposure, " (", Province.Territory, ")"),
+          exposure_name = label %||% ExposureCode,
           ref_value = ref_value
         ),
         server = exposure_module_server(module_id)
@@ -465,14 +524,23 @@ server <- function(input, output, session) {
     combinations <- combinations_reactive()
     input_values <- purrr::map_dfr(exposure_module_reactives(), ~ .x(), .id = "module_id")
     req(nrow(input_values) > 0)
-    
+
+    # Build reference percents for selected exposures with filters
+    pts <- input$province
+    ages <- if (is.null(input$age_group) || (length(input$age_group) == 1 && input$age_group[1] == "All")) NULL else input$age_group
+    months <- if (is.null(input$month) || (length(input$month) == 1 && input$month[1] == "All")) NULL else as.integer(input$month)
+    ref_perc <- fb_reference_percents(combinations$ExposureCode, pt_names = pts, months = months, age_groups = ages)
+
+    # Map codes to labels for display
+    code_to_label <- names(fb_exposure_choices())
+    names(code_to_label) <- as.vector(fb_exposure_choices())
+
     input_values %>%
       left_join(combinations, by = "module_id") %>%
-      left_join(
-        foodbook_data %>% select(Exposure, Province.Territory, Proportion),
-        by = c("Exposure", "Province.Territory")
+      mutate(
+        Exposure = code_to_label[ExposureCode] %||% ExposureCode,
+        province_ref = as.numeric(ref_perc[match(ExposureCode, names(ref_perc))])
       ) %>%
-      rename(province_ref = Proportion) %>%
       mutate(
         province_ref = coalesce(province_ref, 60),
         y_plus_p = yes + prob,
@@ -485,8 +553,9 @@ server <- function(input, output, session) {
         class_province = classify_exposure(p_value_province, observed_prop, province_ref)
       ) %>%
       ungroup() %>%
+      mutate(`Reference Scope` = paste(if (is.null(pts)) "Canada" else paste(pts, collapse = ", "))) %>%
       select(
-        `Province/Territory` = Province.Territory,
+        `Reference Scope`,
         Exposure,
         `Total Valid` = total,
         `Observed %` = observed_prop,
@@ -499,7 +568,7 @@ server <- function(input, output, session) {
   output$results_table <- renderDT({
     req(nrow(results()) > 0)
     res <- results() %>%
-      mutate(`Observed %` = round(`Observed %` * 100, 1), `P-Value` = round(`P-Value`, 4))
+      mutate(`Observed %` = round(`Observed %` * 100, 1), `Reference %` = round(`Reference %`, 1), `P-Value` = round(`P-Value`, 4))
     datatable(res, extensions = "Buttons", rownames = FALSE,
               class = "stripe hover row-border order-column",
               options = list(pageLength = 15, dom = "Bfrtip", buttons = c("copy", "csv", "excel"),
@@ -520,7 +589,7 @@ server <- function(input, output, session) {
   
   output$plot_container <- renderUI({
     req(nrow(results()) > 0)
-    plot_height <- max(500, length(input$exposure_select) * length(input$province) * 60)
+    plot_height <- max(500, length(input$exposure_select) * 180)
     plotOutput("exposure_plot", height = paste0(plot_height, "px"))
   })
   
@@ -531,6 +600,7 @@ server <- function(input, output, session) {
              Reference_Comparison = ifelse(`Observed %` > `Reference %`,
                                            paste0("+", round(`Observed %` - `Reference %`, 1), "%"),
                                            paste0(round(`Observed %` - `Reference %`, 1), "%")))
+    ref_scope <- paste(unique(plot_data$`Reference Scope`), collapse = ", ")
     
     # Palette tuned for accessibility and contrast
     alert_palette <- c(
@@ -540,33 +610,34 @@ server <- function(input, output, session) {
       "Insufficient Data" = "#94a3b8"
     )
     
-    ggplot(plot_data, aes(y = reorder(`Province/Territory`, `Observed %`))) +
-      geom_segment(aes(x = `Reference %`, xend = `Observed %`, yend = `Province/Territory`, color = Classification),
+    ggplot(plot_data, aes(y = reorder(Exposure, `Observed %`))) +
+      geom_segment(aes(x = `Reference %`, xend = `Observed %`, yend = Exposure, color = Classification),
                    linewidth = 2, alpha = 0.8) +
       geom_point(aes(x = `Reference %`, size = `Total Valid`), color = "#0f4c81", shape = 1, stroke = 2) +
       geom_point(aes(x = `Observed %`, size = `Total Valid`, fill = Classification), color = "#1f2933", shape = 21, stroke = 1.4) +
       geom_text(aes(x = pmax(`Observed %`, `Reference %`), label = Reference_Comparison),
-                hjust = -0.2, size = 4, fontface = "bold", color = "#1f2933") +
+                hjust = -0.2, size = 5.2, fontface = "bold", color = "#1f2933") +
       scale_fill_manual(values = alert_palette, name = "Significance", na.value = "#94a3b8") +
       scale_color_manual(values = alert_palette, name = "Significance", na.value = "#94a3b8") +
       guides(size = guide_legend(override.aes = list(shape = 21, fill = "#0f4c81"))) +
-      scale_size(range = c(4, 11), name = "Number of Cases") +
+      scale_size(range = c(5, 12), name = "Number of Cases") +
       scale_x_continuous(limits = c(0, 110), breaks = seq(0, 100, 25)) +
-      labs(title = "Food Exposure Risk Assessment by Location",
-           subtitle = "Comparison of case exposures vs. population reference values",
+      labs(title = "Food Exposure Risk Assessment",
+           subtitle = paste("Comparison of case exposures vs. population reference values | Reference scope:", ref_scope),
            x = "Exposure Percentage (%)", y = NULL,
            caption = "Outline circles = Reference exposure | Filled circles = Case exposure") +
-      facet_wrap(~ str_wrap(Exposure, 40), ncol = 1, scales = "free_y") +
-      theme_minimal() +
+      # Single panel since reference is combined across PTs
+      NULL +
+      theme_minimal(base_size = 15) +
       theme(
         legend.position = "bottom",
-        legend.title = element_text(face = "bold", color = "#0f4c81"),
-        legend.text = element_text(color = "#4b5563"),
-        plot.title = element_text(face = "bold", size = 18, color = "#0f4c81"),
-        plot.subtitle = element_text(margin = margin(b = 15), size = 14, color = "#334155"),
-        axis.title = element_text(face = "bold", size = 13, color = "#1f2933"),
-        axis.text = element_text(size = 12, color = "#4b5563"),
-        strip.text = element_text(size = 13, face = "bold", hjust = 0, color = "#0f4c81"),
+        legend.title = element_text(face = "bold", size = 14, color = "#0f4c81"),
+        legend.text = element_text(size = 13, color = "#4b5563"),
+        plot.title = element_text(face = "bold", size = 22, color = "#0f4c81"),
+        plot.subtitle = element_text(margin = margin(b = 15), size = 16, color = "#334155"),
+        axis.title = element_text(face = "bold", size = 16, color = "#1f2933"),
+        axis.text = element_text(size = 14, color = "#4b5563"),
+        strip.text = element_text(size = 15, face = "bold", hjust = 0, color = "#0f4c81"),
         strip.background = element_rect(fill = "#f1f5ff", color = "#0f4c81", linewidth = 0.8),
         panel.grid.minor.x = element_blank(),
         panel.grid.major = element_line(color = "#e2e8f0"),
@@ -616,6 +687,235 @@ server <- function(input, output, session) {
   observeEvent(input$reset, {
     updateSelectizeInput(session, "exposure_select", selected = character(0))
     updateSelectInput(session, "province", selected = "Canada")
+    updateSelectInput(session, "age_group", selected = "All")
+    updateSelectInput(session, "month", selected = "All")
+  })
+
+  # Auto-remove defaults for clarity
+  observeEvent(input$province, ignoreInit = TRUE, {
+    sel <- input$province
+    if (length(sel) > 1 && "Canada" %in% sel) {
+      updateSelectInput(session, "province", selected = setdiff(sel, "Canada"))
+    }
+  })
+  observeEvent(input$age_group, ignoreInit = TRUE, {
+    sel <- input$age_group
+    if (length(sel) > 1 && "All" %in% sel) {
+      updateSelectInput(session, "age_group", selected = setdiff(sel, "All"))
+    }
+  })
+  observeEvent(input$month, ignoreInit = TRUE, {
+    sel <- input$month
+    if (length(sel) > 1 && "All" %in% sel) {
+      updateSelectInput(session, "month", selected = setdiff(sel, "All"))
+    }
+  })
+
+  observeEvent(input$adv_province, ignoreInit = TRUE, {
+    sel <- input$adv_province
+    if (length(sel) > 1 && "Canada" %in% sel) {
+      updateSelectInput(session, "adv_province", selected = setdiff(sel, "Canada"))
+    }
+  })
+  observeEvent(input$adv_age_group, ignoreInit = TRUE, {
+    sel <- input$adv_age_group
+    if (length(sel) > 1 && "All" %in% sel) {
+      updateSelectInput(session, "adv_age_group", selected = setdiff(sel, "All"))
+    }
+  })
+  observeEvent(input$adv_month, ignoreInit = TRUE, {
+    sel <- input$adv_month
+    if (length(sel) > 1 && "All" %in% sel) {
+      updateSelectInput(session, "adv_month", selected = setdiff(sel, "All"))
+    }
+  })
+
+  # Reference filter helpers
+  ref_filters <- reactive({
+    list(
+      pts = input$province,
+      ages = if (is.null(input$age_group) || (length(input$age_group) == 1 && input$age_group[1] == "All")) NULL else input$age_group,
+      months = if (is.null(input$month) || (length(input$month) == 1 && input$month[1] == "All")) NULL else as.integer(input$month)
+    )
+  })
+
+  fb_filtered <- reactive({
+    f <- ref_filters()
+    fb_filter_micro(pt_names = f$pts, months = f$months, age_groups = f$ages)
+  })
+
+  output$ref_summary_ui <- renderUI({
+    f <- ref_filters()
+    pts <- f$pts %||% "Canada"
+    ages <- f$ages %||% "All"
+    months <- if (is.null(f$months)) "All" else month.name[as.integer(f$months)]
+    tagList(
+      p("This app computes reference exposure percentages from Foodbook microdata, weighted and combined across your selected filters."),
+      tags$ul(
+        tags$li(tags$b("Reference PT(s): "), paste(pts, collapse = ", ")),
+        tags$li(tags$b("Age group(s): "), paste(ages, collapse = ", ")),
+        tags$li(tags$b("Month(s): "), paste(months, collapse = ", "))
+      ),
+      p("Tip: Defaults like \"Canada\" and \"All\" auto-deselect once you add another selection.")
+    )
+  })
+
+  output$ref_top_exposures <- renderDT({
+    f <- ref_filters()
+    codes <- as.vector(fb_exposure_choices())
+    refs <- fb_reference_percents(codes, pt_names = f$pts, months = f$months, age_groups = f$ages)
+    lbls <- names(fb_exposure_choices())
+    names(lbls) <- as.vector(fb_exposure_choices())
+    tibble::tibble(
+      Exposure = lbls[names(refs)],
+      `Reference %` = round(as.numeric(refs), 1)
+    ) %>%
+      arrange(desc(`Reference %`)) %>%
+      head(30) %>%
+      datatable(options = list(pageLength = 10, order = list(list(1, 'desc'))), rownames = FALSE)
+  })
+
+  output$ref_pt_plot <- renderPlot({
+    d <- fb_filtered()
+    req(nrow(d) > 0)
+    pt_map <- fb_pt_names()
+    # invert mapping names->codes to codes->names
+    codes <- unname(fb_pt_map())
+    names(codes) <- names(fb_pt_map())
+    inv <- stats::setNames(names(codes), codes)
+    tibble::tibble(PT = d$PT) %>%
+      mutate(PT = inv[as.character(PT)] %||% PT) %>%
+      count(PT) %>%
+      ggplot(aes(x = reorder(PT, n), y = n)) +
+      geom_col(fill = "#0f4c81", alpha = 0.85) +
+      coord_flip() +
+      labs(title = "Coverage by PT (after filters)", x = NULL, y = "Records") +
+      theme_minimal(base_size = 15) +
+      theme(
+        plot.title = element_text(face = "bold", size = 18, color = "#0f4c81"),
+        axis.title = element_text(size = 15, face = "bold"),
+        axis.text = element_text(size = 13)
+      )
+  })
+
+  output$ref_month_plot <- renderPlot({
+    d <- fb_filtered()
+    req(nrow(d) > 0)
+    tibble::tibble(Month = as.integer(d$Month)) %>%
+      filter(!is.na(Month), Month >= 1, Month <= 12) %>%
+      mutate(MonthName = factor(month.name[Month], levels = month.name)) %>%
+      count(MonthName) %>%
+      ggplot(aes(x = MonthName, y = n)) +
+      geom_col(fill = "#1b7b57", alpha = 0.85) +
+      labs(title = "Coverage by Month (after filters)", x = NULL, y = "Records") +
+      theme_minimal(base_size = 15) +
+      theme(
+        plot.title = element_text(face = "bold", size = 18, color = "#0f4c81"),
+        axis.title = element_text(size = 15, face = "bold"),
+        axis.text = element_text(size = 13),
+        axis.text.x = element_text(angle = 45, hjust = 1)
+      )
+  })
+
+  # Advanced: process uploaded CEDARS Excel and compute results
+  adv_cases <- reactive({
+    req(input$cedars_file)
+    path <- input$cedars_file$datapath
+    # Read long-form exposure answers
+    df_exp <- tryCatch(readxl::read_excel(path, sheet = "case exposure answer"), error = function(e) NULL)
+    validate(need(!is.null(df_exp), "Could not read 'case exposure answer' sheet."))
+    # Normalise column names
+    names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
+    # Expect columns: NationalID, Exposurecode, Hasexposureoccurred
+    need_cols <- c("nationalid", "exposurecode", "hasexposureoccurred")
+    validate(need(all(need_cols %in% names(df_exp)), paste0("Missing columns in exposure sheet: ", paste(setdiff(need_cols, names(df_exp)), collapse = ", "))))
+    df_exp <- df_exp %>%
+      transmute(natid = as.character(.data$nationalid),
+                exposure = as.character(.data$exposurecode),
+                val = tolower(as.character(.data$hasexposureoccurred)))
+
+    # Keep confirmed cases by merging linelist
+    df_line <- tryCatch(readxl::read_excel(path, sheet = "Salmonella Case"), error = function(e) NULL)
+    validate(need(!is.null(df_line), "Could not read 'Salmonella Case' sheet."))
+    names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
+    # Expect columns: natid, casestatus, provinceterritory, sexcase, agecase, earliestdate
+    # Use available subset; filter to Confirmed if casestatus exists
+    if ("casestatus" %in% names(df_line)) {
+      df_line <- df_line %>% filter(tolower(as.character(.data$casestatus)) == "confirmed")
+    }
+    if (!"natid" %in% names(df_line)) {
+      # Some exports use NationalID
+      if ("nationalid" %in% names(df_line)) df_line$natid <- as.character(df_line$nationalid)
+    }
+    validate(need("natid" %in% names(df_line), "Missing 'natid' in linelist."))
+    df_line <- df_line %>% transmute(natid = as.character(.data$natid), provinceterritory = .data$provinceterritory %||% NA)
+
+    df <- df_exp %>% inner_join(df_line, by = "natid")
+    df
+  })
+
+  adv_results <- reactive({
+    d <- adv_cases()
+    # Summarise counts by exposure code
+    exposure_counts <- d %>%
+      mutate(val = recode(val, y = "Y", n = "N", p = "P", dk = "DK")) %>%
+      filter(val %in% c("Y", "N", "P", "DK")) %>%
+      count(exposure, val) %>%
+      tidyr::pivot_wider(names_from = val, values_from = n, values_fill = 0)
+
+    codes <- exposure_counts$exposure
+    pts <- input$adv_province
+    ages <- if (is.null(input$adv_age_group) || (length(input$adv_age_group) == 1 && input$adv_age_group[1] == "All")) NULL else input$adv_age_group
+    months <- if (is.null(input$adv_month) || (length(input$adv_month) == 1 && input$adv_month[1] == "All")) NULL else as.integer(input$adv_month)
+
+    ref_perc <- fb_reference_percents(codes, pt_names = pts, months = months, age_groups = ages)
+
+    code_to_label <- names(fb_exposure_choices())
+    names(code_to_label) <- as.vector(fb_exposure_choices())
+
+    exposure_counts %>%
+      rowwise() %>%
+      mutate(
+        Exposure = code_to_label[exposure] %||% exposure,
+        province_ref = as.numeric(ref_perc[match(exposure, names(ref_perc))]),
+        y_plus_p = (`Y` %||% 0) + (`P` %||% 0),
+        total = y_plus_p + (`N` %||% 0),
+        observed_prop = if (total > 0) y_plus_p / total else NA_real_,
+        p_value = if (total > 0) pbinom(y_plus_p - 1, total, province_ref / 100, lower.tail = FALSE) else NA_real_,
+        Classification = classify_exposure(p_value, observed_prop, province_ref)
+      ) %>%
+      ungroup() %>%
+      mutate(`Reference %` = round(province_ref, 1)) %>%
+      transmute(
+        Exposure,
+        `Total Valid` = total,
+        `Observed %` = observed_prop,
+        `Reference %` = `Reference %`,
+        `P-Value` = p_value,
+        Classification
+      )
+  })
+
+  output$adv_results_table <- renderDT({
+    req(adv_results())
+    res <- adv_results() %>%
+      mutate(`Observed %` = round(`Observed %` * 100, 1), `Reference %` = round(`Reference %`, 1), `P-Value` = round(`P-Value`, 4))
+    datatable(res, extensions = "Buttons", rownames = FALSE,
+              class = "stripe hover row-border order-column",
+              options = list(pageLength = 15, dom = "Bfrtip", buttons = c("copy", "csv", "excel"),
+                             scrollX = TRUE, autoWidth = FALSE)) %>%
+      formatStyle(
+        columns = "Classification",
+        backgroundColor = styleEqual(
+          c("Alert", "Borderline", "Not Significant", "Insufficient Data"),
+          c("#fde4e6", "#fff4d6", "#edf2ff", "#f1f5f9")
+        ),
+        color = styleEqual(
+          c("Alert", "Borderline", "Not Significant", "Insufficient Data"),
+          c("#b82c3a", "#b35c00", "#1f2933", "#475569")
+        ),
+        fontWeight = "600"
+      )
   })
 }
 

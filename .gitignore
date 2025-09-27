@@ -16,4 +16,6 @@ tmp/
 
 # Deployment and plots
 rsconnect/
+upgrade-context/
 Rplots.pdf
+AGENT.md
