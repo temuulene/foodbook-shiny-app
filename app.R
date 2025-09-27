@@ -50,6 +50,7 @@ foodbook_data <- foodbook_data %>%
 
 # Initialise Foodbook backend (labels + microdata)
 fb_init()
+backend_ok <- tryCatch(fb_is_available(), error = function(e) FALSE)
 
 # --- 3. Helper Functions ---
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
@@ -372,7 +373,7 @@ ui <- function(request) {
               )
     ),
 
-    nav_panel("Advanced",
+    if (isTRUE(backend_ok)) nav_panel("Advanced",
               icon = icon("upload"),
               layout_sidebar(
                 sidebar = sidebar(
@@ -393,7 +394,20 @@ ui <- function(request) {
                   card_body(DTOutput("adv_results_table", width = "100%"))
                 )
               )
-    ),
+    ) else nav_panel("Advanced",
+              icon = icon("upload"),
+              card(
+                card_header("Advanced (CEDARS Upload)"),
+                card_body(
+                  p("This feature requires Foodbook microdata (.dta) and .do files to be present in ", code("upgrade-context/"), "."),
+                  tags$ul(
+                    tags$li(code("upgrade-context/foodbook.dta"), ", ", code("upgrade-context/foodbook2v2.dta")),
+                    tags$li(code("upgrade-context/foodbook data.do"), ", ", code("upgrade-context/foodbook variable labeling.do"))
+                  ),
+                  p("Please add these files to the server (or repository if allowed) and redeploy.")
+                )
+              )
+    ,
     
     nav_panel("Data Info",
               icon = icon("database"),

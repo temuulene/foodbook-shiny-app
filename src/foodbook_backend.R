@@ -97,25 +97,35 @@ fb_pt_map <- function() {
 # Initialise and cache everything we need
 fb_init <- function() {
   if (!is.null(fb_env$initialised) && isTRUE(fb_env$initialised)) return(invisible(TRUE))
-  fb_env$label_map <- fb_parse_label_map("upgrade-context/foodbook variable labeling.do")
+  # Try to load label map and microdata; tolerate absence (fallback to CSV)
+  if (file.exists("upgrade-context/foodbook variable labeling.do")) {
+    fb_env$label_map <- fb_parse_label_map("upgrade-context/foodbook variable labeling.do")
+  } else {
+    fb_env$label_map <- tibble::tibble(code = character(), label = character())
+  }
   fb_env$micro <- fb_load_microdata()
-  if (is.null(fb_env$micro)) stop("Foodbook microdata not found or failed to load.")
   # Determine exposure columns present in microdata
-  fb_env$exposure_codes <- fb_env$label_map$code[fb_env$label_map$code %in% names(fb_env$micro)]
-  fb_env$label_map <- fb_env$label_map |>
-    dplyr::filter(code %in% fb_env$exposure_codes)
+  if (!is.null(fb_env$micro)) {
+    fb_env$exposure_codes <- fb_env$label_map$code[fb_env$label_map$code %in% names(fb_env$micro)]
+    fb_env$label_map <- fb_env$label_map |>
+      dplyr::filter(code %in% fb_env$exposure_codes)
+  } else {
+    fb_env$exposure_codes <- character()
+  }
   # Keep only the useful columns for filtering
-  keep_cols <- unique(c(
-    "PT", "Month", "Age_group", "Gender", "age", "sex",
-    "weight", fb_env$exposure_codes
-  ))
-  fb_env$micro <- fb_env$micro[, intersect(keep_cols, names(fb_env$micro)), drop = FALSE]
+  if (!is.null(fb_env$micro)) {
+    keep_cols <- unique(c(
+      "PT", "Month", "Age_group", "Gender", "age", "sex",
+      "weight", fb_env$exposure_codes
+    ))
+    fb_env$micro <- fb_env$micro[, intersect(keep_cols, names(fb_env$micro)), drop = FALSE]
+  }
   # Construct AgeBand using specified mapping when Age_group is present; else derive from numeric age
-  if ("Age_group" %in% names(fb_env$micro)) {
+  if (!is.null(fb_env$micro) && "Age_group" %in% names(fb_env$micro)) {
     ag <- suppressWarnings(as.integer(fb_env$micro$Age_group))
     age_map <- c(`1` = "0-9", `2` = "10-19", `3` = "20-64", `4` = "65+")
     fb_env$micro$AgeBand <- unname(age_map[as.character(ag)])
-  } else if ("age" %in% names(fb_env$micro)) {
+  } else if (!is.null(fb_env$micro) && "age" %in% names(fb_env$micro)) {
     a <- suppressWarnings(as.numeric(fb_env$micro$age))
     fb_env$micro$AgeBand <- cut(
       a,
@@ -131,23 +141,33 @@ fb_init <- function() {
 
 fb_exposure_choices <- function() {
   fb_init()
-  # Return a named vector: label -> code (used by selectize, labels shown)
-  # Ensure uniqueness of labels
-  lm <- fb_env$label_map
-  duplicated_labels <- duplicated(lm$label)
-  lm$label[duplicated_labels] <- paste0(lm$label[duplicated_labels], " (", lm$code[duplicated_labels], ")")
-  stats::setNames(lm$code, lm$label)
+  # If microdata + labels available, return label->code; else fall back to CSV Exposure labels
+  if (!is.null(fb_env$micro) && nrow(fb_env$label_map)) {
+    lm <- fb_env$label_map
+    duplicated_labels <- duplicated(lm$label)
+    lm$label[duplicated_labels] <- paste0(lm$label[duplicated_labels], " (", lm$code[duplicated_labels], ")")
+    return(stats::setNames(lm$code, lm$label))
+  }
+  # Fallback: read from legacy CSV
+  if (file.exists("data/foodbook_data.csv")) {
+    df <- tryCatch(read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE), error = function(e) NULL)
+    if (!is.null(df) && all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))) {
+      exps <- sort(unique(df$Exposure))
+      return(stats::setNames(exps, exps))
+    }
+  }
+  character()
 }
 
 fb_age_groups <- function() {
   fb_init()
-  # Fixed mapping per request
-  c("0-9", "10-19", "20-64", "65+")
+  # If microdata present, offer the fixed mapping; else return empty so UI shows "All" only
+  if (!is.null(fb_env$micro)) c("0-9", "10-19", "20-64", "65+") else character()
 }
 
 fb_months <- function() {
   fb_init()
-  if (!"Month" %in% names(fb_env$micro)) return(integer())
+  if (is.null(fb_env$micro) || !"Month" %in% names(fb_env$micro)) return(integer())
   m <- sort(unique(na.omit(as.integer(fb_env$micro$Month))))
   m <- m[m >= 1 & m <= 12]
   stats::setNames(as.character(m), month.name[m])
@@ -161,6 +181,7 @@ fb_pt_names <- function() {
 fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
   fb_init()
   d <- fb_env$micro
+  if (is.null(d)) return(data.frame())
   if (!is.null(pt_names) && length(pt_names) && !("Canada" %in% pt_names) && "PT" %in% names(d)) {
     codes <- unname(fb_env$pt_map[pt_names])
     d <- d |> dplyr::filter(PT %in% codes)
@@ -188,7 +209,60 @@ fb_weighted_percent <- function(code, d) {
 }
 
 # Public: compute reference percentages for a vector of exposure codes
+fb_pt_abbrev_map <- function() {
+  c(
+    "British Columbia" = "BC",
+    "Alberta" = "AB",
+    "Saskatchewan" = "SK",
+    "Manitoba" = "MB",
+    "Ontario" = "ON",
+    "Quebec" = "QC",
+    "New Brunswick" = "NB",
+    "Nova Scotia" = "NS",
+    "Prince Edward Island" = "PE",
+    "Newfoundland and Labrador" = "NL",
+    "Yukon" = "YT",
+    "Northwest Territories" = "NT",
+    "Nunavut" = "NU",
+    "Canada" = "Canada"
+  )
+}
+
+fb_reference_percents_csv <- function(codes, pt_names = NULL) {
+  df <- tryCatch(read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE), error = function(e) NULL)
+  if (is.null(df) || !all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))) {
+    return(stats::setNames(rep(NA_real_, length(codes)), codes))
+  }
+  # If Canada is selected or no PTs, use Canada rows
+  if (is.null(pt_names) || length(pt_names) == 0 || any(pt_names == "Canada")) {
+    res <- vapply(codes, function(x) {
+      v <- df$Proportion[df$Exposure == x & df$Province.Territory == "Canada"]
+      v <- suppressWarnings(as.numeric(v[1]))
+      ifelse(length(v) == 0, NA_real_, v)
+    }, numeric(1))
+    return(res)
+  }
+  # Otherwise, average across selected PTs (simple mean; weights unavailable in CSV)
+  ab <- fb_pt_abbrev_map()
+  sel_ab <- unname(ab[pt_names])
+  res <- vapply(codes, function(x) {
+    v <- df$Proportion[df$Exposure == x & df$Province.Territory %in% sel_ab]
+    v <- suppressWarnings(as.numeric(v))
+    if (!length(v)) return(NA_real_)
+    mean(v, na.rm = TRUE)
+  }, numeric(1))
+  res
+}
+
 fb_reference_percents <- function(codes, pt_names = NULL, months = NULL, age_groups = NULL) {
-  d <- fb_filter_micro(pt_names, months, age_groups)
-  vapply(codes, fb_weighted_percent, numeric(1), d = d)
+  if (!is.null(fb_env$micro)) {
+    d <- fb_filter_micro(pt_names, months, age_groups)
+    return(vapply(codes, fb_weighted_percent, numeric(1), d = d))
+  }
+  fb_reference_percents_csv(codes, pt_names)
+}
+
+fb_is_available <- function() {
+  fb_init()
+  !is.null(fb_env$micro)
 }
