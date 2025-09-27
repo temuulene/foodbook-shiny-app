@@ -107,6 +107,45 @@ exposure_module_server <- function(id) {
 
 # --- 5. User Interface (UI) ---
 ui <- function(request) {
+  adv_panel <- if (isTRUE(backend_ok)) {
+    nav_panel("Advanced",
+              icon = icon("upload"),
+              layout_sidebar(
+                sidebar = sidebar(
+                  title = "Upload CEDARS Exposure Data (.xlsx)",
+                  fileInput("cedars_file", "Upload Excel", accept = c(".xlsx")),
+                  helpText("Expected sheets: 'case exposure answer' and 'Salmonella Case'."),
+                  hr(),
+                  selectInput("adv_province", "Reference PT(s):",
+                              choices = c("Canada", fb_pt_names()),
+                              selected = "Canada", multiple = TRUE),
+                  selectInput("adv_age_group", "Restrict by Age Group (optional):",
+                              choices = c("All", fb_age_groups()), selected = "All", multiple = TRUE),
+                  selectInput("adv_month", "Restrict by Month (optional):",
+                              choices = c("All", fb_months()), selected = "All", multiple = TRUE)
+                ),
+                card(
+                  card_header("Results"),
+                  card_body(DTOutput("adv_results_table", width = "100%"))
+                )
+              )
+    )
+  } else {
+    nav_panel("Advanced",
+              icon = icon("upload"),
+              card(
+                card_header("Advanced (CEDARS Upload)"),
+                card_body(
+                  p("This feature requires Foodbook microdata (.dta) and .do files to be present in ", code("upgrade-context/"), "."),
+                  tags$ul(
+                    tags$li(code("upgrade-context/foodbook.dta"), ", ", code("upgrade-context/foodbook2v2.dta")),
+                    tags$li(code("upgrade-context/foodbook data.do"), ", ", code("upgrade-context/foodbook variable labeling.do"))
+                  ),
+                  p("Please add these files to the server (or repository if allowed) and redeploy.")
+                )
+              )
+    )
+  }
   page_navbar(
     title = "Food Exposure Analysis Tool",
         theme = bs_theme(
@@ -372,42 +411,7 @@ ui <- function(request) {
                 )
               )
     ),
-
-    if (isTRUE(backend_ok)) nav_panel("Advanced",
-              icon = icon("upload"),
-              layout_sidebar(
-                sidebar = sidebar(
-                  title = "Upload CEDARS Exposure Data (.xlsx)",
-                  fileInput("cedars_file", "Upload Excel", accept = c(".xlsx")),
-                  helpText("Expected sheets: 'case exposure answer' and 'Salmonella Case'."),
-                  hr(),
-                  selectInput("adv_province", "Reference PT(s):",
-                              choices = c("Canada", fb_pt_names()),
-                              selected = "Canada", multiple = TRUE),
-                  selectInput("adv_age_group", "Restrict by Age Group (optional):",
-                              choices = c("All", fb_age_groups()), selected = "All", multiple = TRUE),
-                  selectInput("adv_month", "Restrict by Month (optional):",
-                              choices = c("All", fb_months()), selected = "All", multiple = TRUE)
-                ),
-                card(
-                  card_header("Results"),
-                  card_body(DTOutput("adv_results_table", width = "100%"))
-                )
-              )
-    ) else nav_panel("Advanced",
-              icon = icon("upload"),
-              card(
-                card_header("Advanced (CEDARS Upload)"),
-                card_body(
-                  p("This feature requires Foodbook microdata (.dta) and .do files to be present in ", code("upgrade-context/"), "."),
-                  tags$ul(
-                    tags$li(code("upgrade-context/foodbook.dta"), ", ", code("upgrade-context/foodbook2v2.dta")),
-                    tags$li(code("upgrade-context/foodbook data.do"), ", ", code("upgrade-context/foodbook variable labeling.do"))
-                  ),
-                  p("Please add these files to the server (or repository if allowed) and redeploy.")
-                )
-              )
-    ,
+    adv_panel,
     
     nav_panel("Data Info",
               icon = icon("database"),
