@@ -10,6 +10,7 @@ library(data.table)
 library(DT)
 library(ggplot2)
 library(shinyjs)
+library(shinycssloaders)
 source("src/foodbook_backend.R")
 
 # Suppress SASS contrast warnings
@@ -126,7 +127,7 @@ ui <- function(request) {
                 ),
                 card(
                   card_header("Results"),
-                  card_body(DTOutput("adv_results_table", width = "100%"))
+                  card_body(withSpinner(DTOutput("adv_results_table", width = "100%"), type = 4, color = "#0f4c81"))
                 )
               )
     )
@@ -406,7 +407,7 @@ ui <- function(request) {
                 ),
                 navset_card_tab(
                   full_screen = TRUE,
-                  nav_panel("Results", class = "results-panel", DTOutput("results_table", width = "100%")),
+                  nav_panel("Results", class = "results-panel", withSpinner(DTOutput("results_table", width = "100%"), type = 4, color = "#0f4c81")),
                   nav_panel("Visualization", class = "visual-panel", uiOutput("plot_container"))
                 )
               )
@@ -423,15 +424,15 @@ ui <- function(request) {
                 ),
                 card(
                   card_header("Population Exposure Snapshot (Reference)"),
-                  card_body(DTOutput("ref_top_exposures"))
+                  card_body(withSpinner(DTOutput("ref_top_exposures"), type = 4, color = "#0f4c81"))
                 ),
                 card(
                   card_header("Microdata Coverage by PT (after filters)"),
-                  card_body(plotOutput("ref_pt_plot", height = "350px"))
+                  card_body(withSpinner(plotOutput("ref_pt_plot", height = "350px"), type = 4, color = "#0f4c81"))
                 ),
                 card(
                   card_header("Microdata Coverage by Month (after filters)"),
-                  card_body(plotOutput("ref_month_plot", height = "350px"))
+                  card_body(withSpinner(plotOutput("ref_month_plot", height = "350px"), type = 4, color = "#0f4c81"))
                 )
               )
     ),
@@ -608,7 +609,7 @@ server <- function(input, output, session) {
   output$plot_container <- renderUI({
     req(nrow(results()) > 0)
     plot_height <- max(500, length(input$exposure_select) * 180)
-    plotOutput("exposure_plot", height = paste0(plot_height, "px"))
+    withSpinner(plotOutput("exposure_plot", height = paste0(plot_height, "px")), type = 4, color = "#0f4c81")
   })
   
   output$exposure_plot <- renderPlot({
@@ -838,80 +839,97 @@ server <- function(input, output, session) {
   # Advanced: process uploaded CEDARS Excel and compute results
   adv_cases <- reactive({
     req(input$cedars_file)
-    path <- input$cedars_file$datapath
-    # Read long-form exposure answers
-    df_exp <- tryCatch(readxl::read_excel(path, sheet = "case exposure answer"), error = function(e) NULL)
-    validate(need(!is.null(df_exp), "Could not read 'case exposure answer' sheet."))
-    # Normalise column names
-    names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
-    # Expect columns: NationalID, Exposurecode, Hasexposureoccurred
-    need_cols <- c("nationalid", "exposurecode", "hasexposureoccurred")
-    validate(need(all(need_cols %in% names(df_exp)), paste0("Missing columns in exposure sheet: ", paste(setdiff(need_cols, names(df_exp)), collapse = ", "))))
-    df_exp <- df_exp %>%
-      transmute(natid = as.character(.data$nationalid),
-                exposure = as.character(.data$exposurecode),
-                val = tolower(as.character(.data$hasexposureoccurred)))
 
-    # Keep confirmed cases by merging linelist
-    df_line <- tryCatch(readxl::read_excel(path, sheet = "Salmonella Case"), error = function(e) NULL)
-    validate(need(!is.null(df_line), "Could not read 'Salmonella Case' sheet."))
-    names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
-    # Expect columns: natid, casestatus, provinceterritory, sexcase, agecase, earliestdate
-    # Use available subset; filter to Confirmed if casestatus exists
-    if ("casestatus" %in% names(df_line)) {
-      df_line <- df_line %>% filter(tolower(as.character(.data$casestatus)) == "confirmed")
-    }
-    if (!"natid" %in% names(df_line)) {
-      # Some exports use NationalID
-      if ("nationalid" %in% names(df_line)) df_line$natid <- as.character(df_line$nationalid)
-    }
-    validate(need("natid" %in% names(df_line), "Missing 'natid' in linelist."))
-    df_line <- df_line %>% transmute(natid = as.character(.data$natid), provinceterritory = .data$provinceterritory %||% NA)
+    withProgress(message = 'Processing CEDARS upload...', value = 0, {
+      path <- input$cedars_file$datapath
 
-    df <- df_exp %>% inner_join(df_line, by = "natid")
-    df
+      # Read long-form exposure answers
+      incProgress(0.2, detail = "Reading exposure data")
+      df_exp <- tryCatch(readxl::read_excel(path, sheet = "case exposure answer"), error = function(e) NULL)
+      validate(need(!is.null(df_exp), "Could not read 'case exposure answer' sheet."))
+
+      # Normalise column names
+      incProgress(0.1, detail = "Validating columns")
+      names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
+      # Expect columns: NationalID, Exposurecode, Hasexposureoccurred
+      need_cols <- c("nationalid", "exposurecode", "hasexposureoccurred")
+      validate(need(all(need_cols %in% names(df_exp)), paste0("Missing columns in exposure sheet: ", paste(setdiff(need_cols, names(df_exp)), collapse = ", "))))
+      df_exp <- df_exp %>%
+        transmute(natid = as.character(.data$nationalid),
+                  exposure = as.character(.data$exposurecode),
+                  val = tolower(as.character(.data$hasexposureoccurred)))
+
+      # Keep confirmed cases by merging linelist
+      incProgress(0.3, detail = "Reading case linelist")
+      df_line <- tryCatch(readxl::read_excel(path, sheet = "Salmonella Case"), error = function(e) NULL)
+      validate(need(!is.null(df_line), "Could not read 'Salmonella Case' sheet."))
+      names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
+
+      # Expect columns: natid, casestatus, provinceterritory, sexcase, agecase, earliestdate
+      # Use available subset; filter to Confirmed if casestatus exists
+      incProgress(0.2, detail = "Filtering confirmed cases")
+      if ("casestatus" %in% names(df_line)) {
+        df_line <- df_line %>% filter(tolower(as.character(.data$casestatus)) == "confirmed")
+      }
+      if (!"natid" %in% names(df_line)) {
+        # Some exports use NationalID
+        if ("nationalid" %in% names(df_line)) df_line$natid <- as.character(df_line$nationalid)
+      }
+      validate(need("natid" %in% names(df_line), "Missing 'natid' in linelist."))
+      df_line <- df_line %>% transmute(natid = as.character(.data$natid), provinceterritory = .data$provinceterritory %||% NA)
+
+      incProgress(0.2, detail = "Merging data")
+      df <- df_exp %>% inner_join(df_line, by = "natid")
+      df
+    })
   })
 
   adv_results <- reactive({
     d <- adv_cases()
-    # Summarise counts by exposure code
-    exposure_counts <- d %>%
-      mutate(val = recode(val, y = "Y", n = "N", p = "P", dk = "DK")) %>%
-      filter(val %in% c("Y", "N", "P", "DK")) %>%
-      count(exposure, val) %>%
-      tidyr::pivot_wider(names_from = val, values_from = n, values_fill = 0)
 
-    codes <- exposure_counts$exposure
-    pts <- input$adv_province
-    ages <- if (is.null(input$adv_age_group) || (length(input$adv_age_group) == 1 && input$adv_age_group[1] == "All")) NULL else input$adv_age_group
-    months <- if (is.null(input$adv_month) || (length(input$adv_month) == 1 && input$adv_month[1] == "All")) NULL else as.integer(input$adv_month)
+    withProgress(message = 'Computing analysis...', value = 0, {
+      # Summarise counts by exposure code
+      incProgress(0.3, detail = "Summarizing exposure counts")
+      exposure_counts <- d %>%
+        mutate(val = recode(val, y = "Y", n = "N", p = "P", dk = "DK")) %>%
+        filter(val %in% c("Y", "N", "P", "DK")) %>%
+        count(exposure, val) %>%
+        tidyr::pivot_wider(names_from = val, values_from = n, values_fill = 0)
 
-    ref_perc <- fb_reference_percents(codes, pt_names = pts, months = months, age_groups = ages)
+      codes <- exposure_counts$exposure
+      pts <- input$adv_province
+      ages <- if (is.null(input$adv_age_group) || (length(input$adv_age_group) == 1 && input$adv_age_group[1] == "All")) NULL else input$adv_age_group
+      months <- if (is.null(input$adv_month) || (length(input$adv_month) == 1 && input$adv_month[1] == "All")) NULL else as.integer(input$adv_month)
 
-    code_to_label <- names(fb_exposure_choices())
-    names(code_to_label) <- as.vector(fb_exposure_choices())
+      incProgress(0.4, detail = "Computing reference percentages")
+      ref_perc <- fb_reference_percents(codes, pt_names = pts, months = months, age_groups = ages)
 
-    exposure_counts %>%
-      rowwise() %>%
-      mutate(
-        Exposure = code_to_label[exposure] %||% exposure,
-        province_ref = as.numeric(ref_perc[match(exposure, names(ref_perc))]),
-        y_plus_p = (`Y` %||% 0) + (`P` %||% 0),
-        total = y_plus_p + (`N` %||% 0),
-        observed_prop = if (total > 0) y_plus_p / total else NA_real_,
-        p_value = if (total > 0) pbinom(y_plus_p - 1, total, province_ref / 100, lower.tail = FALSE) else NA_real_,
-        Classification = classify_exposure(p_value, observed_prop, province_ref)
-      ) %>%
-      ungroup() %>%
-      mutate(`Reference %` = round(province_ref, 1)) %>%
-      transmute(
-        Exposure,
-        `Total Valid` = total,
-        `Observed %` = observed_prop,
-        `Reference %` = `Reference %`,
-        `P-Value` = p_value,
-        Classification
-      )
+      code_to_label <- names(fb_exposure_choices())
+      names(code_to_label) <- as.vector(fb_exposure_choices())
+
+      incProgress(0.3, detail = "Computing statistical tests")
+      exposure_counts %>%
+        rowwise() %>%
+        mutate(
+          Exposure = code_to_label[exposure] %||% exposure,
+          province_ref = as.numeric(ref_perc[match(exposure, names(ref_perc))]),
+          y_plus_p = (`Y` %||% 0) + (`P` %||% 0),
+          total = y_plus_p + (`N` %||% 0),
+          observed_prop = if (total > 0) y_plus_p / total else NA_real_,
+          p_value = if (total > 0) pbinom(y_plus_p - 1, total, province_ref / 100, lower.tail = FALSE) else NA_real_,
+          Classification = classify_exposure(p_value, observed_prop, province_ref)
+        ) %>%
+        ungroup() %>%
+        mutate(`Reference %` = round(province_ref, 1)) %>%
+        transmute(
+          Exposure,
+          `Total Valid` = total,
+          `Observed %` = observed_prop,
+          `Reference %` = `Reference %`,
+          `P-Value` = p_value,
+          Classification
+        )
+    })
   })
 
   output$adv_results_table <- renderDT({
