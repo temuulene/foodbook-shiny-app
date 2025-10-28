@@ -901,44 +901,161 @@ server <- function(input, output, session) {
 
     withProgress(message = 'Processing CEDARS upload...', value = 0, {
       path <- input$cedars_file$datapath
+      filename <- input$cedars_file$name
+
+      # Validate file type
+      validate(need(
+        grepl("\\.xlsx?$", tolower(filename)),
+        paste0("Invalid file type: '", filename, "'. Please upload an Excel file (.xlsx or .xls).")
+      ))
+
+      # Validate file size (< 50MB)
+      file_size_mb <- file.info(path)$size / (1024^2)
+      validate(need(
+        file_size_mb < 50,
+        paste0("File too large (", round(file_size_mb, 1), " MB). Maximum size is 50 MB. Please verify you uploaded the correct CEDARS export.")
+      ))
 
       # Read long-form exposure answers
       incProgress(0.2, detail = "Reading exposure data")
-      df_exp <- tryCatch(readxl::read_excel(path, sheet = "case exposure answer"), error = function(e) NULL)
-      validate(need(!is.null(df_exp), "Could not read 'case exposure answer' sheet."))
+      df_exp <- tryCatch(
+        readxl::read_excel(path, sheet = "case exposure answer"),
+        error = function(e) {
+          available_sheets <- tryCatch(readxl::excel_sheets(path), error = function(e2) NULL)
+          if (!is.null(available_sheets)) {
+            return(list(error = TRUE, sheets = available_sheets))
+          }
+          return(NULL)
+        }
+      )
 
-      # Normalise column names
+      if (is.list(df_exp) && !is.null(df_exp$error)) {
+        validate(need(FALSE, paste0(
+          "Sheet 'case exposure answer' not found. Available sheets: ",
+          paste(df_exp$sheets, collapse = ", "),
+          ". Please verify this is a CEDARS export file."
+        )))
+      }
+
+      validate(need(
+        !is.null(df_exp) && nrow(df_exp) > 0,
+        "The 'case exposure answer' sheet is empty or could not be read. Please check your CEDARS export."
+      ))
+
+      # Normalize column names and validate
       incProgress(0.1, detail = "Validating columns")
+      original_names <- names(df_exp)
       names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
-      # Expect columns: NationalID, Exposurecode, Hasexposureoccurred
+
       need_cols <- c("nationalid", "exposurecode", "hasexposureoccurred")
-      validate(need(all(need_cols %in% names(df_exp)), paste0("Missing columns in exposure sheet: ", paste(setdiff(need_cols, names(df_exp)), collapse = ", "))))
+      missing_cols <- setdiff(need_cols, names(df_exp))
+
+      validate(need(
+        length(missing_cols) == 0,
+        paste0(
+          "Missing required columns in 'case exposure answer' sheet:\n",
+          "Expected: NationalID, ExposureCode, HasExposureOccurred\n",
+          "Missing: ", paste(missing_cols, collapse = ", "), "\n",
+          "Found columns: ", paste(head(original_names, 10), collapse = ", "),
+          if (length(original_names) > 10) "..." else ""
+        )
+      ))
+
       df_exp <- df_exp %>%
         transmute(natid = as.character(.data$nationalid),
                   exposure = as.character(.data$exposurecode),
                   val = tolower(as.character(.data$hasexposureoccurred)))
 
+      # Validate exposure data quality
+      validate(need(
+        nrow(df_exp) > 0,
+        "No exposure data found after processing. Please check your CEDARS export contains case exposure records."
+      ))
+
       # Keep confirmed cases by merging linelist
       incProgress(0.3, detail = "Reading case linelist")
-      df_line <- tryCatch(readxl::read_excel(path, sheet = "Salmonella Case"), error = function(e) NULL)
-      validate(need(!is.null(df_line), "Could not read 'Salmonella Case' sheet."))
+      df_line <- tryCatch(
+        readxl::read_excel(path, sheet = "Salmonella Case"),
+        error = function(e) {
+          available_sheets <- tryCatch(readxl::excel_sheets(path), error = function(e2) NULL)
+          if (!is.null(available_sheets)) {
+            return(list(error = TRUE, sheets = available_sheets))
+          }
+          return(NULL)
+        }
+      )
+
+      if (is.list(df_line) && !is.null(df_line$error)) {
+        validate(need(FALSE, paste0(
+          "Sheet 'Salmonella Case' not found. Available sheets: ",
+          paste(df_line$sheets, collapse = ", "),
+          ". Please verify this is a CEDARS export file."
+        )))
+      }
+
+      validate(need(
+        !is.null(df_line) && nrow(df_line) > 0,
+        "The 'Salmonella Case' sheet is empty or could not be read. Please check your CEDARS export."
+      ))
+
+      original_line_names <- names(df_line)
       names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
 
-      # Expect columns: natid, casestatus, provinceterritory, sexcase, agecase, earliestdate
-      # Use available subset; filter to Confirmed if casestatus exists
+      # Filter to confirmed cases
       incProgress(0.2, detail = "Filtering confirmed cases")
       if ("casestatus" %in% names(df_line)) {
+        n_before <- nrow(df_line)
         df_line <- df_line %>% filter(tolower(as.character(.data$casestatus)) == "confirmed")
-      }
-      if (!"natid" %in% names(df_line)) {
-        # Some exports use NationalID
-        if ("nationalid" %in% names(df_line)) df_line$natid <- as.character(df_line$nationalid)
-      }
-      validate(need("natid" %in% names(df_line), "Missing 'natid' in linelist."))
-      df_line <- df_line %>% transmute(natid = as.character(.data$natid), provinceterritory = .data$provinceterritory %||% NA)
+        n_after <- nrow(df_line)
 
+        validate(need(
+          n_after > 0,
+          paste0(
+            "No confirmed cases found in linelist. ",
+            "Found ", n_before, " total cases but 0 with CaseStatus='Confirmed'. ",
+            "Please verify case classification in CEDARS."
+          )
+        ))
+      }
+
+      # Handle NationalID variations
+      if (!"natid" %in% names(df_line)) {
+        if ("nationalid" %in% names(df_line)) {
+          df_line$natid <- as.character(df_line$nationalid)
+        } else {
+          validate(need(FALSE, paste0(
+            "Missing 'NationalID' or 'natid' column in linelist sheet.\n",
+            "Found columns: ", paste(head(original_line_names, 10), collapse = ", "),
+            if (length(original_line_names) > 10) "..." else ""
+          )))
+        }
+      }
+
+      df_line <- df_line %>%
+        transmute(natid = as.character(.data$natid),
+                  provinceterritory = .data$provinceterritory %||% NA)
+
+      # Merge and validate
       incProgress(0.2, detail = "Merging data")
       df <- df_exp %>% inner_join(df_line, by = "natid")
+
+      validate(need(
+        nrow(df) > 0,
+        paste0(
+          "No matching cases found between exposure data and linelist. ",
+          "Exposure records: ", nrow(df_exp), ", ",
+          "Linelist records: ", nrow(df_line), ". ",
+          "Please verify NationalID values match between sheets."
+        )
+      ))
+
+      # Success message
+      showNotification(
+        paste0("✓ Successfully processed ", length(unique(df$natid)), " cases with ", length(unique(df$exposure)), " exposure types"),
+        type = "message",
+        duration = 5
+      )
+
       df
     })
   })
