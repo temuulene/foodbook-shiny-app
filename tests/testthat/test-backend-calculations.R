@@ -9,9 +9,10 @@ test_that("fb_weighted_percent calculates correct weighted percentages", {
 
   result <- fb_weighted_percent("exposure_a", df)
 
-  # 3 yes responses with weights 1+2+1=4, total valid responses with weight 1+2+1+1+1=6
-  # percentage = (4/6)*100 = 66.67%
-  expect_equal(round(result, 2), 60.00)  # (1+2+1)/(1+2+1+1+1) * 100
+  # Yes responses (value=1): indices 1,2,5 with weights 1,2,1 = sum 4
+  # All valid responses (1 or 2): indices 1-5 with weights 1,2,1,1,1 = sum 6
+  # Percentage = (4/6)*100 = 66.67%
+  expect_equal(round(result, 2), 66.67)
 })
 
 test_that("fb_weighted_percent handles edge cases", {
@@ -66,11 +67,14 @@ test_that("fb_filter_micro filters by PT correctly", {
     weight = rep(1, 6)
   )
 
-  # Temporarily set fb_env for testing
+  # Temporarily set fb_env for testing and mark as initialized
   old_micro <- fb_env$micro
   old_pt_map <- fb_env$pt_map
+  old_init <- fb_env$initialised
+
   fb_env$micro <- mock_micro
   fb_env$pt_map <- fb_pt_map()
+  fb_env$initialised <- TRUE  # Prevent fb_init() from trying to load files
 
   # Filter for BC only
   result_bc <- fb_filter_micro(pt_names = "British Columbia")
@@ -93,6 +97,7 @@ test_that("fb_filter_micro filters by PT correctly", {
   # Restore original environment
   fb_env$micro <- old_micro
   fb_env$pt_map <- old_pt_map
+  fb_env$initialised <- old_init
 })
 
 test_that("fb_filter_micro filters by age group correctly", {
@@ -104,7 +109,9 @@ test_that("fb_filter_micro filters by age group correctly", {
   )
 
   old_micro <- fb_env$micro
+  old_init <- fb_env$initialised
   fb_env$micro <- mock_micro
+  fb_env$initialised <- TRUE
 
   # Filter for children only
   result_children <- fb_filter_micro(age_groups = "0-9")
@@ -117,6 +124,7 @@ test_that("fb_filter_micro filters by age group correctly", {
   expect_true(all(result_multi$AgeBand %in% c("20-64", "65+", NA)))
 
   fb_env$micro <- old_micro
+  fb_env$initialised <- old_init
 })
 
 test_that("fb_filter_micro filters by month correctly", {
@@ -128,7 +136,9 @@ test_that("fb_filter_micro filters by month correctly", {
   )
 
   old_micro <- fb_env$micro
+  old_init <- fb_env$initialised
   fb_env$micro <- mock_micro
+  fb_env$initialised <- TRUE
 
   # Filter for summer months
   result_summer <- fb_filter_micro(months = c(6, 7, 8))
@@ -140,6 +150,7 @@ test_that("fb_filter_micro filters by month correctly", {
   expect_equal(nrow(result_winter), 3)
 
   fb_env$micro <- old_micro
+  fb_env$initialised <- old_init
 })
 
 test_that("fb_reference_percents_csv reads and processes CSV correctly", {
@@ -190,7 +201,9 @@ test_that("fb_reference_percents_csv reads and processes CSV correctly", {
 test_that("fb_age_groups and fb_months return expected values", {
   # When microdata available
   old_micro <- fb_env$micro
+  old_init <- fb_env$initialised
   fb_env$micro <- data.frame(Month = c(1, 6, 12), exposure_a = c(1, 2, 1), weight = c(1, 1, 1))
+  fb_env$initialised <- TRUE
 
   age_groups <- fb_age_groups()
   expect_equal(age_groups, c("0-9", "10-19", "20-64", "65+"))
@@ -208,4 +221,5 @@ test_that("fb_age_groups and fb_months return expected values", {
   expect_equal(length(months_empty), 0)
 
   fb_env$micro <- old_micro
+  fb_env$initialised <- old_init
 })

@@ -25,8 +25,8 @@ test_that("fb_parse_renames correctly parses Stata rename directives", {
 })
 
 test_that("fb_parse_renames handles empty or invalid files gracefully", {
-  # Non-existent file
-  result1 <- fb_parse_renames("nonexistent.do")
+  # Non-existent file (suppress expected warning about missing file)
+  result1 <- suppressWarnings(fb_parse_renames("nonexistent.do"))
   expect_s3_class(result1, "tbl_df")
   expect_equal(nrow(result1), 0)
 
