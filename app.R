@@ -82,10 +82,10 @@ exposure_module_ui <- function(id, exposure_name, ref_value) {
     class = "exposure-input-group",
     h4(exposure_name, class = "exposure-header"),
     fluidRow(
-      column(2, numericInput(ns("yes"), "Yes", 0, min = 0)),
-      column(2, numericInput(ns("prob"), "Probably", 0, min = 0)),
-      column(2, numericInput(ns("no"), "No", 0, min = 0)),
-      column(2, numericInput(ns("dk"), "DK", 0, min = 0)),
+      column(2, numericInput(ns("yes"), "Yes", 0, min = 0, max = 10000, step = 1)),
+      column(2, numericInput(ns("prob"), "Probably", 0, min = 0, max = 10000, step = 1)),
+      column(2, numericInput(ns("no"), "No", 0, min = 0, max = 10000, step = 1)),
+      column(2, numericInput(ns("dk"), "DK", 0, min = 0, max = 10000, step = 1)),
       column(4,
              p("Reference Value:", class = "ref-value"),
              span(style = "font-size: 1.2em;", paste0(ref_value, "%")))
@@ -96,11 +96,12 @@ exposure_module_ui <- function(id, exposure_name, ref_value) {
 exposure_module_server <- function(id) {
   moduleServer(id, function(input, output, session) {
     reactive({
+      # Ensure non-negative integers
       tibble(
-        yes = input$yes %||% 0,
-        prob = input$prob %||% 0,
-        no = input$no %||% 0,
-        dk = input$dk %||% 0
+        yes = pmax(0, floor(input$yes %||% 0)),
+        prob = pmax(0, floor(input$prob %||% 0)),
+        no = pmax(0, floor(input$no %||% 0)),
+        dk = pmax(0, floor(input$dk %||% 0))
       )
     })
   })
@@ -114,16 +115,28 @@ ui <- function(request) {
               layout_sidebar(
                 sidebar = sidebar(
                   title = "Upload CEDARS Exposure Data (.xlsx)",
-                  fileInput("cedars_file", "Upload Excel", accept = c(".xlsx")),
+                  tooltip(
+                    fileInput("cedars_file", "Upload Excel", accept = c(".xlsx")),
+                    "Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information."
+                  ),
                   helpText("Expected sheets: 'case exposure answer' and 'Salmonella Case'."),
                   hr(),
-                  selectInput("adv_province", "Reference PT(s):",
-                              choices = c("Canada", fb_pt_names()),
-                              selected = "Canada", multiple = TRUE),
-                  selectInput("adv_age_group", "Restrict by Age Group (optional):",
-                              choices = c("All", fb_age_groups()), selected = "All", multiple = TRUE),
-                  selectInput("adv_month", "Restrict by Month (optional):",
-                              choices = c("All", fb_months()), selected = "All", multiple = TRUE)
+                  tooltip(
+                    selectInput("adv_province", "Reference PT(s):",
+                                choices = c("Canada", fb_pt_names()),
+                                selected = "Canada", multiple = TRUE),
+                    "PT = Province/Territory. Select which geographic areas to include in the reference population."
+                  ),
+                  tooltip(
+                    selectInput("adv_age_group", "Restrict by Age Group (optional):",
+                                choices = c("All", fb_age_groups()), selected = "All", multiple = TRUE),
+                    "Filter the reference population to specific age groups for age-stratified analysis."
+                  ),
+                  tooltip(
+                    selectInput("adv_month", "Restrict by Month (optional):",
+                                choices = c("All", fb_months()), selected = "All", multiple = TRUE),
+                    "Filter the reference population by month(s) to account for seasonal variation in food consumption."
+                  )
                 ),
                 card(
                   card_header("Results"),
@@ -374,18 +387,27 @@ ui <- function(request) {
               layout_sidebar(
                 sidebar = sidebar(
                   title = "Analysis Parameters",
-                  selectInput("province", "Reference PT(s):",
-                              choices = c("Canada", fb_pt_names()),
-                              selected = "Canada",
-                              multiple = TRUE),
-                  selectInput("age_group", "Restrict by Age Group (optional):",
-                              choices = c("All", fb_age_groups()),
-                              selected = "All",
-                              multiple = TRUE),
-                  selectInput("month", "Restrict by Month (optional):",
-                              choices = c("All", fb_months()),
-                              selected = "All",
-                              multiple = TRUE),
+                  tooltip(
+                    selectInput("province", "Reference PT(s):",
+                                choices = c("Canada", fb_pt_names()),
+                                selected = "Canada",
+                                multiple = TRUE),
+                    "PT = Province/Territory. Select which geographic areas to include in the reference population."
+                  ),
+                  tooltip(
+                    selectInput("age_group", "Restrict by Age Group (optional):",
+                                choices = c("All", fb_age_groups()),
+                                selected = "All",
+                                multiple = TRUE),
+                    "Filter the reference population to specific age groups for age-stratified analysis."
+                  ),
+                  tooltip(
+                    selectInput("month", "Restrict by Month (optional):",
+                                choices = c("All", fb_months()),
+                                selected = "All",
+                                multiple = TRUE),
+                    "Filter the reference population by month(s) to account for seasonal variation in food consumption."
+                  ),
                   selectInput("food_category", "Filter Category:",
                               choices = c("All", unique(foodbook_data$Foodbook_Version)),
                               selected = "All"),
@@ -408,7 +430,10 @@ ui <- function(request) {
                 navset_card_tab(
                   full_screen = TRUE,
                   nav_panel("Results", class = "results-panel", withSpinner(DTOutput("results_table", width = "100%"), type = 4, color = "#0f4c81")),
-                  nav_panel("Visualization", class = "visual-panel", uiOutput("plot_container"))
+                  nav_panel("Visualization", class = "visual-panel",
+                            div(style = "margin-bottom: 1rem;",
+                                downloadButton("download_plot", "Download Plot", class = "btn-primary")),
+                            uiOutput("plot_container"))
                 )
               )
     ),
@@ -447,17 +472,34 @@ ui <- function(request) {
                   p("Compare your case exposures to typical population exposures from Foodbook to prioritise hypotheses during outbreak investigations."),
                   h4("How references are computed"),
                   tags$ul(
-                    tags$li("References use Foodbook microdata with survey weights (as in OMD’s Stata workflow)."),
-                    tags$li("If multiple PTs are selected, a single combined reference is computed across them."),
+                    tags$li("References use Foodbook microdata with ",
+                            tooltip(span("survey weights", style = "text-decoration: underline; text-decoration-style: dotted;"),
+                                   "Survey weights account for sampling design and ensure population-representative estimates from the Foodbook study"),
+                            " (as in OMD's Stata workflow)."),
+                    tags$li("If multiple PTs are selected, a single ",
+                            tooltip(span("combined reference", style = "text-decoration: underline; text-decoration-style: dotted;"),
+                                   "Weighted average across selected provinces/territories, maintaining population representativeness"),
+                            " is computed across them."),
                     tags$li("You can optionally limit the reference by Age Group (0-9, 10-19, 20-64, 65+) and Month."),
                     tags$li("Defaults like \"Canada\" and \"All\" auto-deselect once you add other selections.")
                   ),
                   h4("Analysis outputs"),
                   tags$ul(
-                    tags$li(strong("Observed %"), ": (Yes + Probably) / (Yes + Probably + No) in your cases."),
-                    tags$li(strong("Reference %"), ": Weighted population exposure % from Foodbook for your selected filters (rounded to 1 decimal)."),
-                    tags$li(strong("P-Value"), ": Binomial test of observed vs reference % (upper tail)."),
-                    tags$li(strong("Classification"), ": Alert (≤0.05), Borderline (≤0.10), Not Significant, or Insufficient Data.")
+                    tags$li(tooltip(strong("Observed %"),
+                                   "Proportion of cases exposed: (Yes + Probably) / (Yes + Probably + No)"),
+                            ": (Yes + Probably) / (Yes + Probably + No) in your cases."),
+                    tags$li(tooltip(strong("Reference %"),
+                                   "Weighted population exposure percentage from Foodbook survey data, filtered by your selected parameters"),
+                            ": Weighted population exposure % from Foodbook for your selected filters (rounded to 1 decimal)."),
+                    tags$li(tooltip(strong("P-Value"),
+                                   "Statistical significance: probability of observing this exposure level if the outbreak cases were similar to the general population. Lower values indicate stronger association."),
+                            ": ",
+                            tooltip(span("Binomial test", style = "text-decoration: underline; text-decoration-style: dotted;"),
+                                   "Statistical test comparing case exposure proportion to population baseline (upper tail test)"),
+                            " of observed vs reference % (upper tail)."),
+                    tags$li(tooltip(strong("Classification"),
+                                   "Alert (p≤0.05): Strong evidence of association. Borderline (p≤0.10): Moderate evidence. Not Significant (p>0.10): Weak evidence. Insufficient Data: Missing data or zero cases."),
+                            ": Alert (≤0.05), Borderline (≤0.10), Not Significant, or Insufficient Data.")
                   ),
                   h4("Advanced (CEDARS upload)"),
                   tags$ul(
@@ -611,8 +653,9 @@ server <- function(input, output, session) {
     plot_height <- max(500, length(input$exposure_select) * 180)
     withSpinner(plotOutput("exposure_plot", height = paste0(plot_height, "px")), type = 4, color = "#0f4c81")
   })
-  
-  output$exposure_plot <- renderPlot({
+
+  # Create reactive plot for reuse in render and download
+  exposure_plot_reactive <- reactive({
     req(nrow(results()) > 0)
     plot_data <- results() %>%
       mutate(`Observed %` = `Observed %` * 100,
@@ -620,7 +663,7 @@ server <- function(input, output, session) {
                                            paste0("+", round(`Observed %` - `Reference %`, 1), "%"),
                                            paste0(round(`Observed %` - `Reference %`, 1), "%")))
     ref_scope <- paste(unique(plot_data$`Reference Scope`), collapse = ", ")
-    
+
     # Palette tuned for accessibility and contrast
     alert_palette <- c(
       "Alert" = "#d62839",
@@ -628,7 +671,7 @@ server <- function(input, output, session) {
       "Not Significant" = "#4b5563",
       "Insufficient Data" = "#94a3b8"
     )
-    
+
     ggplot(plot_data, aes(y = reorder(Exposure, `Observed %`))) +
       geom_segment(aes(x = `Reference %`, xend = `Observed %`, yend = Exposure, color = Classification),
                    linewidth = 2, alpha = 0.8) +
@@ -665,6 +708,22 @@ server <- function(input, output, session) {
         panel.background = element_rect(fill = "#ffffff", color = NA)
       )
   })
+
+  output$exposure_plot <- renderPlot({
+    exposure_plot_reactive()
+  })
+
+  # Download handler for plot
+  output$download_plot <- downloadHandler(
+    filename = function() {
+      paste0("foodbook_analysis_", format(Sys.Date(), "%Y%m%d"), ".png")
+    },
+    content = function(file) {
+      plot_height <- max(8, length(input$exposure_select) * 1.2)
+      ggsave(file, plot = exposure_plot_reactive(), device = "png",
+             width = 14, height = plot_height, units = "in", dpi = 300)
+    }
+  )
   
   output$data_coverage_plot <- renderPlot({
     foodbook_data %>%
