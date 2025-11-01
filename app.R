@@ -55,7 +55,9 @@ backend_ok <- tryCatch(fb_is_available(), error = function(e) FALSE)
 
 # --- 3. Helper Functions ---
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
-  ref_prop <- ifelse(is.na(ref_prop), 60, ref_prop)
+  # Check if reference is missing/unavailable
+  if (is.na(ref_prop)) return("No Reference Value")
+
   ref_prop_decimal <- ref_prop / 100
   if (is.na(p_value)) return("Insufficient Data")
   if (observed_prop > ref_prop_decimal) {
@@ -75,20 +77,55 @@ make_safe_id <- function(Exposure, Province.Territory) {
   )
 }
 
+# Helper function to find sheet with required columns
+find_sheet_by_columns <- function(excel_path, required_cols) {
+  all_sheets <- tryCatch(readxl::excel_sheets(excel_path), error = function(e) character(0))
+
+  for (sheet_name in all_sheets) {
+    sheet_data <- tryCatch(
+      readxl::read_excel(excel_path, sheet = sheet_name, n_max = 1),
+      error = function(e) NULL
+    )
+
+    if (!is.null(sheet_data)) {
+      # Normalize column names
+      normalized_cols <- gsub("[^a-z0-9]+", "", tolower(names(sheet_data)))
+
+      # Check if all required columns are present
+      if (all(required_cols %in% normalized_cols)) {
+        return(list(sheet = sheet_name, found = TRUE))
+      }
+    }
+  }
+
+  # No matching sheet found
+  return(list(sheet = NULL, found = FALSE, available_sheets = all_sheets))
+}
+
 # --- 4. Shiny Module Definition ---
-exposure_module_ui <- function(id, exposure_name, ref_value) {
+exposure_module_ui <- function(id, exposure_name, ref_value, is_custom = FALSE) {
   ns <- NS(id)
   div(
     class = "exposure-input-group",
-    h4(exposure_name, class = "exposure-header"),
+    h4(paste0(exposure_name, if (is_custom) " (custom)" else ""), class = "exposure-header"),
     fluidRow(
       column(2, numericInput(ns("yes"), "Yes", 0, min = 0, max = 10000, step = 1)),
       column(2, numericInput(ns("prob"), "Probably", 0, min = 0, max = 10000, step = 1)),
       column(2, numericInput(ns("no"), "No", 0, min = 0, max = 10000, step = 1)),
       column(2, numericInput(ns("dk"), "DK", 0, min = 0, max = 10000, step = 1)),
       column(4,
-             p("Reference Value:", class = "ref-value"),
-             span(style = "font-size: 1.2em;", paste0(ref_value, "%")))
+             if (is_custom) {
+               # Show editable custom reference input for custom exposures
+               numericInput(ns("custom_ref"), "Custom Reference % (optional)",
+                           value = 60, min = 0, max = 100, step = 0.1)
+             } else {
+               # Show calculated reference value (read-only)
+               div(
+                 p("Reference Value:", class = "ref-value"),
+                 span(style = "font-size: 1.2em;", paste0(ref_value, "%"))
+               )
+             }
+      )
     )
   )
 }
@@ -101,7 +138,8 @@ exposure_module_server <- function(id) {
         yes = pmax(0, floor(input$yes %||% 0)),
         prob = pmax(0, floor(input$prob %||% 0)),
         no = pmax(0, floor(input$no %||% 0)),
-        dk = pmax(0, floor(input$dk %||% 0))
+        dk = pmax(0, floor(input$dk %||% 0)),
+        custom_ref = if (!is.null(input$custom_ref)) input$custom_ref else NA_real_
       )
     })
   })
@@ -119,7 +157,7 @@ ui <- function(request) {
                     fileInput("cedars_file", "Upload Excel", accept = c(".xlsx")),
                     "Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information."
                   ),
-                  helpText("Expected sheets: 'case exposure answer' and 'Salmonella Case'."),
+                  helpText("The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist)."),
                   hr(),
                   tooltip(
                     selectInput("adv_province", "Reference PT(s):",
@@ -412,6 +450,21 @@ ui <- function(request) {
                               choices = c("All", unique(foodbook_data$Foodbook_Version)),
                               selected = "All"),
                   hr(),
+                  accordion(
+                    accordion_panel(
+                      title = "Upload Exposure Counts (Optional)",
+                      icon = icon("upload"),
+                      fileInput("simple_csv_upload", "Upload CSV File",
+                               accept = c(".csv", "text/csv")),
+                      helpText(HTML("Upload a CSV file with columns: <b>Exposure, Yes, Probably, No, DK</b>.<br>This will automatically populate the exposure data below.<br><br>Example CSV format:<br>
+                      <code>
+                      Exposure,Yes,Probably,No,DK<br>
+                      Cherry tomatoes,25,5,10,2<br>
+                      Romaine lettuce,15,3,20,4
+                      </code>"))
+                    )
+                  ),
+                  hr(),
                   actionButton("reset", "Reset Inputs", class = "btn-warning", width = "100%"),
                   bookmarkButton(label = "Bookmark Analysis", class = "btn-secondary", width = "100%")
                 ),
@@ -503,7 +556,7 @@ ui <- function(request) {
                   ),
                   h4("Advanced (CEDARS upload)"),
                   tags$ul(
-                    tags$li("Upload the CEDARS Excel export. Expected sheets: ‘case exposure answer’ and ‘Salmonella Case’."),
+                    tags$li("Upload the CEDARS Excel export. The app will auto-detect sheets based on required columns (NationalID, ExposureCode, HasExposureOccurred)."),
                     tags$li("Columns are auto-detected even if the wording changes (we normalise names)."),
                     tags$li("We analyse confirmed cases if available in the linelist sheet.")
                   ),
@@ -532,7 +585,17 @@ server <- function(input, output, session) {
     font = font_spec(font_google("Inter"), scale = 1.25)
   )
 
-  
+  # Custom bookmark handlers to ensure module inputs are saved/restored
+  onBookmark(function(state) {
+    # Module inputs are automatically bookmarked by Shiny if modules use NS()
+    # This handler is here for future customization if needed
+  })
+
+  onRestore(function(state) {
+    # Module inputs are automatically restored by Shiny after modules are recreated
+    # This handler is here for future customization if needed
+  })
+
   exposure_module_reactives <- reactiveVal(list())
   
   combinations_reactive <- reactive({
@@ -548,26 +611,95 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "exposure_select",
                          choices = as.list(ch), server = TRUE)
   })
-  
+
+  # Process simple CSV upload
+  simple_csv_data <- reactiveVal(NULL)
+
+  observeEvent(input$simple_csv_upload, {
+    req(input$simple_csv_upload)
+
+    tryCatch({
+      # Read CSV file
+      df <- read.csv(input$simple_csv_upload$datapath, stringsAsFactors = FALSE)
+
+      # Normalize column names
+      names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
+
+      # Validate required columns
+      required_cols <- c("exposure", "yes", "probably", "no", "dk")
+      missing_cols <- setdiff(required_cols, names(df))
+
+      if (length(missing_cols) > 0) {
+        showNotification(
+          paste0("Missing required columns: ", paste(missing_cols, collapse = ", "), ". Expected: Exposure, Yes, Probably, No, DK"),
+          type = "error",
+          duration = 10
+        )
+        return(NULL)
+      }
+
+      # Store the data
+      simple_csv_data(df)
+
+      # Update exposure selection
+      updateSelectizeInput(session, "exposure_select", selected = df$exposure)
+
+      # Update module inputs
+      for (i in 1:nrow(df)) {
+        module_id <- paste0("exp_", gsub("[^a-zA-Z0-9]", "", df$exposure[i]))
+        updateNumericInput(session, paste0(module_id, "-yes"), value = as.numeric(df$yes[i]) %||% 0)
+        updateNumericInput(session, paste0(module_id, "-prob"), value = as.numeric(df$probably[i]) %||% 0)
+        updateNumericInput(session, paste0(module_id, "-no"), value = as.numeric(df$no[i]) %||% 0)
+        updateNumericInput(session, paste0(module_id, "-dk"), value = as.numeric(df$dk[i]) %||% 0)
+      }
+
+      showNotification(
+        paste0("Successfully uploaded ", nrow(df), " exposures from CSV"),
+        type = "message",
+        duration = 5
+      )
+    }, error = function(e) {
+      showNotification(
+        paste0("Error reading CSV file: ", e$message),
+        type = "error",
+        duration = 10
+      )
+    })
+  })
+
   output$exposure_modules_ui <- renderUI({
     combinations <- combinations_reactive()
     req(nrow(combinations) > 0)
     
     module_outputs <- purrr::pmap(combinations, function(ExposureCode, module_id) {
+      # Determine if this is a custom exposure (not in Foodbook database)
+      available_exposures <- fb_exposure_choices()
+      is_custom <- !(ExposureCode %in% available_exposures)
+
       # Determine label for display
-      label <- names(fb_exposure_choices())[match(ExposureCode, fb_exposure_choices())]
-      # Resolve filters
-      pts <- input$province
-      ages <- if (is.null(input$age_group) || (length(input$age_group) == 1 && input$age_group[1] == "All")) NULL else input$age_group
-      months <- if (is.null(input$month) || (length(input$month) == 1 && input$month[1] == "All")) NULL else as.integer(input$month)
-      ref_value <- fb_reference_percents(ExposureCode, pt_names = pts, months = months, age_groups = ages)[[1]]
-      ref_value <- ifelse(is.na(ref_value), 60, round(ref_value, 1))
+      label <- if (is_custom) {
+        ExposureCode  # Use the code as-is for custom exposures
+      } else {
+        names(available_exposures)[match(ExposureCode, available_exposures)]
+      }
+
+      # Calculate reference value (only for non-custom exposures)
+      if (!is_custom) {
+        pts <- input$province
+        ages <- if (is.null(input$age_group) || (length(input$age_group) == 1 && input$age_group[1] == "All")) NULL else input$age_group
+        months <- if (is.null(input$month) || (length(input$month) == 1 && input$month[1] == "All")) NULL else as.integer(input$month)
+        ref_value <- fb_reference_percents(ExposureCode, pt_names = pts, months = months, age_groups = ages)[[1]]
+        ref_value <- ifelse(is.na(ref_value), "N/A", round(ref_value, 1))
+      } else {
+        ref_value <- 60  # Default for custom, user can override
+      }
 
       list(
         ui = exposure_module_ui(
           id = module_id,
           exposure_name = label %||% ExposureCode,
-          ref_value = ref_value
+          ref_value = ref_value,
+          is_custom = is_custom
         ),
         server = exposure_module_server(module_id)
       )
@@ -600,10 +732,11 @@ server <- function(input, output, session) {
       left_join(combinations, by = "module_id") %>%
       mutate(
         Exposure = code_to_label[ExposureCode] %||% ExposureCode,
-        province_ref = as.numeric(ref_perc[match(ExposureCode, names(ref_perc))])
+        province_ref = as.numeric(ref_perc[match(ExposureCode, names(ref_perc))]),
+        # Use custom reference if provided, otherwise use calculated reference
+        province_ref = if_else(!is.na(custom_ref), custom_ref, province_ref)
       ) %>%
       mutate(
-        province_ref = coalesce(province_ref, 60),
         y_plus_p = yes + prob,
         total = y_plus_p + no,
         observed_prop = if_else(total > 0, y_plus_p / total, NA_real_)
@@ -619,6 +752,10 @@ server <- function(input, output, session) {
         `Reference Scope`,
         Exposure,
         `Total Valid` = total,
+        Yes = yes,
+        Probably = prob,
+        No = no,
+        DK = dk,
         `Observed %` = observed_prop,
         `Reference %` = province_ref,
         `P-Value` = p_value_province,
@@ -630,19 +767,39 @@ server <- function(input, output, session) {
     req(nrow(results()) > 0)
     res <- results() %>%
       mutate(`Observed %` = round(`Observed %` * 100, 1), `Reference %` = round(`Reference %`, 1), `P-Value` = round(`P-Value`, 4))
+
+    # Build descriptive filename for exports
+    pts <- input$province %||% "Canada"
+    pt_str <- if (length(pts) == 1) gsub(" ", "", pts[1]) else paste0(length(pts), "PTs")
+    ages <- input$age_group %||% "All"
+    age_str <- if ("All" %in% ages || is.null(ages)) "allages" else paste0(length(ages), "agegroups")
+    months <- input$month %||% "All"
+    month_str <- if ("All" %in% months || is.null(months)) "allmonths" else paste0(length(months), "months")
+    date_str <- format(Sys.Date(), "%Y-%m-%d")
+    export_filename <- paste0("foodbook_results_", pt_str, "_", age_str, "_", month_str, "_", date_str)
+
     datatable(res, extensions = "Buttons", rownames = FALSE,
               class = "stripe hover row-border order-column",
-              options = list(pageLength = 15, dom = "Bfrtip", buttons = c("copy", "csv", "excel"),
-                             scrollX = TRUE, autoWidth = FALSE)) %>%
+              options = list(
+                pageLength = 15,
+                dom = "Bfrtip",
+                buttons = list(
+                  "copy",
+                  list(extend = "csv", filename = export_filename),
+                  list(extend = "excel", filename = export_filename)
+                ),
+                scrollX = TRUE,
+                autoWidth = FALSE
+              )) %>%
       formatStyle(
         columns = "Classification",
         backgroundColor = styleEqual(
-          c("Alert", "Borderline", "Not Significant", "Insufficient Data"),
-          c("#fde4e6", "#fff4d6", "#edf2ff", "#f1f5f9")
+          c("Alert", "Borderline", "Not Significant", "Insufficient Data", "No Reference Value"),
+          c("#fde4e6", "#fff4d6", "#edf2ff", "#f1f5f9", "#e2e8f0")
         ),
         color = styleEqual(
-          c("Alert", "Borderline", "Not Significant", "Insufficient Data"),
-          c("#b82c3a", "#b35c00", "#1f2933", "#475569")
+          c("Alert", "Borderline", "Not Significant", "Insufficient Data", "No Reference Value"),
+          c("#b82c3a", "#b35c00", "#1f2933", "#475569", "#64748b")
         ),
         fontWeight = "600"
       )
@@ -716,7 +873,38 @@ server <- function(input, output, session) {
   # Download handler for plot
   output$download_plot <- downloadHandler(
     filename = function() {
-      paste0("foodbook_analysis_", format(Sys.Date(), "%Y%m%d"), ".png")
+      # Build descriptive filename with analysis parameters
+      pts <- input$province %||% "Canada"
+      pt_str <- if (length(pts) == 1) {
+        gsub(" ", "", pts[1])
+      } else if (length(pts) <= 3) {
+        paste(gsub(" ", "", pts), collapse = "-")
+      } else {
+        paste0(length(pts), "PTs")
+      }
+
+      ages <- input$age_group %||% "All"
+      age_str <- if ("All" %in% ages || is.null(ages)) {
+        "allages"
+      } else if (length(ages) == 1) {
+        paste0("age", gsub("-", "to", ages[1]))
+      } else {
+        paste0(length(ages), "agegroups")
+      }
+
+      months <- input$month %||% "All"
+      month_str <- if ("All" %in% months || is.null(months)) {
+        "allmonths"
+      } else if (length(months) <= 3) {
+        month.abb[as.integer(months)] %>% paste(collapse = "-")
+      } else {
+        paste0(length(months), "months")
+      }
+
+      n_exp <- length(input$exposure_select)
+      date_str <- format(Sys.Date(), "%Y-%m-%d")
+
+      paste0("foodbook_", pt_str, "_", age_str, "_", month_str, "_", n_exp, "exposures_", date_str, ".png")
     },
     content = function(file) {
       plot_height <- max(8, length(input$exposure_select) * 1.2)
@@ -916,30 +1104,30 @@ server <- function(input, output, session) {
         paste0("File too large (", round(file_size_mb, 1), " MB). Maximum size is 50 MB. Please verify you uploaded the correct CEDARS export.")
       ))
 
-      # Read long-form exposure answers
-      incProgress(0.2, detail = "Reading exposure data")
-      df_exp <- tryCatch(
-        readxl::read_excel(path, sheet = "case exposure answer"),
-        error = function(e) {
-          available_sheets <- tryCatch(readxl::excel_sheets(path), error = function(e2) NULL)
-          if (!is.null(available_sheets)) {
-            return(list(error = TRUE, sheets = available_sheets))
-          }
-          return(NULL)
-        }
-      )
+      # Auto-detect exposure data sheet
+      incProgress(0.2, detail = "Finding exposure data sheet")
+      exp_sheet_result <- find_sheet_by_columns(path, c("nationalid", "exposurecode", "hasexposureoccurred"))
 
-      if (is.list(df_exp) && !is.null(df_exp$error)) {
-        validate(need(FALSE, paste0(
-          "Sheet 'case exposure answer' not found. Available sheets: ",
-          paste(df_exp$sheets, collapse = ", "),
-          ". Please verify this is a CEDARS export file."
-        )))
-      }
+      validate(need(
+        exp_sheet_result$found,
+        paste0(
+          "Could not find sheet with required exposure columns.\n",
+          "Required columns: NationalID, ExposureCode, HasExposureOccurred\n",
+          "Available sheets: ", paste(exp_sheet_result$available_sheets, collapse = ", "), "\n",
+          "Please verify this is a CEDARS export file."
+        )
+      ))
+
+      # Read exposure data from detected sheet
+      incProgress(0.1, detail = paste0("Reading: ", exp_sheet_result$sheet))
+      df_exp <- tryCatch(
+        readxl::read_excel(path, sheet = exp_sheet_result$sheet),
+        error = function(e) NULL
+      )
 
       validate(need(
         !is.null(df_exp) && nrow(df_exp) > 0,
-        "The 'case exposure answer' sheet is empty or could not be read. Please check your CEDARS export."
+        paste0("The sheet '", exp_sheet_result$sheet, "' is empty or could not be read. Please check your CEDARS export.")
       ))
 
       # Normalize column names and validate
@@ -972,30 +1160,30 @@ server <- function(input, output, session) {
         "No exposure data found after processing. Please check your CEDARS export contains case exposure records."
       ))
 
-      # Keep confirmed cases by merging linelist
-      incProgress(0.3, detail = "Reading case linelist")
-      df_line <- tryCatch(
-        readxl::read_excel(path, sheet = "Salmonella Case"),
-        error = function(e) {
-          available_sheets <- tryCatch(readxl::excel_sheets(path), error = function(e2) NULL)
-          if (!is.null(available_sheets)) {
-            return(list(error = TRUE, sheets = available_sheets))
-          }
-          return(NULL)
-        }
-      )
+      # Auto-detect linelist sheet (requires NationalID at minimum)
+      incProgress(0.3, detail = "Finding case linelist sheet")
+      line_sheet_result <- find_sheet_by_columns(path, c("nationalid"))
 
-      if (is.list(df_line) && !is.null(df_line$error)) {
-        validate(need(FALSE, paste0(
-          "Sheet 'Salmonella Case' not found. Available sheets: ",
-          paste(df_line$sheets, collapse = ", "),
-          ". Please verify this is a CEDARS export file."
-        )))
-      }
+      validate(need(
+        line_sheet_result$found,
+        paste0(
+          "Could not find sheet with required linelist columns.\n",
+          "Required columns: NationalID (at minimum)\n",
+          "Available sheets: ", paste(line_sheet_result$available_sheets, collapse = ", "), "\n",
+          "Please verify this is a CEDARS export file."
+        )
+      ))
+
+      # Read linelist from detected sheet
+      incProgress(0.1, detail = paste0("Reading: ", line_sheet_result$sheet))
+      df_line <- tryCatch(
+        readxl::read_excel(path, sheet = line_sheet_result$sheet),
+        error = function(e) NULL
+      )
 
       validate(need(
         !is.null(df_line) && nrow(df_line) > 0,
-        "The 'Salmonella Case' sheet is empty or could not be read. Please check your CEDARS export."
+        paste0("The sheet '", line_sheet_result$sheet, "' is empty or could not be read. Please check your CEDARS export.")
       ))
 
       original_line_names <- names(df_line)
@@ -1100,6 +1288,10 @@ server <- function(input, output, session) {
         transmute(
           Exposure,
           `Total Valid` = total,
+          Yes = `Y` %||% 0,
+          Probably = `P` %||% 0,
+          No = `N` %||% 0,
+          DK = `DK` %||% 0,
           `Observed %` = observed_prop,
           `Reference %` = `Reference %`,
           `P-Value` = p_value,
@@ -1112,19 +1304,39 @@ server <- function(input, output, session) {
     req(adv_results())
     res <- adv_results() %>%
       mutate(`Observed %` = round(`Observed %` * 100, 1), `Reference %` = round(`Reference %`, 1), `P-Value` = round(`P-Value`, 4))
+
+    # Build descriptive filename for exports
+    pts <- input$adv_province %||% "Canada"
+    pt_str <- if (length(pts) == 1) gsub(" ", "", pts[1]) else paste0(length(pts), "PTs")
+    ages <- input$adv_age_group %||% "All"
+    age_str <- if ("All" %in% ages || is.null(ages)) "allages" else paste0(length(ages), "agegroups")
+    months <- input$adv_month %||% "All"
+    month_str <- if ("All" %in% months || is.null(months)) "allmonths" else paste0(length(months), "months")
+    date_str <- format(Sys.Date(), "%Y-%m-%d")
+    export_filename <- paste0("foodbook_advanced_results_", pt_str, "_", age_str, "_", month_str, "_", date_str)
+
     datatable(res, extensions = "Buttons", rownames = FALSE,
               class = "stripe hover row-border order-column",
-              options = list(pageLength = 15, dom = "Bfrtip", buttons = c("copy", "csv", "excel"),
-                             scrollX = TRUE, autoWidth = FALSE)) %>%
+              options = list(
+                pageLength = 15,
+                dom = "Bfrtip",
+                buttons = list(
+                  "copy",
+                  list(extend = "csv", filename = export_filename),
+                  list(extend = "excel", filename = export_filename)
+                ),
+                scrollX = TRUE,
+                autoWidth = FALSE
+              )) %>%
       formatStyle(
         columns = "Classification",
         backgroundColor = styleEqual(
-          c("Alert", "Borderline", "Not Significant", "Insufficient Data"),
-          c("#fde4e6", "#fff4d6", "#edf2ff", "#f1f5f9")
+          c("Alert", "Borderline", "Not Significant", "Insufficient Data", "No Reference Value"),
+          c("#fde4e6", "#fff4d6", "#edf2ff", "#f1f5f9", "#e2e8f0")
         ),
         color = styleEqual(
-          c("Alert", "Borderline", "Not Significant", "Insufficient Data"),
-          c("#b82c3a", "#b35c00", "#1f2933", "#475569")
+          c("Alert", "Borderline", "Not Significant", "Insufficient Data", "No Reference Value"),
+          c("#b82c3a", "#b35c00", "#1f2933", "#475569", "#64748b")
         ),
         fontWeight = "600"
       )
