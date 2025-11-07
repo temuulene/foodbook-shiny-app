@@ -1221,7 +1221,7 @@ server <- function(input, output, session) {
 
       df_line <- df_line %>%
         transmute(natid = as.character(.data$natid),
-                  provinceterritory = .data$provinceterritory %||% NA)
+                  provinceterritory = if("provinceterritory" %in% names(.)) .data$provinceterritory else NA_character_)
 
       # Merge and validate
       incProgress(0.2, detail = "Merging data")

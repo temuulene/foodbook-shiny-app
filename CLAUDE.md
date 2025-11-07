@@ -239,7 +239,7 @@ Based on PHAC-OMD demo meeting feedback, the following features were added:
 
 6. **Custom exposures**: When user types exposure name not in database, module automatically shows custom reference input. Custom exposures marked with "(custom)" suffix in outputs.
 
-7. **CEDARS sheet names**: No longer hardcoded - app scans all sheets for required columns. Works with "Salmonella Case", "Listeria Case", "E. coli Case", etc.
+7. **CEDARS sheet names**: No longer hardcoded - app scans all sheets for required columns. Works with "Salmonella Case", "Listeria Case", "E. coli Case", etc. The linelist sheet requires only `NationalID`; the `provinceterritory` column is optional and will be set to NA if missing.
 
 8. **CSV upload format**: Simple CSV upload requires exact columns: `Exposure, Yes, Probably, No, DK`. Column names are case-insensitive and special chars ignored.
 

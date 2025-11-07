@@ -360,6 +360,63 @@ test_that("CSV upload handles column name variations", {
 })
 
 # =============================================================================
+# Tests for CEDARS upload with optional provinceterritory column
+# =============================================================================
+
+test_that("CEDARS linelist without provinceterritory column is handled correctly", {
+  # Create mock linelist data WITHOUT provinceterritory column
+  df_line <- data.frame(
+    natid = c("001", "002", "003"),
+    age = c(25, 45, 67),
+    sex = c("M", "F", "M")
+  )
+
+  # Apply the same transformation as in app.R (line 1222-1224)
+  df_line_transformed <- df_line %>%
+    transmute(
+      natid = as.character(natid),
+      provinceterritory = if("provinceterritory" %in% names(.)) provinceterritory else NA_character_
+    )
+
+  # Test: Should have natid and provinceterritory columns
+  expect_true("natid" %in% names(df_line_transformed))
+  expect_true("provinceterritory" %in% names(df_line_transformed))
+
+  # Test: provinceterritory should be NA for all rows
+  expect_true(all(is.na(df_line_transformed$provinceterritory)))
+
+  # Test: natid should be preserved as character
+  expect_equal(df_line_transformed$natid, c("001", "002", "003"))
+  expect_type(df_line_transformed$natid, "character")
+})
+
+test_that("CEDARS linelist WITH provinceterritory column is handled correctly", {
+  # Create mock linelist data WITH provinceterritory column
+  df_line <- data.frame(
+    natid = c("001", "002", "003"),
+    provinceterritory = c("ON", "QC", "BC"),
+    age = c(25, 45, 67)
+  )
+
+  # Apply the same transformation as in app.R (line 1222-1224)
+  df_line_transformed <- df_line %>%
+    transmute(
+      natid = as.character(natid),
+      provinceterritory = if("provinceterritory" %in% names(.)) provinceterritory else NA_character_
+    )
+
+  # Test: Should have both columns
+  expect_true("natid" %in% names(df_line_transformed))
+  expect_true("provinceterritory" %in% names(df_line_transformed))
+
+  # Test: provinceterritory values should be preserved
+  expect_equal(df_line_transformed$provinceterritory, c("ON", "QC", "BC"))
+
+  # Test: natid should be preserved as character
+  expect_equal(df_line_transformed$natid, c("001", "002", "003"))
+})
+
+# =============================================================================
 # Integration test: Full workflow
 # =============================================================================
 
@@ -435,4 +492,5 @@ message("  - Custom exposures: Detection and reference input")
 message("  - Response counts: Yes/Prob/No/DK columns")
 message("  - Export filenames: Descriptive naming")
 message("  - CSV upload: Column validation")
+message("  - CEDARS linelist: Optional provinceterritory column")
 message("  - Integration: Full workflows")
