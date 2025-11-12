@@ -654,11 +654,38 @@ server <- function(input, output, session) {
           val = tolower(as.character(.data$hasexposureoccurred))
         )
 
-      # Auto-detect linelist sheet
+      # Auto-detect linelist sheet (must NOT be the exposure sheet)
       incProgress(0.3, detail = "Finding linelist sheet")
-      line_sheet_result <- find_sheet_by_columns(path, c("nationalid"))
 
-      validate(need(line_sheet_result$found, "Could not find linelist sheet"))
+      # Try multiple strategies to find the linelist sheet
+      # Strategy 1: Look for sheets with natid or nationalid but WITHOUT exposurecode
+      all_sheets <- tryCatch(readxl::excel_sheets(path), error = function(e) character(0))
+      line_sheet_name <- NULL
+
+      for (sheet in all_sheets) {
+        if (sheet == exp_sheet_result$sheet) next  # Skip the exposure sheet
+
+        sheet_data <- tryCatch(
+          readxl::read_excel(path, sheet = sheet, n_max = 1),
+          error = function(e) NULL
+        )
+
+        if (!is.null(sheet_data)) {
+          cols <- gsub("[^a-z0-9]+", "", tolower(names(sheet_data)))
+          # Linelist should have nationalid or natid, but NOT exposurecode
+          if (("nationalid" %in% cols || "natid" %in% cols) && !("exposurecode" %in% cols)) {
+            line_sheet_name <- sheet
+            break
+          }
+        }
+      }
+
+      validate(need(
+        !is.null(line_sheet_name),
+        paste0("Could not find linelist sheet. Looking for sheet with NationalID/natid but without ExposureCode. Available sheets: ", paste(all_sheets, collapse = ", "))
+      ))
+
+      line_sheet_result <- list(sheet = line_sheet_name, found = TRUE)
 
       # Read linelist
       incProgress(0.1, detail = paste0("Reading: ", line_sheet_result$sheet))
@@ -687,10 +714,13 @@ server <- function(input, output, session) {
         }
       }
 
+      # Check for provinceterritory BEFORE transmute
+      has_pt_col <- "provinceterritory" %in% names(df_line)
+
       df_line <- df_line %>%
         transmute(
           natid = as.character(.data$natid),
-          provinceterritory = if("provinceterritory" %in% names(.)) .data$provinceterritory else NA_character_
+          provinceterritory = if(has_pt_col) .data$provinceterritory else NA_character_
         ) %>%
         distinct(natid, .keep_all = TRUE)  # Ensure one row per case
 
@@ -774,11 +804,6 @@ server <- function(input, output, session) {
       # Get unique PTs from filtered cases for Reference Scope
       if ("provinceterritory" %in% names(d_filtered)) {
         unique_case_pts <- unique(d_filtered$provinceterritory[!is.na(d_filtered$provinceterritory)])
-
-        # Debug output
-        message("DEBUG: unique_case_pts = ", paste(unique_case_pts, collapse = ", "))
-        message("DEBUG: length(unique_case_pts) = ", length(unique_case_pts))
-
         if (length(unique_case_pts) == 0) {
           reference_scope <- "Canada"
           pts_for_reference <- "Canada"
@@ -787,12 +812,9 @@ server <- function(input, output, session) {
           pts_for_reference <- unique_case_pts
         }
       } else {
-        message("DEBUG: provinceterritory NOT in names(d_filtered)")
         reference_scope <- "Canada"
         pts_for_reference <- "Canada"
       }
-
-      message("DEBUG: Final reference_scope = ", reference_scope)
 
       # Summarise counts by exposure code (count unique cases, not rows)
       incProgress(0.3, detail = "Summarizing exposure counts")
