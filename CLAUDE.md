@@ -4,10 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Quick Start
 
-**Run the app:**
+**Run the Internal App (CEDARS analysis):**
 ```r
-shiny::runApp(".")
+shiny::runApp("app-internal.R")
 ```
+
+**Run the Public App (Manual/CSV upload):**
+```r
+shiny::runApp("app-public.R")
+```
+
+**Legacy App:** The original `app.R` has been archived to `archive/app.R.legacy` and is no longer maintained.
 
 **Run all tests:**
 ```r
@@ -22,9 +29,12 @@ testthat::test_file("tests/testthat/test-backend-parsing.R")
 testthat::test_file("tests/testthat/test-backend-calculations.R")
 ```
 
-**Update manifest after changing dependencies:**
+**Update manifests after changing dependencies:**
 ```r
-rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app.R")
+# For internal app:
+rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app-internal.R", appFiles = "manifest-internal.json")
+# For public app:
+rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app-public.R", appFiles = "manifest-public.json")
 ```
 
 **Regenerate legacy CSV (optional):**
@@ -34,21 +44,29 @@ source("src/data-clean-proportions.R")
 
 ## Architecture Overview
 
-This is a **Shiny application** for analyzing food exposure data against Foodbook survey references. The app compares observed case exposures with reference percentages using statistical significance testing.
+This project provides **two separate Shiny applications** for analyzing food exposure data against Foodbook survey references:
+
+1. **Public App** (`app-public.R`) - For PT users and external partners
+2. **Internal App** (`app-internal.R`) - For PHAC CEDARS analysis
+
+Both apps share a common backend and are **fully bilingual** (EN/FR).
 
 ### Core Design
 
-**Single-file Shiny app** (`app.R`) that:
-- Sources backend helpers from `src/foodbook_backend.R`
-- Uses **Shiny modules** for exposure inputs (one module per exposure)
-- Supports **custom exposures** with user-defined reference percentages
-- Implements **dual-mode reference calculation**:
-  - **Microdata mode** (when available): Computes weighted proportions from `.dta` files in `upgrade-context/`
-  - **CSV fallback mode**: Uses pre-computed values from `data/foodbook_data.csv`
-- Provides **multiple data input methods**:
-  - Manual entry (one exposure at a time)
-  - CSV upload (aggregated counts)
-  - CEDARS Excel upload (automated workflow)
+**Two-app architecture** with shared infrastructure:
+- **Shared Backend** (`src/foodbook_backend.R`) handles all data operations
+- **Shiny Modules** (`src/modules/`) for reusable UI components
+- **Bilingual Support** (`shiny.i18n` + `translations/translation.json`)
+- **Open Canada Data Priority**: FB2 (21K) → FB1 (10K) → Legacy (optional)
+
+**Data Loading Strategy**:
+1. **Priority 1**: Foodbook 2 from Open Canada (public, 21,744 respondents)
+2. **Priority 2**: Foodbook 1 from Open Canada (public, 10,892 respondents)
+3. **Priority 3**: Legacy microdata from `upgrade-context/` (internal only)
+
+**Input Methods**:
+- Public App: Manual entry, CSV upload, custom exposures
+- Internal App: CEDARS Excel upload with auto-detection
 
 **Backend abstraction** (`src/foodbook_backend.R`):
 - Detects microdata availability via `fb_is_available()`
@@ -105,40 +123,62 @@ This is a **Shiny application** for analyzing food exposure data against Foodboo
 ## File Organization
 
 ```
-app.R                   # Main Shiny UI/server, modules, theming (~1,500 lines)
+app-public.R            # Public app - Manual/CSV analysis workflow
+app-internal.R          # Internal app - CEDARS outbreak analysis workflow
+archive/
+  app.R.legacy          # Original combined app (ARCHIVED - no longer maintained)
 src/
-  foodbook_backend.R    # Backend: microdata loading, Stata parsing, weighted calculations
+  foodbook_backend.R    # Backend: FB1+FB2 loading, bilingual labels, weighted calcs (REFACTORED)
+  i18n_helper.R         # Internationalization helpers (NEW)
+  modules/              # Reusable Shiny modules (NEW)
+    exposure_module.R
+    language_selector_module.R
   data-clean-proportions.R  # Optional: regenerate CSV from Excel toolkit
+translations/           # Bilingual UI text (NEW)
+  translation.json      # 200+ strings in EN/FR
 data/
+  open-canada/          # Public Foodbook data (PRIMARY) (NEW)
+    foodbook-1/         # FB1: 3-part CSV (EN+FR), Stata labels
+    foodbook-2/         # FB2: Single CSV (EN+FR), Stata labels
   foodbook_data.csv     # Legacy pre-computed references (fallback)
-  Toolkit-*.xlsx        # Source workbook for CSV regeneration
-upgrade-context/        # OMD Foodbook assets (sensitive):
+upgrade-context/        # Optional legacy microdata (internal use only)
   foodbook.dta          # Foodbook 1 microdata
   foodbook2v2.dta       # Foodbook 2 microdata
   foodbook data.do      # Variable renames
-  foodbook variable labeling.do  # Exposure code → label mapping (416 exposures)
+  foodbook variable labeling.do  # Exposure code → label mapping
 tests/
   testthat/
     test-backend-parsing.R      # Tests for Stata parsing, renames, labels
     test-backend-calculations.R # Tests for weighted %, PT mapping, filtering
-manifest.json           # Posit Connect dependency manifest (R 4.5.1)
+manifest-public.json    # Posit Connect manifest for public app (NEW)
+manifest-internal.json  # Posit Connect manifest for internal app (NEW)
+DEPLOYMENT.md           # Deployment guide for both apps (NEW)
 CLAUDE.md               # This file - developer/agent guidance
 AGENTS.md               # Quick reference for AI agents
-README.md               # User documentation
+README.md               # User documentation (UPDATED)
 ```
 
 ## Backend API
 
 The backend (`src/foodbook_backend.R`) exposes these helpers:
 
-- `fb_init()` - Initialize backend (call once at startup)
+**Core Functions:**
+- `fb_init(lang = "en")` - Initialize backend with language preference (call once at startup)
 - `fb_is_available()` - Returns TRUE if microdata loaded successfully
-- `fb_exposure_choices()` - Returns named list of exposure codes → labels
-- `fb_reference_percents(pt_names, age_group, month, exposures)` - Compute weighted % from microdata
-- `fb_reference_percents_csv(pt_names, exposures)` - Fallback using CSV
-- `fb_pt_names()` - Available province/territory names
+
+**Data Access (Bilingual):**
+- `fb_exposure_choices(lang = "en")` - Returns named list of exposure codes → labels in chosen language
+- `fb_exposure_labels_bilingual()` - Returns data frame with code, label_en, label_fr
+- `fb_exposure_label(code, lang = "en")` - Get single exposure label by code
+- `fb_pt_names(lang = "en")` - Province/territory names in chosen language
+- `fb_pt_names_bilingual()` - Returns named vector (EN name = FR name)
+- `fb_month_names(lang = "en")` - Month names in chosen language
 - `fb_age_groups()` - Available age groups (0-9, 10-19, 20-64, 65+)
 - `fb_months()` - Available months
+
+**Statistical Calculations:**
+- `fb_reference_percents(codes, pt_names, age_groups, months)` - Compute weighted % from microdata
+- `fb_reference_percents_csv(codes, pt_names)` - Fallback using CSV (deprecated)
 
 **Key implementation details:**
 - Stata `.do` files parsed via regex to extract `rename` directives and `label =` assignments
@@ -169,6 +209,55 @@ Tests use mock data to avoid dependencies on actual microdata files.
 **Sensitive data**: Files in `upgrade-context/` (`.dta` files, `.do` files) contain OMD microdata and should be treated as sensitive. The app tolerates their absence and falls back to CSV.
 
 **Never commit** microdata externally unless policy explicitly allows.
+
+## Git Commit Guidelines
+
+**IMPORTANT - NO AI ATTRIBUTION IN REPOSITORY**
+
+When making commits to this repository, you MUST follow these strict rules:
+
+1. **NEVER mention AI tools in commit messages or code**:
+   - Do NOT include "Generated with Claude", "AI-assisted", "LLM-generated", or similar phrases
+   - Do NOT add "Co-Authored-By: Claude" or any AI attribution footers
+   - Do NOT mention "ChatGPT", "Claude", "Copilot", or other AI tools in commit messages
+
+2. **Keep commits professional and clear**:
+   - Write descriptive commit messages that explain WHAT changed and WHY
+   - Focus on the technical changes, not the tools used to make them
+   - Use conventional commit format when appropriate (feat:, fix:, docs:, etc.)
+
+3. **Apply to ALL repository content**:
+   - Commit messages
+   - Pull request descriptions
+   - Code comments
+   - Documentation files
+   - Issue descriptions
+
+**Why this matters:**
+- Professional code repositories should focus on the work, not the tools
+- AI attribution adds noise and reduces clarity
+- Commits should be timeless and tool-agnostic
+- External stakeholders and future developers don't need to know what tools were used
+
+**Examples:**
+
+❌ BAD:
+```
+Add data validation function
+
+Generated with Claude Code
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+✅ GOOD:
+```
+Add data validation function
+
+Validates PT codes and age groups before filtering microdata.
+Prevents errors from invalid filter combinations.
+```
+
+**Enforcement**: Code reviewers should reject any PRs containing AI attribution. If you see AI attribution in existing commits, do not replicate the pattern - follow the guidelines above instead.
 
 ## Deployment
 

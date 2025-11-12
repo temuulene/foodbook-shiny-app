@@ -1,13 +1,25 @@
 # Foodbook Shiny App
 
-An interactive Shiny application to compare observed case exposures against Foodbook reference percentages from the Canadian Foodbook survey. The app integrates OMD's Foodbook microdata to compute weighted references, supports combined PT references and optional age/month restrictions, and provides multiple input workflows including manual entry, CSV upload, and automated CEDARS Excel processing.
+**Disponible en français** | **Available in English**
+
+An interactive Shiny application to compare observed case exposures against Foodbook reference percentages from the Canadian Foodbook survey. The app uses public Foodbook data from Open Canada to compute weighted references, supports combined PT references and optional age/month restrictions, and provides multiple input workflows.
+
+**Two Deployment Options:**
+- **Public App** (`app-public.R`) - Analysis tab for PT users and external partners
+- **Internal App** (`app-internal.R`) - CEDARS upload workflow for PHAC internal use
 
 ## Features
+
+### Bilingual Support
+- **Full French and English interfaces** - Switch languages with one click
+- **Translated PT names, exposure labels, and UI text**
+- **URL language parameter** - Share links in preferred language (`?lang=fr`)
+- **Government of Canada bilingual standard compliant**
 
 ### Core Analysis
 - **Combined PT reference** using Foodbook microdata (weighted), aligned with OMD's Stata approach
 - **Optional filters**: Age Group (0-9, 10-19, 20-64, 65+) and Month (seasonal analysis)
-- **416 food exposures** from Foodbook 1 and 2 surveys
+- **300+ food exposures** from Foodbook 2 survey (public data)
 - **Significance classification**: Alert (≤0.05), Borderline (≤0.10), Not Significant, Insufficient Data, No Reference Value
 - **Intelligent defaults**: "Canada" and "All" auto-deselect when specific values are chosen
 
@@ -36,22 +48,32 @@ An interactive Shiny application to compare observed case exposures against Food
 
 ## Quick Start
 
-1. Install R (version 4.5.x recommended; same major/minor as in `manifest.json` if deploying to Connect)
+1. Install R (version 4.5.x recommended)
 
 2. Install required packages:
 
 ```r
+# Core packages for both apps
 install.packages(c(
   "shiny", "bslib", "thematic", "dplyr", "purrr", "tidyr",
   "stringr", "data.table", "DT", "ggplot2", "shinyjs",
-  "shinycssloaders", "haven", "readxl", "rlang", "tibble"
+  "shinycssloaders", "shiny.i18n", "rlang", "tibble"
 ))
+
+# For internal app only (CEDARS upload)
+install.packages(c("readxl", "haven"))
 ```
 
-3. Run the app from the project root:
+3. Run an app:
 
 ```r
-shiny::runApp(".")
+# Public app (Analysis workflow)
+shiny::runApp("app-public.R")
+
+# Internal app (CEDARS workflow)
+shiny::runApp("app-internal.R")
+
+# Original combined app has been archived to archive/app.R.legacy
 ```
 
 4. (Optional) For testing, install test dependencies:
@@ -62,17 +84,30 @@ install.packages(c("testthat", "writexl"))
 
 ## Data Sources
 
-### Foodbook Microdata (Primary)
-Located in `upgrade-context/`:
-- `foodbook.dta` - Foodbook 1 survey microdata
-- `foodbook2v2.dta` - Foodbook 2 survey microdata
-- `foodbook data.do` - Variable rename mappings (Stata)
-- `foodbook variable labeling.do` - Exposure code→label mappings (416 exposures)
+### Open Canada Foodbook Data (Primary)
+Located in `data/open-canada/`:
+- **Foodbook 2** (`foodbook-2/`) - 21,744 respondents, 320 variables, English + French
+  - `foodbook-2.0-public-use-microdata-file-2023.csv`
+  - `atlas-alimentaire-2.0-fichier-de-microdonnees-a-grande-diffusion-2023.csv` (French)
+  - Stata label files (English + French)
+- **Foodbook 1** (`foodbook-1/`) - 10,892 respondents, ~550 variables, English + French
+  - Three-part CSV structure (demographics, exposures, food safety)
+  - Stata label files (English + French)
 
 **Features:**
+- Publicly accessible under Open Government Licence - Canada
 - Weighted population-representative estimates
 - Stratification by PT, age group, and month
 - Combined PT analysis with proper weighting
+- Bilingual labels for all exposures
+
+**Data Priority:** Foodbook 2 → Foodbook 1 → Legacy (if available)
+
+### Legacy Microdata (Internal Use Only)
+Located in `upgrade-context/` (optional for internal app):
+- `foodbook.dta`, `foodbook2v2.dta` - Combined Foodbook 1+2 survey microdata
+- `foodbook data.do`, `foodbook variable labeling.do` - Stata mappings
+- **Note:** These files are not required. Open Canada data is used by default.
 
 ### Simple CSV Upload (External Users)
 Upload a CSV file with aggregated exposure counts. Required columns:
