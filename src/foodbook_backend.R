@@ -2,9 +2,11 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(stringr)
-  library(readxl)
-  library(haven)
   library(data.table)
+  # haven is optional - only needed for legacy .dta microdata files
+  if (requireNamespace("haven", quietly = TRUE)) {
+    library(haven)
+  }
 })
 
 fb_env <- new.env(parent = emptyenv())
