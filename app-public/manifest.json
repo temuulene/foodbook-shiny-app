@@ -4,37 +4,36 @@
   "platform": "4.5.1",
   "metadata": {
     "appmode": "shiny",
-    "entrypoint": "app-internal.R",
+    "entrypoint": "app.R",
     "primary_rmd": null,
     "primary_html": null,
     "content_category": "app",
     "has_parameters": false
   },
   "files": {
-    "app-internal.R": {
+    "app.R": {
       "checksum": ""
     },
-    "src/foodbook_backend.R": {
+    "../src/foodbook_backend.R": {
       "checksum": ""
     },
-    "src/i18n_helper.R": {
+    "../src/i18n_helper.R": {
       "checksum": ""
     },
-    "src/modules/language_selector_module.R": {
+    "../src/modules/exposure_module.R": {
       "checksum": ""
     },
-    "translations/translation.json": {
+    "../src/modules/language_selector_module.R": {
       "checksum": ""
     },
-    "data/open-canada/foodbook-1/": {
+    "../translations/translation.json": {
       "checksum": ""
     },
-    "data/open-canada/foodbook-2/": {
+    "../data/open-canada/foodbook-1/": {
       "checksum": ""
     },
-    "upgrade-context/": {
-      "checksum": "",
-      "note": "Optional legacy microdata for internal use"
+    "../data/open-canada/foodbook-2/": {
+      "checksum": ""
     }
   },
   "packages": {
@@ -89,16 +88,6 @@
     "shiny.i18n": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com/"
-    },
-    "readxl": {
-      "Source": "CRAN",
-      "Repository": "https://cran.rstudio.com/",
-      "note": "Required for CEDARS Excel upload"
-    },
-    "haven": {
-      "Source": "CRAN",
-      "Repository": "https://cran.rstudio.com/",
-      "note": "Optional - for legacy .dta microdata files"
     },
     "tibble": {
       "Source": "CRAN",
