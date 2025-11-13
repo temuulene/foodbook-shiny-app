@@ -510,7 +510,7 @@ ui <- function(request) {
 
 # --- 5. Server Logic ---
 server <- function(input, output, session) {
-  translator <- init_translator(session)
+  translator <- init_translator(session, translation_path = "../translations/translation.json")
 
   build_province_display_map <- function(lang) {
     stats::setNames(fb_pt_names(lang), fb_pt_names("en"))

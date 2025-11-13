@@ -16,8 +16,12 @@ fb_create_translator <- function(lang = "en") {
   translator
 }
 
-init_translator <- function(session, lang = "en") {
+init_translator <- function(session, lang = "en", translation_path = NULL) {
   stopifnot(!is.null(session))
+  # Allow apps in subdirectories to specify their own path
+  if (!is.null(translation_path)) {
+    .fb_i18n_env$translation_path <- translation_path
+  }
   translator <- fb_create_translator(lang)
   session$userData$translator <- translator
   translator

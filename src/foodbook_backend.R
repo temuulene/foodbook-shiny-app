@@ -11,13 +11,28 @@ suppressPackageStartupMessages({
 
 fb_env <- new.env(parent = emptyenv())
 
+# Helper to detect correct base directory (handles both root and subdirectory apps)
+fb_get_base_path <- function(rel_path) {
+  # Try current directory first
+  if (file.exists(rel_path) || dir.exists(rel_path)) {
+    return(rel_path)
+  }
+  # Try one level up (for apps in subdirectories)
+  parent_path <- file.path("..", rel_path)
+  if (file.exists(parent_path) || dir.exists(parent_path)) {
+    return(parent_path)
+  }
+  # Return original path (will fail downstream with clear error)
+  return(rel_path)
+}
+
 # =============================================================================
 # New Open Canada Data Loading Functions (FB1 + FB2)
 # =============================================================================
 
 # Load Foodbook 1 microdata from Open Canada (3 CSV files that need joining)
 fb_load_fb1_csv <- function(lang = "en") {
-  base_dir <- "data/open-canada/foodbook-1"
+  base_dir <- fb_get_base_path("data/open-canada/foodbook-1")
 
   # File patterns based on language
   if (lang == "fr") {
@@ -101,7 +116,7 @@ fb_normalize_fb1_colnames <- function(df, lang) {
 
 # Load Foodbook 2 microdata from Open Canada (single CSV file)
 fb_load_fb2_csv <- function(lang = "en") {
-  base_dir <- "data/open-canada/foodbook-2"
+  base_dir <- fb_get_base_path("data/open-canada/foodbook-2")
 
   # File patterns based on language
   if (lang == "fr") {
@@ -213,7 +228,7 @@ fb_cedars_to_foodbook_map <- function() {
   # Check if renames are loaded
   if (is.null(fb_env$cedars_to_fb_map)) {
     # Try to load from foodbook data.do
-    rename_path <- "upgrade-context/foodbook data.do"
+    rename_path <- fb_get_base_path("upgrade-context/foodbook data.do")
     if (file.exists(rename_path)) {
       renames <- fb_parse_renames(rename_path)
       # Create reverse map: new (CEDARS code) -> old (Foodbook column)
@@ -292,9 +307,20 @@ fb_normalise_weight <- function(df) {
 
 # Load, rename, and combine Foodbook microdata
 fb_load_microdata <- function(
-  do_renames_path = "upgrade-context/foodbook data.do",
-  dta_paths = c("upgrade-context/foodbook.dta", "upgrade-context/foodbook2v2.dta")
+  do_renames_path = NULL,
+  dta_paths = NULL
 ) {
+  # Set defaults with path detection
+  if (is.null(do_renames_path)) {
+    do_renames_path <- fb_get_base_path("upgrade-context/foodbook data.do")
+  }
+  if (is.null(dta_paths)) {
+    dta_paths <- c(
+      fb_get_base_path("upgrade-context/foodbook.dta"),
+      fb_get_base_path("upgrade-context/foodbook2v2.dta")
+    )
+  }
+
   ren <- fb_parse_renames(do_renames_path)
   dfs <- list()
   for (p in dta_paths) {
@@ -394,11 +420,11 @@ fb_init <- function(lang = "en") {
   # =============================================================================
   # Load bilingual label maps from Open Canada Stata label files
   # =============================================================================
-  fb2_label_en <- "data/open-canada/foodbook-2/foodbook-2.0-stata-label-code.txt"
-  fb2_label_fr <- "data/open-canada/foodbook-2/latlas-alimentaire-2.0-stata-code-des-etiquettes.txt"
-  fb1_label_en <- "data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-en.do"
-  fb1_label_fr <- "data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-fr.do"
-  legacy_label <- "upgrade-context/foodbook variable labeling.do"
+  fb2_label_en <- fb_get_base_path("data/open-canada/foodbook-2/foodbook-2.0-stata-label-code.txt")
+  fb2_label_fr <- fb_get_base_path("data/open-canada/foodbook-2/latlas-alimentaire-2.0-stata-code-des-etiquettes.txt")
+  fb1_label_en <- fb_get_base_path("data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-en.do")
+  fb1_label_fr <- fb_get_base_path("data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-fr.do")
+  legacy_label <- fb_get_base_path("upgrade-context/foodbook variable labeling.do")
 
   # Load FB2 labels (bilingual)
   if (file.exists(fb2_label_en)) {

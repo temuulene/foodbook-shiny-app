@@ -561,7 +561,7 @@ ui <- function(request) {
 server <- function(input, output, session) {
   enableBookmarking("url")
 
-  translator <- init_translator(session)
+  translator <- init_translator(session, translation_path = "../translations/translation.json")
 
   lang_state <- language_selector_server("lang_selector",
                                          session_parent = session,
