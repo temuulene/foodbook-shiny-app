@@ -70,11 +70,12 @@ install.packages(c("readxl", "haven"))
 
 ```r
 # Public app (Analysis workflow)
-shiny::runApp("app-public.R")
+shiny::runApp("app-public")
 
 # Internal app (CEDARS workflow)
-shiny::runApp("app-internal.R")
+shiny::runApp("app-internal")
 
+# Note: Legacy single-file apps (app-public.R, app-internal.R) are deprecated
 # Original combined app has been archived to archive/app.R.legacy
 ```
 
@@ -236,9 +237,13 @@ rsconnect::deployApp(appName = "foodbook-shiny-app", server = "prod", account = 
 
 ```
 foodbook-shiny-app/
-├── app-public.R                   # Public app - Manual/CSV workflows (~900 lines)
-├── app-internal.R                 # Internal app - CEDARS workflows (~1,100 lines)
-├── src/
+├── app-public/                    # Public app directory
+│   ├── app.R                      # Public app entry point - Manual/CSV workflows
+│   └── manifest.json              # Posit Connect manifest for public app
+├── app-internal/                  # Internal app directory
+│   ├── app.R                      # Internal app entry point - CEDARS workflows
+│   └── manifest.json              # Posit Connect manifest for internal app
+├── src/                           # Shared code (used by both apps)
 │   ├── foodbook_backend.R         # Backend functions (microdata, Stata parsing, calculations)
 │   ├── i18n_helper.R              # Internationalization helpers (bilingual support)
 │   ├── modules/                   # Reusable Shiny modules
@@ -267,8 +272,8 @@ foodbook-shiny-app/
 │       ├── test-backend-parsing.R      # Stata parsing tests (28 tests)
 │       ├── test-backend-calculations.R # Statistical tests (20 tests)
 │       └── test-new-features.R         # New features tests (43 tests)
-├── manifest-public.json           # Posit Connect manifest for public app (R 4.5.1)
-├── manifest-internal.json         # Posit Connect manifest for internal app (R 4.5.1)
+├── app-public.R                   # DEPRECATED: Legacy public app (moved to app-public/app.R)
+├── app-internal.R                 # DEPRECATED: Legacy internal app (moved to app-internal/app.R)
 ├── DEPLOYMENT.md                  # Deployment guide for both apps
 ├── README.md                      # This file - User documentation
 ├── CLAUDE.md                      # Developer/agent guidance
