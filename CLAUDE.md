@@ -336,6 +336,16 @@ Based on PHAC-OMD demo meeting feedback, the following features were added:
 
 10. **Export filenames**: DT table exports use custom filenames (not default "DataTables Table"). If changing filter logic, update filename generation in both Analysis and Advanced renderDT blocks.
 
+11. **Language switching and translation**: When adding translatable UI elements, use `renderUI()` instead of static UI with JavaScript DOM manipulation:
+   - **DO**: Wrap translatable elements in `renderUI()` that creates fresh translator instances with `current_lang()`
+   - **DON'T**: Use JavaScript text matching to update element content (encoding issues, fragile selectors, breaks on special characters)
+   - **Pattern**: `output$my_element <- renderUI({ tr <- Translator$new(...); tr$set_translation_language(current_lang()); ... })`
+   - **Why**: Avoids race conditions between `observeEvent(current_lang())` and `renderUI()`, ensures proper translation on language change
+   - **Examples**: File input labels, sidebar titles, card headers (see `app-internal.R:577-614`)
+   - **JavaScript**: Use icon classes or data attributes to identify elements, never text matching with accented characters
+   - **File inputs**: When wrapping in `renderUI()`, use `buttonLabel` and `placeholder` parameters instead of JavaScript manipulation
+   - **Note**: Uploaded data (reactive values) persists when UI re-renders, only the visual input widget resets
+
 ## Dependencies
 
 **Core runtime** (required):

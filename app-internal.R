@@ -238,6 +238,30 @@ ui <- function(request) {
       "),
     header = tagList(
       useShinyjs(),
+      extendShinyjs(
+        text = "
+          shinyjs.resetFileInput = function(params) {
+            var id = params.id;
+            var $fileInput = $('input[type=\"file\"][id=' + id + ']');
+            if (!$fileInput.length) {
+              $fileInput = $('#' + id).find('input[type=\"file\"]');
+            }
+            if ($fileInput.length) {
+              $fileInput.val('');
+              $fileInput.trigger('change');
+            }
+            var $wrapper = $fileInput.length ? $fileInput.closest('.shiny-file-input') : $('#' + id);
+            if ($wrapper.length) {
+              var $textInput = $wrapper.find('input[type=\"text\"]');
+              if ($textInput.length) {
+                $textInput.val('');
+              }
+              $wrapper.find('.progress-bar').css('width', '0%');
+            }
+          };
+        ",
+        functions = c("resetFileInput")
+      ),
       tags$head(
         tags$script(HTML("
           // Inject language selector into navbar on page load
@@ -273,67 +297,34 @@ ui <- function(request) {
           });
 
           // Custom message handler for updating tab names
+          // Use icon classes to identify tabs (more reliable than text matching with encoding issues)
           Shiny.addCustomMessageHandler('update-tab-names', function(labels) {
-            // Update main nav tabs
+            // Update main nav tabs using icon classes
             $('a.nav-link').each(function() {
-              var $icon = $(this).find('i');
+              var $link = $(this);
+              var $icon = $link.find('i');
               var iconHtml = $icon.length ? $icon.prop('outerHTML') + ' ' : '';
-              var text = $(this).text().trim();
 
-              if (text === 'CEDARS Analysis' || text === 'Analyse SCEDAC') {
-                $(this).html(iconHtml + labels.cedars);
-              } else if (text === 'Data Info' || text === 'Info sur les données') {
-                $(this).html(iconHtml + labels.data_info);
-              } else if (text === 'About' || text === 'À propos') {
-                $(this).html(iconHtml + labels.about);
-              }
-            });
-
-            // Update inner nav tabs (Results/Visualization)
-            $('.nav-tabs .nav-link').each(function() {
-              var text = $(this).text().trim();
-              if (text === 'Results' || text === 'Résultats') {
-                $(this).text(labels.results);
-              } else if (text === 'Visualization' || text === 'Visualisation') {
-                $(this).text(labels.visualization);
+              if ($icon.hasClass('fa-upload')) {
+                $link.html(iconHtml + labels.cedars);
+              } else if ($icon.hasClass('fa-database')) {
+                $link.html(iconHtml + labels.data_info);
+              } else if ($icon.hasClass('fa-info-circle')) {
+                $link.html(iconHtml + labels.about);
               }
             });
           });
 
-          // Custom message handler for updating sidebar title
-          Shiny.addCustomMessageHandler('update-sidebar-title', function(title) {
-            $('.bslib-sidebar-layout .sidebar h4, .bslib-sidebar-layout .sidebar h5').each(function() {
-              var text = $(this).text();
-              if (text.includes('Upload') || text.includes('Télécharger')) {
-                $(this).text(title.upload);
-              } else if (text.includes('Analysis Parameters') || text.includes('Paramètres')) {
-                $(this).text(title.parameters);
-              }
-            });
-          });
+          // Note: Sidebar titles are now handled via renderUI for reliable translation
 
-          // Custom message handler for updating misc labels (file inputs, help text, etc)
+          // Custom message handler for updating misc labels (help text, etc)
+          // Note: File input labels and Browse button are now handled via renderUI
           Shiny.addCustomMessageHandler('update-misc-labels', function(labels) {
-            // Update file input labels
-            $('.form-label').each(function() {
-              var text = $(this).text().trim();
-              if (text.includes('Choose Excel file') || text.includes('Choisir un fichier Excel')) {
-                $(this).text(labels.choose_excel);
-              }
-            });
-
             // Update help text
             $('span.help-block, span.form-text, .shiny-input-container .help-block').each(function() {
               var text = $(this).text().trim();
-              if (text.includes('auto-detect sheets') || text.includes('détectera automatiquement')) {
+              if (text.includes('auto-detect sheets') || text.includes('dÃƒÂ©tectera automatiquement')) {
                 $(this).text(labels.auto_detect_help);
-              }
-            });
-
-            // Update Browse button
-            $('.btn-file, .form-control[type=\\'file\\'] + .btn').each(function() {
-              if ($(this).text().includes('Browse') || $(this).text().includes('Parcourir')) {
-                $(this).text(labels.browse);
               }
             });
           });
@@ -407,26 +398,33 @@ ui <- function(request) {
         sidebar = sidebar(
           width = 350,
 
-          h4(translator$t("Upload CEDARS Exposure Data")),
+          uiOutput("sidebar_upload_title"),
 
-          tooltip(
-            fileInput("cedars_file",
-                     translator$t("Choose Excel file..."),
-                     accept = c(".xlsx")),
-            translator$t("Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information.")
+          div(
+            id = "cedars_upload_container",
+            uiOutput("cedars_file_input_ui"),
+
+            helpText(translator$t("The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist).")),
+            actionButton(
+              "cedars_clear",
+              label = translator$t("Remove File"),
+              icon = icon("trash"),
+              class = "btn btn-outline-secondary w-100 mb-3"
+            )
           ),
-
-          helpText(translator$t("The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist).")),
 
           hr(),
 
-          h5(translator$t("Analysis Parameters")),
+          uiOutput("sidebar_parameters_title"),
 
           tooltip(
             selectInput("adv_province",
                        translator$t("Reference PT(s)"),
-                       choices = c(translator$t("Canada"), fb_pt_names()),
-                       selected = translator$t("Canada"),
+                       choices = stats::setNames(
+                         c("Canada", fb_pt_names("en")),
+                         c(translator$t("Canada"), fb_pt_names("en"))
+                       ),
+                       selected = "Canada",
                        multiple = TRUE),
             translator$t("Select one or more provinces/territories for the reference population. Use Ctrl+Click to select multiple.")
           ),
@@ -434,8 +432,11 @@ ui <- function(request) {
           tooltip(
             selectInput("adv_age_group",
                        translator$t("Restrict by Age Group"),
-                       choices = c(translator$t("All Ages"), fb_age_groups()),
-                       selected = translator$t("All Ages"),
+                       choices = stats::setNames(
+                         c("All Ages", fb_age_groups()),
+                         c(translator$t("All Ages"), fb_age_groups())
+                       ),
+                       selected = "All Ages",
                        multiple = TRUE),
             translator$t("Optionally filter the reference population by age group.")
           ),
@@ -443,9 +444,11 @@ ui <- function(request) {
           tooltip(
             selectInput("adv_month",
                        translator$t("Restrict by Month"),
-                       choices = c(translator$t("All Months"),
-                                 stats::setNames(1:12, fb_month_names())),
-                       selected = translator$t("All Months"),
+                       choices = stats::setNames(
+                         c("All Months", as.character(1:12)),
+                         c(translator$t("All Months"), fb_month_names())
+                       ),
+                       selected = "All Months",
                        multiple = TRUE),
             translator$t("Optionally filter the reference population by survey month.")
           )
@@ -453,7 +456,7 @@ ui <- function(request) {
 
         # Main panel
         card(
-          card_header(translator$t("Results")),
+          card_header(uiOutput("results_card_header", inline = TRUE)),
           card_body(
             withSpinner(
               DTOutput("adv_results_table", width = "100%"),
@@ -507,18 +510,76 @@ ui <- function(request) {
 
 # --- 5. Server Logic ---
 server <- function(input, output, session) {
+  translator <- init_translator(session)
+
+  build_province_display_map <- function(lang) {
+    stats::setNames(fb_pt_names(lang), fb_pt_names("en"))
+  }
+
+  build_province_choices <- function(lang, available = fb_pt_names("en")) {
+    available <- unique(available)
+    available <- available[!is.na(available)]
+    display_map <- build_province_display_map(lang)
+    labels <- display_map[available]
+    labels[is.na(labels)] <- available[is.na(labels)]
+    stats::setNames(c("Canada", available),
+                    c(translator$t("Canada"), labels))
+  }
 
   # Language selector
   lang_state <- language_selector_server("lang_selector",
                                          session_parent = session,
-                                         translator = translator)
+                                         style = "dropdown")
 
   current_lang <- lang_state$language
+
+  adv_cases <- reactiveVal(NULL)
+
+  # Render file input with current language
+  output$cedars_file_input_ui <- renderUI({
+    lang <- current_lang()
+    # Create translator with current language to avoid race condition
+    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr$set_translation_language(lang)
+
+    tooltip(
+      fileInput("cedars_file",
+               tr$t("Choose Excel file..."),
+               accept = c(".xlsx"),
+               buttonLabel = tr$t("Browse"),
+               placeholder = tr$t("No file selected")),
+      tr$t("Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information.")
+    )
+  })
+
+  # Render sidebar titles
+  output$sidebar_upload_title <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr$set_translation_language(lang)
+    h4(tr$t("Upload CEDARS Exposure Data"))
+  })
+
+  output$sidebar_parameters_title <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr$set_translation_language(lang)
+    h5(tr$t("Analysis Parameters"))
+  })
+
+  # Render results card header
+  output$results_card_header <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr$set_translation_language(lang)
+    tr$t("Results")
+  })
 
   # Update UI when language changes
   observeEvent(current_lang(), {
     lang <- current_lang()
-    translator$set_translation_language(lang)
+    set_language(lang, session)
+    translator <- get_translator(session)
 
     # Re-initialize backend
     fb_env$initialised <- NULL
@@ -526,37 +587,56 @@ server <- function(input, output, session) {
 
     # Preserve current selections by converting to appropriate format
     current_prov <- input$adv_province
+    if (is.null(current_prov) || !length(current_prov)) current_prov <- "Canada"
+
     current_age <- input$adv_age_group
+    if (is.null(current_age) || !length(current_age)) current_age <- "All Ages"
+
     current_month <- input$adv_month
+    if (is.null(current_month) || !length(current_month)) current_month <- "All Months"
 
-    # If default values selected, update them to new language
-    if (!is.null(current_prov) && ("Canada" %in% current_prov)) {
-      current_prov[current_prov == "Canada"] <- translator$t("Canada")
-    }
-    if (!is.null(current_age) && ("All Ages" %in% current_age || "Tous les âges" %in% current_age)) {
-      current_age[current_age == "All Ages" | current_age == "Tous les âges"] <- translator$t("All Ages")
-    }
-    if (!is.null(current_month) && ("All Months" %in% current_month || "Tous les mois" %in% current_month)) {
-      current_month[current_month == "All Months" | current_month == "Tous les mois"] <- translator$t("All Months")
+    available_pts <- if (!is.null(adv_cases())) {
+      pts <- case_pts()
+      if (is.null(pts) || !length(pts)) fb_pt_names("en") else pts
+    } else {
+      fb_pt_names("en")
     }
 
-    # Update all select inputs with new labels
+    valid_selected <- current_prov[current_prov == "Canada" | current_prov %in% available_pts]
+    if (!length(valid_selected)) {
+      if ("Canada" %in% current_prov) {
+        valid_selected <- "Canada"
+      } else if (length(available_pts)) {
+        valid_selected <- available_pts
+      } else {
+        valid_selected <- "Canada"
+      }
+    }
+
     updateSelectInput(session, "adv_province",
                      label = translator$t("Reference PT(s)"),
-                     choices = c(translator$t("Canada"), fb_pt_names(lang)),
-                     selected = current_prov)
+                     choices = build_province_choices(lang, available_pts),
+                     selected = unique(valid_selected))
 
     updateSelectInput(session, "adv_age_group",
                      label = translator$t("Restrict by Age Group"),
-                     choices = c(translator$t("All Ages"), fb_age_groups()),
+                     choices = stats::setNames(
+                       c("All Ages", fb_age_groups()),
+                       c(translator$t("All Ages"), fb_age_groups())
+                     ),
                      selected = current_age)
 
-    # Update month selector with translated month names from backend
-    month_choices <- c(translator$t("All Months"), stats::setNames(1:12, fb_month_names(lang)))
+    month_choices <- stats::setNames(
+      c("All Months", as.character(1:12)),
+      c(translator$t("All Months"), fb_month_names(lang))
+    )
     updateSelectInput(session, "adv_month",
                      label = translator$t("Restrict by Month"),
                      choices = month_choices,
                      selected = current_month)
+
+    updateActionButton(session, "cedars_clear",
+                       label = translator$t("Remove File"))
 
     # Update button labels via JavaScript
     session$sendCustomMessage("update-button-labels", list(
@@ -572,17 +652,9 @@ server <- function(input, output, session) {
       visualization = translator$t("Visualization")
     ))
 
-    # Update sidebar titles via JavaScript
-    session$sendCustomMessage("update-sidebar-title", list(
-      upload = translator$t("Upload CEDARS Exposure Data"),
-      parameters = translator$t("Analysis Parameters")
-    ))
-
     # Update misc labels via JavaScript
     session$sendCustomMessage("update-misc-labels", list(
-      choose_excel = translator$t("Choose Excel file..."),
-      auto_detect_help = translator$t("The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist)."),
-      browse = translator$t("Browse")
+      auto_detect_help = translator$t("The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist).")
     ))
 
     session$sendCustomMessage("language_changed", lang)
@@ -590,183 +662,214 @@ server <- function(input, output, session) {
 
   # Auto-deselect "Canada" when specific PTs selected
   observeEvent(input$adv_province, {
-    if (translator$t("Canada") %in% input$adv_province && length(input$adv_province) > 1) {
+    if ("Canada" %in% input$adv_province && length(input$adv_province) > 1) {
       updateSelectInput(session, "adv_province",
-                       selected = setdiff(input$adv_province, translator$t("Canada")))
+                       selected = setdiff(input$adv_province, "Canada"))
     }
   })
 
   # Auto-deselect "All Ages" when specific ages selected
   observeEvent(input$adv_age_group, {
-    if (translator$t("All Ages") %in% input$adv_age_group && length(input$adv_age_group) > 1) {
+    if ("All Ages" %in% input$adv_age_group && length(input$adv_age_group) > 1) {
       updateSelectInput(session, "adv_age_group",
-                       selected = setdiff(input$adv_age_group, translator$t("All Ages")))
+                       selected = setdiff(input$adv_age_group, "All Ages"))
     }
   })
 
   # Auto-deselect "All Months" when specific months selected
   observeEvent(input$adv_month, {
-    if (translator$t("All Months") %in% input$adv_month && length(input$adv_month) > 1) {
+    if ("All Months" %in% input$adv_month && length(input$adv_month) > 1) {
       updateSelectInput(session, "adv_month",
-                       selected = setdiff(input$adv_month, translator$t("All Months")))
+                       selected = setdiff(input$adv_month, "All Months"))
     }
   })
 
-  # Process CEDARS upload
-  adv_cases <- reactive({
+  observeEvent(input$cedars_file, {
     req(input$cedars_file)
+    lang <- current_lang()
 
-    withProgress(message = translator$t("Processing..."), value = 0, {
-      path <- input$cedars_file$datapath
-      filename <- input$cedars_file$name
+    tryCatch({
+      df <- withProgress(message = translator$t("Processing..."), value = 0, {
+        path <- input$cedars_file$datapath
+        filename <- input$cedars_file$name
 
-      # Validate file type
-      validate(need(
-        grepl("\\.xlsx?$", tolower(filename)),
-        translator$t("Invalid file format")
-      ))
+        # Validate file type
+        validate(need(
+          grepl("\\.xlsx?$", tolower(filename)),
+          translator$t("Invalid file format")
+        ))
 
-      # Auto-detect exposure data sheet
-      incProgress(0.2, detail = "Finding exposure data sheet")
-      exp_sheet_result <- find_sheet_by_columns(path, c("nationalid", "exposurecode", "hasexposureoccurred"))
+        # Auto-detect exposure data sheet
+        incProgress(0.2, detail = "Finding exposure data sheet")
+        exp_sheet_result <- find_sheet_by_columns(path, c("nationalid", "exposurecode", "hasexposureoccurred"))
 
-      validate(need(
-        exp_sheet_result$found,
-        "Could not find sheet with required exposure columns (NationalID, ExposureCode, HasExposureOccurred)"
-      ))
+        validate(need(
+          exp_sheet_result$found,
+          "Could not find sheet with required exposure columns (NationalID, ExposureCode, HasExposureOccurred)"
+        ))
 
-      # Read exposure data
-      incProgress(0.1, detail = paste0("Reading: ", exp_sheet_result$sheet))
-      df_exp <- tryCatch(
-        readxl::read_excel(path, sheet = exp_sheet_result$sheet),
-        error = function(e) NULL
-      )
-
-      validate(need(!is.null(df_exp) && nrow(df_exp) > 0, "Sheet is empty"))
-
-      # Normalize column names
-      names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
-
-      df_exp <- df_exp %>%
-        transmute(
-          natid = as.character(.data$nationalid),
-          exposure = as.character(.data$exposurecode),
-          val = tolower(as.character(.data$hasexposureoccurred))
-        )
-
-      # Auto-detect linelist sheet (must NOT be the exposure sheet)
-      incProgress(0.3, detail = "Finding linelist sheet")
-
-      # Try multiple strategies to find the linelist sheet
-      # Strategy 1: Look for sheets with natid or nationalid but WITHOUT exposurecode
-      all_sheets <- tryCatch(readxl::excel_sheets(path), error = function(e) character(0))
-      line_sheet_name <- NULL
-
-      for (sheet in all_sheets) {
-        if (sheet == exp_sheet_result$sheet) next  # Skip the exposure sheet
-
-        sheet_data <- tryCatch(
-          readxl::read_excel(path, sheet = sheet, n_max = 1),
+        # Read exposure data
+        incProgress(0.1, detail = paste0("Reading: ", exp_sheet_result$sheet))
+        df_exp <- tryCatch(
+          readxl::read_excel(path, sheet = exp_sheet_result$sheet),
           error = function(e) NULL
         )
 
-        if (!is.null(sheet_data)) {
-          cols <- gsub("[^a-z0-9]+", "", tolower(names(sheet_data)))
-          # Linelist should have nationalid or natid, but NOT exposurecode
-          if (("nationalid" %in% cols || "natid" %in% cols) && !("exposurecode" %in% cols)) {
-            line_sheet_name <- sheet
-            break
+        validate(need(!is.null(df_exp) && nrow(df_exp) > 0, "Sheet is empty"))
+
+        # Normalize column names
+        names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
+
+        df_exp <- df_exp %>%
+          transmute(
+            natid = as.character(.data$nationalid),
+            exposure = as.character(.data$exposurecode),
+            val = tolower(as.character(.data$hasexposureoccurred))
+          )
+
+        # Auto-detect linelist sheet (must NOT be the exposure sheet)
+        incProgress(0.3, detail = "Finding linelist sheet")
+
+        # Try multiple strategies to find the linelist sheet
+        all_sheets <- tryCatch(readxl::excel_sheets(path), error = function(e) character(0))
+        line_sheet_name <- NULL
+
+        for (sheet in all_sheets) {
+          if (sheet == exp_sheet_result$sheet) next  # Skip the exposure sheet
+
+          sheet_data <- tryCatch(
+            readxl::read_excel(path, sheet = sheet, n_max = 1),
+            error = function(e) NULL
+          )
+
+          if (!is.null(sheet_data)) {
+            cols <- gsub("[^a-z0-9]+", "", tolower(names(sheet_data)))
+            if (("nationalid" %in% cols || "natid" %in% cols) && !("exposurecode" %in% cols)) {
+              line_sheet_name <- sheet
+              break
+            }
           }
         }
-      }
 
-      validate(need(
-        !is.null(line_sheet_name),
-        paste0("Could not find linelist sheet. Looking for sheet with NationalID/natid but without ExposureCode. Available sheets: ", paste(all_sheets, collapse = ", "))
-      ))
+        validate(need(
+          !is.null(line_sheet_name),
+          paste0("Could not find linelist sheet. Looking for sheet with NationalID/natid but without ExposureCode. Available sheets: ", paste(all_sheets, collapse = ", "))
+        ))
 
-      line_sheet_result <- list(sheet = line_sheet_name, found = TRUE)
+        line_sheet_result <- list(sheet = line_sheet_name, found = TRUE)
 
-      # Read linelist
-      incProgress(0.1, detail = paste0("Reading: ", line_sheet_result$sheet))
-      df_line <- tryCatch(
-        readxl::read_excel(path, sheet = line_sheet_result$sheet),
-        error = function(e) NULL
-      )
+        # Read linelist
+        incProgress(0.1, detail = paste0("Reading: ", line_sheet_result$sheet))
+        df_line <- tryCatch(
+          readxl::read_excel(path, sheet = line_sheet_result$sheet),
+          error = function(e) NULL
+        )
 
-      validate(need(!is.null(df_line) && nrow(df_line) > 0, "Linelist sheet is empty"))
+        validate(need(!is.null(df_line) && nrow(df_line) > 0, "Linelist sheet is empty"))
 
-      names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
+        names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
 
-      # Filter confirmed cases if CaseStatus column exists
-      incProgress(0.2, detail = "Filtering confirmed cases")
-      if ("casestatus" %in% names(df_line)) {
-        df_line <- df_line %>% filter(tolower(as.character(.data$casestatus)) == "confirmed")
-        validate(need(nrow(df_line) > 0, "No confirmed cases found"))
-      }
-
-      # Handle NationalID variations
-      if (!"natid" %in% names(df_line)) {
-        if ("nationalid" %in% names(df_line)) {
-          df_line$natid <- as.character(df_line$nationalid)
-        } else {
-          validate(need(FALSE, "Missing NationalID column in linelist"))
+        # Filter confirmed cases if CaseStatus column exists
+        incProgress(0.2, detail = "Filtering confirmed cases")
+        if ("casestatus" %in% names(df_line)) {
+          df_line <- df_line %>% filter(tolower(as.character(.data$casestatus)) == "confirmed")
+          validate(need(nrow(df_line) > 0, "No confirmed cases found"))
         }
+
+        # Handle NationalID variations
+        if (!"natid" %in% names(df_line)) {
+          if ("nationalid" %in% names(df_line)) {
+            df_line$natid <- as.character(df_line$nationalid)
+          } else {
+            validate(need(FALSE, "Missing NationalID column in linelist"))
+          }
+        }
+
+        has_pt_col <- "provinceterritory" %in% names(df_line)
+
+        df_line <- df_line %>%
+          transmute(
+            natid = as.character(.data$natid),
+            provinceterritory = if (has_pt_col) .data$provinceterritory else NA_character_
+          ) %>%
+          distinct(natid, .keep_all = TRUE)
+
+        # Merge (many exposures to one case)
+        incProgress(0.2, detail = "Merging data")
+        df <- df_exp %>% inner_join(df_line, by = "natid", relationship = "many-to-one")
+
+        validate(need(nrow(df) > 0, "No matching cases found between sheets"))
+
+        showNotification(
+          paste0(translator$t("Success"), ": ", length(unique(df$natid)), " ", translator$t("cases")),
+          type = "message"
+        )
+
+        df
+      })
+
+      adv_cases(df)
+    }, error = function(e) {
+      adv_cases(NULL)
+      shinyjs::js$resetFileInput(id = "cedars_file")
+      if (!inherits(e, "shiny.silent.error")) {
+        showNotification(paste(translator$t("Error"), ": ", e$message), type = "error")
       }
-
-      # Check for provinceterritory BEFORE transmute
-      has_pt_col <- "provinceterritory" %in% names(df_line)
-
-      df_line <- df_line %>%
-        transmute(
-          natid = as.character(.data$natid),
-          provinceterritory = if(has_pt_col) .data$provinceterritory else NA_character_
-        ) %>%
-        distinct(natid, .keep_all = TRUE)  # Ensure one row per case
-
-      # Merge (many exposures to one case)
-      incProgress(0.2, detail = "Merging data")
-      df <- df_exp %>% inner_join(df_line, by = "natid", relationship = "many-to-one")
-
-      validate(need(nrow(df) > 0, "No matching cases found between sheets"))
-
-      showNotification(
-        paste0(translator$t("Success"), ": ", length(unique(df$natid)), " ", translator$t("cases")),
-        type = "message"
-      )
-
-      df
     })
+  }, ignoreNULL = TRUE)
+
+  # Clear uploaded data
+  observeEvent(input$cedars_clear, {
+    adv_cases(NULL)
+    shinyjs::js$resetFileInput(id = "cedars_file")
+
+    lang <- current_lang()
+
+    updateSelectInput(session, "adv_province",
+                     choices = build_province_choices(lang),
+                     selected = "Canada")
+
+    updateSelectInput(session, "adv_age_group",
+                     choices = stats::setNames(
+                       c("All Ages", fb_age_groups()),
+                       c(translator$t("All Ages"), fb_age_groups())
+                     ),
+                     selected = "All Ages")
+
+    updateSelectInput(session, "adv_month",
+                     choices = stats::setNames(
+                       c("All Months", as.character(1:12)),
+                       c(translator$t("All Months"), fb_month_names(lang))
+                     ),
+                     selected = "All Months")
+
+    showNotification(translator$t("Upload cleared"), type = "message")
   })
 
   # Get unique PTs from uploaded cases
   case_pts <- reactive({
     d <- adv_cases()
-
-    if (!"provinceterritory" %in% names(d)) {
+    if (is.null(d) || !"provinceterritory" %in% names(d)) {
       return(NULL)
     }
 
     unique_pts <- unique(d$provinceterritory[!is.na(d$provinceterritory)])
     if (length(unique_pts) == 0) return(NULL)
 
-    # Return PT names in current language
-    lang <- current_lang()
-    fb_pt_names(lang)[fb_pt_names("en") %in% unique_pts]
+    unique_pts
   })
 
   # Update PT filter choices when cases are uploaded
   observeEvent(adv_cases(), {
-    req(adv_cases())
     lang <- current_lang()
 
-    if ("provinceterritory" %in% names(adv_cases())) {
+    current_cases <- adv_cases()
+    if (!is.null(current_cases) && "provinceterritory" %in% names(current_cases)) {
       pts <- case_pts()
       if (!is.null(pts) && length(pts) > 0) {
-        # Set choices to PTs from uploaded cases
         updateSelectInput(session, "adv_province",
-                         choices = c(translator$t("Canada"), pts),
-                         selected = pts)  # Default to all PTs from upload
+                         choices = build_province_choices(lang, pts),
+                         selected = pts)
       }
     }
   }, ignoreNULL = TRUE, ignoreInit = FALSE)
@@ -774,28 +877,23 @@ server <- function(input, output, session) {
   # Calculate results
   adv_results <- reactive({
     d <- adv_cases()
+    if (is.null(d)) return(NULL)
     lang <- current_lang()
 
     withProgress(message = translator$t("Processing..."), value = 0, {
       # Get PT filter
       pts_selected <- input$adv_province
-
-      # Convert French PT names to English for backend
-      pts_for_backend <- pts_selected
-      if (lang == "fr" && !is.null(pts_selected)) {
-        if (!(translator$t("Canada") %in% pts_selected || "Canada" %in% pts_selected)) {
-          en_pt_names <- fb_pt_names("en")
-          fr_pt_names <- fb_pt_names("fr")
-          pt_map <- stats::setNames(en_pt_names, fr_pt_names)
-          pts_for_backend <- sapply(pts_selected, function(pt) if (pt %in% names(pt_map)) pt_map[pt] else pt)
-        }
+      if (is.null(pts_selected)) {
+        pts_selected <- character(0)
       }
+
+      pts_for_backend <- pts_selected
 
       # Filter cases by PT if specific PT(s) selected
       incProgress(0.1, detail = "Filtering cases by PT")
       d_filtered <- d
       if ("provinceterritory" %in% names(d) && !is.null(pts_selected)) {
-        if (!(translator$t("Canada") %in% pts_selected || "Canada" %in% pts_selected)) {
+        if (!("Canada" %in% pts_selected)) {
           d_filtered <- d %>% filter(is.na(provinceterritory) | provinceterritory %in% pts_for_backend)
           validate(need(nrow(d_filtered) > 0, translator$t("No cases found for selected province(s)")))
         }
@@ -808,12 +906,17 @@ server <- function(input, output, session) {
           reference_scope <- "Canada"
           pts_for_reference <- "Canada"
         } else {
-          reference_scope <- paste(unique_case_pts, collapse = ", ")
+          reference_scope_labels <- build_province_display_map(lang)[unique_case_pts]
+          reference_scope_labels[is.na(reference_scope_labels)] <- unique_case_pts[is.na(reference_scope_labels)]
+          reference_scope <- paste(reference_scope_labels, collapse = ", ")
           pts_for_reference <- unique_case_pts
         }
       } else {
         reference_scope <- "Canada"
         pts_for_reference <- "Canada"
+      }
+      if (identical(reference_scope, "Canada")) {
+        reference_scope <- translator$t("Canada")
       }
 
       # Summarise counts by exposure code (count unique cases, not rows)
@@ -827,8 +930,8 @@ server <- function(input, output, session) {
 
       codes <- exposure_counts$exposure
 
-      ages <- if (is.null(input$adv_age_group) || (length(input$adv_age_group) == 1 && (translator$t("All Ages") %in% input$adv_age_group || "All Ages" %in% input$adv_age_group || "Tous les âges" %in% input$adv_age_group))) NULL else input$adv_age_group
-      months <- if (is.null(input$adv_month) || (length(input$adv_month) == 1 && (translator$t("All Months") %in% input$adv_month || "All Months" %in% input$adv_month || "Tous les mois" %in% input$adv_month))) NULL else as.integer(input$adv_month)
+      ages <- if (is.null(input$adv_age_group) || (length(input$adv_age_group) == 1 && "All Ages" %in% input$adv_age_group)) NULL else input$adv_age_group
+      months <- if (is.null(input$adv_month) || (length(input$adv_month) == 1 && "All Months" %in% input$adv_month)) NULL else as.integer(input$adv_month)
 
       incProgress(0.4, detail = "Computing reference percentages")
       ref_perc <- fb_reference_percents(codes, pt_names = pts_for_reference, months = months, age_groups = ages)
@@ -875,10 +978,18 @@ server <- function(input, output, session) {
 
   # Render results table
   output$adv_results_table <- renderDT({
-    req(adv_results())
+    res <- adv_results()
     lang <- current_lang()
 
-    res <- adv_results() %>%
+    if (is.null(res)) {
+      return(DT::datatable(
+        data.frame(),
+        options = list(dom = "t"),
+        rownames = FALSE
+      ))
+    }
+
+    res <- res %>%
       # Filter out rows with missing exposure names
       filter(!is.na(Exposure), Exposure != "") %>%
       # Create sort key for p-values: real numbers first (ascending), then "-" at end
@@ -968,8 +1079,8 @@ server <- function(input, output, session) {
       h4(translator$t("Interpretation Guide")),
       tags$ul(
         tags$li(strong(translator$t("Alert")), ": ", translator$t("Observed exposure is significantly higher than reference (p < 0.05)")),
-        tags$li(strong(translator$t("Borderline")), ": ", translator$t("Suggestive evidence (0.05 ≤ p < 0.10)")),
-        tags$li(strong(translator$t("Not Significant")), ": ", translator$t("No significant difference from reference (p ≥ 0.10)")),
+        tags$li(strong(translator$t("Borderline")), ": ", translator$t("Suggestive evidence (0.05 Ã¢â€°Â¤ p < 0.10)")),
+        tags$li(strong(translator$t("Not Significant")), ": ", translator$t("No significant difference from reference (p Ã¢â€°Â¥ 0.10)")),
         tags$li(strong(translator$t("Insufficient Data")), ": ", translator$t("Too few cases to calculate statistics (< 5 total responses)")),
         tags$li(strong(translator$t("No Reference Value")), ": ", translator$t("Exposure not found in Foodbook database"))
       )
@@ -979,3 +1090,8 @@ server <- function(input, output, session) {
 
 # --- 6. Run Application ---
 shinyApp(ui, server)
+
+
+
+
+

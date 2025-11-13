@@ -4,11 +4,14 @@
 .RData
 .Ruserdata
 .Renviron
+
 # Posit/RStudio
 .posit/
+
 # OS files
 .DS_Store
 Thumbs.db
+
 # Logs and temp
 *.log
 tmp/
@@ -17,5 +20,13 @@ tmp/
 # Deployment and plots
 rsconnect/
 Rplots.pdf
-AGENT.md
-CLAUDE.md
+
+# Claude Code settings (local only)
+.claude/
+
+# Sensitive data - legacy microdata (internal use only)
+upgrade-context/*.dta
+upgrade-context/*.do
+
+# Keep upgrade-context text files for reference
+!upgrade-context/*.txt

@@ -11,10 +11,12 @@ An interactive Shiny application to compare observed case exposures against Food
 ## Features
 
 ### Bilingual Support
-- **Full French and English interfaces** - Switch languages with one click
-- **Translated PT names, exposure labels, and UI text**
+- **Full French and English interfaces** - Switch languages with one click via dropdown selector
+- **Translated PT names, exposure labels, and UI text** - 223 translation strings covering all UI elements
 - **URL language parameter** - Share links in preferred language (`?lang=fr`)
 - **Government of Canada bilingual standard compliant**
+- **Implementation**: Uses `shiny.i18n` with `translations/translation.json`, custom i18n helpers in `src/i18n_helper.R`, and reactive `renderUI()` for dynamic elements
+- **Smart translation**: File inputs, sidebar titles, and tab names update reactively without breaking functionality
 
 ### Core Analysis
 - **Combined PT reference** using Foodbook microdata (weighted), aligned with OMD's Stata approach
@@ -234,18 +236,30 @@ rsconnect::deployApp(appName = "foodbook-shiny-app", server = "prod", account = 
 
 ```
 foodbook-shiny-app/
-├── app.R                          # Main Shiny application (~1,500 lines)
+├── app-public.R                   # Public app - Manual/CSV workflows (~900 lines)
+├── app-internal.R                 # Internal app - CEDARS workflows (~1,100 lines)
 ├── src/
 │   ├── foodbook_backend.R         # Backend functions (microdata, Stata parsing, calculations)
+│   ├── i18n_helper.R              # Internationalization helpers (bilingual support)
+│   ├── modules/                   # Reusable Shiny modules
+│   │   ├── exposure_module.R      # Exposure input/display module
+│   │   └── language_selector_module.R  # Language switcher module
 │   └── data-clean-proportions.R   # Optional: regenerate legacy CSV
 ├── data/
+│   ├── open-canada/               # Public Foodbook data (PRIMARY)
+│   │   ├── foodbook-1/            # FB1: 10,892 respondents (EN+FR)
+│   │   └── foodbook-2/            # FB2: 21,744 respondents (EN+FR)
 │   ├── foodbook_data.csv          # Legacy pre-computed references (fallback)
 │   └── Toolkit-*.xlsx             # Source workbook for CSV regeneration
-├── upgrade-context/               # OMD Foodbook assets (sensitive)
+├── translations/
+│   └── translation.json           # Bilingual UI strings (223 EN/FR translations)
+├── upgrade-context/               # Optional legacy microdata (internal use only)
 │   ├── foodbook.dta               # Foodbook 1 microdata
 │   ├── foodbook2v2.dta            # Foodbook 2 microdata
 │   ├── foodbook data.do           # Variable renames (Stata)
 │   └── foodbook variable labeling.do  # Exposure labels (416 exposures)
+├── archive/
+│   └── app.R.legacy               # Original combined app (ARCHIVED)
 ├── tests/
 │   ├── testthat.R                 # Test runner
 │   ├── README.md                  # Testing documentation
@@ -253,7 +267,9 @@ foodbook-shiny-app/
 │       ├── test-backend-parsing.R      # Stata parsing tests (28 tests)
 │       ├── test-backend-calculations.R # Statistical tests (20 tests)
 │       └── test-new-features.R         # New features tests (43 tests)
-├── manifest.json                  # Posit Connect dependency manifest (R 4.5.1)
+├── manifest-public.json           # Posit Connect manifest for public app (R 4.5.1)
+├── manifest-internal.json         # Posit Connect manifest for internal app (R 4.5.1)
+├── DEPLOYMENT.md                  # Deployment guide for both apps
 ├── README.md                      # This file - User documentation
 ├── CLAUDE.md                      # Developer/agent guidance
 ├── AGENTS.md                      # Quick reference for AI agents

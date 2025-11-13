@@ -734,69 +734,57 @@ fb_reference_percents_csv <- function(codes, pt_names = NULL) {
 
 fb_reference_percents <- function(codes, pt_names = NULL, months = NULL, age_groups = NULL) {
   if (!is.null(fb_env$micro)) {
-    # Get CEDARS->Foodbook mapping
     cedars_map <- fb_cedars_to_foodbook_map()
 
-    # Map CEDARS codes to Foodbook columns where possible
-    fb_codes <- sapply(codes, function(code) {
+    fb_codes <- vapply(codes, function(code) {
       if (code %in% names(cedars_map)) {
-        cedars_map[code]  # Map to Foodbook column
+        cedars_map[[code]]
       } else {
-        code  # Keep as-is (might already be a Foodbook code)
+        code
       }
-    })
+    }, character(1), USE.NAMES = FALSE)
 
-    # Calculate references using Foodbook column names
-    # Try FB2 first (primary), then FB1 if column doesn't exist
-    results <- vapply(seq_along(fb_codes), function(i) {
-      fb_col <- fb_codes[i]
+    d_fb2 <- fb_filter_micro(pt_names, months, age_groups)
 
-      # Try FB2 first (fb_env$micro)
-      d_fb2 <- fb_filter_micro(pt_names, months, age_groups)
-      if (fb_col %in% names(d_fb2)) {
+    d_fb1 <- NULL
+    if (!is.null(fb_env$micro_fb1)) {
+      d_fb1 <- fb_env$micro_fb1
+
+      if (!is.null(pt_names) && "PT" %in% names(d_fb1)) {
+        pt_codes <- fb_pt_map()[pt_names]
+        d_fb1 <- d_fb1[d_fb1$PT %in% pt_codes, , drop = FALSE]
+      }
+
+      if (!is.null(months) && "month_dv" %in% names(d_fb1)) {
+        d_fb1 <- d_fb1[d_fb1$month_dv %in% months, , drop = FALSE]
+      }
+
+      if (!is.null(age_groups) && "age_grp_dv" %in% names(d_fb1)) {
+        age_map <- c("0-9" = 1L, "10-19" = 2L, "20-64" = 3L, "65+" = 4L)
+        age_codes <- age_map[age_groups]
+        d_fb1 <- d_fb1[d_fb1$age_grp_dv %in% age_codes, , drop = FALSE]
+      }
+    }
+
+    results <- vapply(fb_codes, function(fb_col) {
+      if (length(d_fb2) && fb_col %in% names(d_fb2)) {
         return(fb_weighted_percent(fb_col, d_fb2))
       }
 
-      # If not in FB2, try FB1 (fb_env$micro_fb1)
-      if (!is.null(fb_env$micro_fb1)) {
-        # Use custom filter for FB1 since it has different structure
-        d_fb1 <- fb_env$micro_fb1
-
-        # Filter by PT
-        if (!is.null(pt_names) && "PT" %in% names(d_fb1)) {
-          pt_codes <- fb_pt_map()[pt_names]
-          d_fb1 <- d_fb1[d_fb1$PT %in% pt_codes, ]
-        }
-
-        # Filter by month
-        if (!is.null(months) && "month_dv" %in% names(d_fb1)) {
-          d_fb1 <- d_fb1[d_fb1$month_dv %in% months, ]
-        }
-
-        # Filter by age group
-        if (!is.null(age_groups) && "age_grp_dv" %in% names(d_fb1)) {
-          age_map <- c("0-9" = 1L, "10-19" = 2L, "20-64" = 3L, "65+" = 4L)
-          age_codes <- age_map[age_groups]
-          d_fb1 <- d_fb1[d_fb1$age_grp_dv %in% age_codes, ]
-        }
-
-        # Try exact column name first
+      if (!is.null(d_fb1)) {
         if (fb_col %in% names(d_fb1)) {
           return(fb_weighted_percent(fb_col, d_fb1))
         }
 
-        # Try with _dv suffix (common in Open Canada data)
         fb_col_dv <- paste0(fb_col, "_dv")
         if (fb_col_dv %in% names(d_fb1)) {
           return(fb_weighted_percent(fb_col_dv, d_fb1))
         }
       }
 
-      # Column not found in either dataset
-      return(NA_real_)
+      NA_real_
     }, numeric(1))
 
-    # Return with original CEDARS code names
     names(results) <- codes
     return(results)
   }

@@ -1,0 +1,909 @@
+{
+  "languages": ["en", "fr"],
+  "translation": [
+    {
+      "en": "Food Exposure Analysis Tool",
+      "fr": "Outil d'analyse de l'exposition alimentaire"
+    },
+    {
+      "en": "Analysis",
+      "fr": "Analyse"
+    },
+    {
+      "en": "Advanced",
+      "fr": "Avancé"
+    },
+    {
+      "en": "Data Info",
+      "fr": "Info sur les données"
+    },
+    {
+      "en": "About",
+      "fr": "À propos"
+    },
+    {
+      "en": "Language",
+      "fr": "Langue"
+    },
+    {
+      "en": "English",
+      "fr": "Anglais"
+    },
+    {
+      "en": "French",
+      "fr": "Français"
+    },
+    {
+      "en": "Analysis Parameters",
+      "fr": "Paramètres d'analyse"
+    },
+    {
+      "en": "Reference PT(s)",
+      "fr": "Province(s)/territoire(s) de référence"
+    },
+    {
+      "en": "Select one or more provinces/territories for the reference population. Use Ctrl+Click to select multiple.",
+      "fr": "Sélectionnez une ou plusieurs provinces/territoires pour la population de référence. Utilisez Ctrl+Clic pour sélectionner plusieurs éléments."
+    },
+    {
+      "en": "Canada",
+      "fr": "Canada"
+    },
+    {
+      "en": "All Provinces/Territories",
+      "fr": "Toutes les provinces/territoires"
+    },
+    {
+      "en": "Restrict by Age Group",
+      "fr": "Restreindre par groupe d'âge"
+    },
+    {
+      "en": "Optionally filter the reference population by age group.",
+      "fr": "Filtrer facultativement la population de référence par groupe d'âge."
+    },
+    {
+      "en": "All Ages",
+      "fr": "Tous les âges"
+    },
+    {
+      "en": "Restrict by Month",
+      "fr": "Restreindre par mois"
+    },
+    {
+      "en": "Optionally filter the reference population by survey month.",
+      "fr": "Filtrer facultativement la population de référence par mois de l'enquête."
+    },
+    {
+      "en": "All Months",
+      "fr": "Tous les mois"
+    },
+    {
+      "en": "Filter Category",
+      "fr": "Catégorie de filtre"
+    },
+    {
+      "en": "All Exposures",
+      "fr": "Toutes les expositions"
+    },
+    {
+      "en": "Select Exposures",
+      "fr": "Sélectionner les expositions"
+    },
+    {
+      "en": "Choose exposures from the Foodbook database or type custom exposure names.",
+      "fr": "Choisissez des expositions dans la base de données Foodbook ou saisissez des noms d'exposition personnalisés."
+    },
+    {
+      "en": "Type or select exposures...",
+      "fr": "Saisissez ou sélectionnez des expositions..."
+    },
+    {
+      "en": "Manual Entry",
+      "fr": "Saisie manuelle"
+    },
+    {
+      "en": "CSV Upload",
+      "fr": "Téléchargement CSV"
+    },
+    {
+      "en": "Upload CSV File",
+      "fr": "Télécharger un fichier CSV"
+    },
+    {
+      "en": "Upload a CSV file with columns: Exposure, Yes, Probably, No, DK",
+      "fr": "Téléchargez un fichier CSV avec les colonnes : Exposition, Oui, Probablement, Non, NSP"
+    },
+    {
+      "en": "Choose CSV file...",
+      "fr": "Choisir un fichier CSV..."
+    },
+    {
+      "en": "Remove File",
+      "fr": "Supprimer le fichier"
+    },
+    {
+      "en": "Upload cleared",
+      "fr": "T\\u00e9l\\u00e9versement r\\u00e9initialis\\u00e9"
+    },
+    {
+      "en": "Yes",
+      "fr": "Oui"
+    },
+    {
+      "en": "Probably",
+      "fr": "Probablement"
+    },
+    {
+      "en": "No",
+      "fr": "Non"
+    },
+    {
+      "en": "DK",
+      "fr": "NSP"
+    },
+    {
+      "en": "Don't Know",
+      "fr": "Ne sait pas"
+    },
+    {
+      "en": "Custom Reference %",
+      "fr": "% de référence personnalisé"
+    },
+    {
+      "en": "For custom exposures, enter the expected reference percentage (0-100).",
+      "fr": "Pour les expositions personnalisées, entrez le pourcentage de référence attendu (0-100)."
+    },
+    {
+      "en": "Results",
+      "fr": "Résultats"
+    },
+    {
+      "en": "Reference Scope",
+      "fr": "Portée de la référence"
+    },
+    {
+      "en": "Exposure",
+      "fr": "Exposition"
+    },
+    {
+      "en": "Total Valid",
+      "fr": "Total valide"
+    },
+    {
+      "en": "Observed %",
+      "fr": "% observé"
+    },
+    {
+      "en": "Reference %",
+      "fr": "% de référence"
+    },
+    {
+      "en": "P-Value",
+      "fr": "Valeur p"
+    },
+    {
+      "en": "Classification",
+      "fr": "Classification"
+    },
+    {
+      "en": "Alert",
+      "fr": "Alerte"
+    },
+    {
+      "en": "Borderline",
+      "fr": "Limite"
+    },
+    {
+      "en": "Not Significant",
+      "fr": "Non significatif"
+    },
+    {
+      "en": "Insufficient Data",
+      "fr": "Données insuffisantes"
+    },
+    {
+      "en": "No Reference Value",
+      "fr": "Aucune valeur de référence"
+    },
+    {
+      "en": "Upload CEDARS Exposure Data",
+      "fr": "Télécharger les données d'exposition CEDARS"
+    },
+    {
+      "en": "Upload CEDARS Excel file containing case exposure data.",
+      "fr": "Téléchargez le fichier Excel CEDARS contenant les données d'exposition des cas."
+    },
+    {
+      "en": "Choose Excel file...",
+      "fr": "Choisir un fichier Excel..."
+    },
+    {
+      "en": "No file selected",
+      "fr": "Aucun fichier sélectionné"
+    },
+    {
+      "en": "Processing...",
+      "fr": "Traitement en cours..."
+    },
+    {
+      "en": "Loading...",
+      "fr": "Chargement..."
+    },
+    {
+      "en": "Data Source",
+      "fr": "Source de données"
+    },
+    {
+      "en": "Reference Population Statistics",
+      "fr": "Statistiques de la population de référence"
+    },
+    {
+      "en": "Total Respondents",
+      "fr": "Total des répondants"
+    },
+    {
+      "en": "Top Exposures by Prevalence",
+      "fr": "Principales expositions par prévalence"
+    },
+    {
+      "en": "Coverage by Province/Territory",
+      "fr": "Couverture par province/territoire"
+    },
+    {
+      "en": "Coverage by Month",
+      "fr": "Couverture par mois"
+    },
+    {
+      "en": "Methodology",
+      "fr": "Méthodologie"
+    },
+    {
+      "en": "This tool compares observed case exposures against Foodbook reference percentages using statistical significance testing.",
+      "fr": "Cet outil compare les expositions de cas observées aux pourcentages de référence de Foodbook en utilisant des tests de signification statistique."
+    },
+    {
+      "en": "Interpretation Guide",
+      "fr": "Guide d'interprétation"
+    },
+    {
+      "en": "Alert: Observed exposure is significantly higher than reference (p < 0.05)",
+      "fr": "Alerte : L'exposition observée est significativement plus élevée que la référence (p < 0,05)"
+    },
+    {
+      "en": "Borderline: Suggestive evidence (0.05 ≤ p < 0.10)",
+      "fr": "Limite : Preuves suggestives (0,05 ≤ p < 0,10)"
+    },
+    {
+      "en": "Not Significant: No significant difference from reference (p ≥ 0.10)",
+      "fr": "Non significatif : Aucune différence significative par rapport à la référence (p ≥ 0,10)"
+    },
+    {
+      "en": "Insufficient Data: Too few cases to calculate statistics (< 5 total responses)",
+      "fr": "Données insuffisantes : Trop peu de cas pour calculer les statistiques (< 5 réponses totales)"
+    },
+    {
+      "en": "No Reference Value: Exposure not found in Foodbook database",
+      "fr": "Aucune valeur de référence : Exposition non trouvée dans la base de données Foodbook"
+    },
+    {
+      "en": "Good Practices",
+      "fr": "Bonnes pratiques"
+    },
+    {
+      "en": "Select reference population filters that match your case demographics (PT, age, season).",
+      "fr": "Sélectionnez des filtres de population de référence qui correspondent à vos données démographiques (PT, âge, saison)."
+    },
+    {
+      "en": "Focus on Alert and Borderline classifications for hypothesis generation.",
+      "fr": "Concentrez-vous sur les classifications Alerte et Limite pour la génération d'hypothèses."
+    },
+    {
+      "en": "Consider multiple testing correction when examining many exposures.",
+      "fr": "Envisagez une correction pour tests multiples lors de l'examen de nombreuses expositions."
+    },
+    {
+      "en": "Custom exposures require you to provide the expected reference percentage.",
+      "fr": "Les expositions personnalisées nécessitent que vous fournissiez le pourcentage de référence attendu."
+    },
+    {
+      "en": "Data Sources",
+      "fr": "Sources de données"
+    },
+    {
+      "en": "This tool uses public Foodbook data from Open Canada (Foodbook 1 and Foodbook 2).",
+      "fr": "Cet outil utilise les données publiques de Foodbook provenant de Données ouvertes Canada (Foodbook 1 et Foodbook 2)."
+    },
+    {
+      "en": "Foodbook: A survey of food consumption patterns in Canada",
+      "fr": "Foodbook : Une enquête sur les habitudes de consommation alimentaire au Canada"
+    },
+    {
+      "en": "Download Results",
+      "fr": "Télécharger les résultats"
+    },
+    {
+      "en": "Export",
+      "fr": "Exporter"
+    },
+    {
+      "en": "Copy",
+      "fr": "Copier"
+    },
+    {
+      "en": "Print",
+      "fr": "Imprimer"
+    },
+    {
+      "en": "Show",
+      "fr": "Afficher"
+    },
+    {
+      "en": "entries",
+      "fr": "entrées"
+    },
+    {
+      "en": "Search:",
+      "fr": "Rechercher :"
+    },
+    {
+      "en": "Showing",
+      "fr": "Affichage de"
+    },
+    {
+      "en": "to",
+      "fr": "à"
+    },
+    {
+      "en": "of",
+      "fr": "sur"
+    },
+    {
+      "en": "No data available",
+      "fr": "Aucune donnée disponible"
+    },
+    {
+      "en": "Error",
+      "fr": "Erreur"
+    },
+    {
+      "en": "Warning",
+      "fr": "Avertissement"
+    },
+    {
+      "en": "Info",
+      "fr": "Information"
+    },
+    {
+      "en": "Success",
+      "fr": "Succès"
+    },
+    {
+      "en": "File uploaded successfully",
+      "fr": "Fichier téléchargé avec succès"
+    },
+    {
+      "en": "Invalid file format",
+      "fr": "Format de fichier invalide"
+    },
+    {
+      "en": "Please select at least one exposure",
+      "fr": "Veuillez sélectionner au moins une exposition"
+    },
+    {
+      "en": "Please enter valid counts",
+      "fr": "Veuillez entrer des comptes valides"
+    },
+    {
+      "en": "Custom exposure detected - please provide reference percentage",
+      "fr": "Exposition personnalisée détectée - veuillez fournir le pourcentage de référence"
+    },
+    {
+      "en": "Visualizations",
+      "fr": "Visualisations"
+    },
+    {
+      "en": "Observed vs. Reference Comparison",
+      "fr": "Comparaison observé vs référence"
+    },
+    {
+      "en": "Percentage (%)",
+      "fr": "Pourcentage (%)"
+    },
+    {
+      "en": "Count",
+      "fr": "Compte"
+    },
+    {
+      "en": "Observed",
+      "fr": "Observé"
+    },
+    {
+      "en": "Reference",
+      "fr": "Référence"
+    },
+    {
+      "en": "(custom)",
+      "fr": "(personnalisé)"
+    },
+    {
+      "en": "Bookmark",
+      "fr": "Signet"
+    },
+    {
+      "en": "Share this analysis",
+      "fr": "Partager cette analyse"
+    },
+    {
+      "en": "Reset",
+      "fr": "Réinitialiser"
+    },
+    {
+      "en": "Clear All",
+      "fr": "Tout effacer"
+    },
+    {
+      "en": "Add Exposure",
+      "fr": "Ajouter une exposition"
+    },
+    {
+      "en": "Remove",
+      "fr": "Supprimer"
+    },
+    {
+      "en": "Contact",
+      "fr": "Contact"
+    },
+    {
+      "en": "Version",
+      "fr": "Version"
+    },
+    {
+      "en": "Last Updated",
+      "fr": "Dernière mise à jour"
+    },
+    {
+      "en": "Prevalence",
+      "fr": "Prévalence"
+    },
+    {
+      "en": "Respondents",
+      "fr": "Répondants"
+    },
+    {
+      "en": "Province/Territory",
+      "fr": "Province/Territoire"
+    },
+    {
+      "en": "Month",
+      "fr": "Mois"
+    },
+    {
+      "en": "Age Group",
+      "fr": "Groupe d'âge"
+    },
+    {
+      "en": "Gender",
+      "fr": "Genre"
+    },
+    {
+      "en": "Male",
+      "fr": "Masculin"
+    },
+    {
+      "en": "Female",
+      "fr": "Féminin"
+    },
+    {
+      "en": "Other",
+      "fr": "Autre"
+    },
+    {
+      "en": "Total",
+      "fr": "Total"
+    },
+    {
+      "en": "Average",
+      "fr": "Moyenne"
+    },
+    {
+      "en": "Minimum",
+      "fr": "Minimum"
+    },
+    {
+      "en": "Maximum",
+      "fr": "Maximum"
+    },
+    {
+      "en": "Standard Deviation",
+      "fr": "Écart-type"
+    },
+    {
+      "en": "Confidence Interval",
+      "fr": "Intervalle de confiance"
+    },
+    {
+      "en": "Help",
+      "fr": "Aide"
+    },
+    {
+      "en": "Documentation",
+      "fr": "Documentation"
+    },
+    {
+      "en": "FAQ",
+      "fr": "FAQ"
+    },
+    {
+      "en": "Close",
+      "fr": "Fermer"
+    },
+    {
+      "en": "Submit",
+      "fr": "Soumettre"
+    },
+    {
+      "en": "Cancel",
+      "fr": "Annuler"
+    },
+    {
+      "en": "Confirm",
+      "fr": "Confirmer"
+    },
+    {
+      "en": "Continue",
+      "fr": "Continuer"
+    },
+    {
+      "en": "Back",
+      "fr": "Retour"
+    },
+    {
+      "en": "Next",
+      "fr": "Suivant"
+    },
+    {
+      "en": "Previous",
+      "fr": "Précédent"
+    },
+    {
+      "en": "Save",
+      "fr": "Enregistrer"
+    },
+    {
+      "en": "Load",
+      "fr": "Charger"
+    },
+    {
+      "en": "Delete",
+      "fr": "Supprimer"
+    },
+    {
+      "en": "Edit",
+      "fr": "Modifier"
+    },
+    {
+      "en": "View",
+      "fr": "Voir"
+    },
+    {
+      "en": "Refresh",
+      "fr": "Actualiser"
+    },
+    {
+      "en": "Update",
+      "fr": "Mettre à jour"
+    },
+    {
+      "en": "Apply",
+      "fr": "Appliquer"
+    },
+    {
+      "en": "Filter",
+      "fr": "Filtrer"
+    },
+    {
+      "en": "Sort",
+      "fr": "Trier"
+    },
+    {
+      "en": "Group",
+      "fr": "Grouper"
+    },
+    {
+      "en": "Expand",
+      "fr": "Développer"
+    },
+    {
+      "en": "Collapse",
+      "fr": "Réduire"
+    },
+    {
+      "en": "Select All",
+      "fr": "Tout sélectionner"
+    },
+    {
+      "en": "Deselect All",
+      "fr": "Tout désélectionner"
+    },
+    {
+      "en": "Ascending",
+      "fr": "Croissant"
+    },
+    {
+      "en": "Descending",
+      "fr": "Décroissant"
+    },
+    {
+      "en": "Reset Inputs",
+      "fr": "Réinitialiser les entrées"
+    },
+    {
+      "en": "Bookmark Analysis",
+      "fr": "Mettre en signet l'analyse"
+    },
+    {
+      "en": "Download Plot",
+      "fr": "Télécharger le graphique"
+    },
+    {
+      "en": "Visualization",
+      "fr": "Visualisation"
+    },
+    {
+      "en": "Upload Exposure Counts (Optional)",
+      "fr": "Télécharger les comptes d'exposition (optionnel)"
+    },
+    {
+      "en": "Select Exposures:",
+      "fr": "Sélectionner les expositions :"
+    },
+    {
+      "en": "Start typing...",
+      "fr": "Commencez à taper..."
+    },
+    {
+      "en": "Exposure Data Input",
+      "fr": "Saisie des données d'exposition"
+    },
+    {
+      "en": "Enter case counts for each exposure in each selected location.",
+      "fr": "Entrez les comptes de cas pour chaque exposition dans chaque emplacement sélectionné."
+    },
+    {
+      "en": "Reference Value",
+      "fr": "Valeur de référence"
+    },
+    {
+      "en": "Custom Reference % (optional)",
+      "fr": "% de référence personnalisé (optionnel)"
+    },
+    {
+      "en": "PT = Province/Territory. Select which geographic areas to include in the reference population.",
+      "fr": "PT = Province/Territoire. Sélectionnez les zones géographiques à inclure dans la population de référence."
+    },
+    {
+      "en": "Filter the reference population to specific age groups for age-stratified analysis.",
+      "fr": "Filtrez la population de référence par groupes d'âge spécifiques pour une analyse stratifiée par âge."
+    },
+    {
+      "en": "Filter the reference population by month(s) to account for seasonal variation.",
+      "fr": "Filtrez la population de référence par mois pour tenir compte de la variation saisonnière."
+    },
+    {
+      "en": "exposures loaded",
+      "fr": "expositions chargées"
+    },
+    {
+      "en": "Available Exposures:",
+      "fr": "Expositions disponibles :"
+    },
+    {
+      "en": "Reference Settings",
+      "fr": "Paramètres de référence"
+    },
+    {
+      "en": "Population Exposure Snapshot",
+      "fr": "Instantané d'exposition de la population"
+    },
+    {
+      "en": "Microdata Coverage by PT",
+      "fr": "Couverture des microdonnées par PT"
+    },
+    {
+      "en": "Microdata Coverage by Month",
+      "fr": "Couverture des microdonnées par mois"
+    },
+    {
+      "en": "About This Tool",
+      "fr": "À propos de cet outil"
+    },
+    {
+      "en": "Purpose",
+      "fr": "Objectif"
+    },
+    {
+      "en": "Compare your case exposures to typical population exposures from Foodbook to prioritise hypotheses during outbreak investigations.",
+      "fr": "Comparez les expositions de vos cas aux expositions typiques de la population de Foodbook pour prioriser les hypothèses lors des enquêtes sur les éclosions."
+    },
+    {
+      "en": "How references are computed",
+      "fr": "Comment les références sont calculées"
+    },
+    {
+      "en": "References use Foodbook microdata with survey weights.",
+      "fr": "Les références utilisent les microdonnées de Foodbook avec des poids d'enquête."
+    },
+    {
+      "en": "If multiple PTs are selected, a single combined reference is computed across them.",
+      "fr": "Si plusieurs PT sont sélectionnés, une seule référence combinée est calculée pour ceux-ci."
+    },
+    {
+      "en": "You can optionally limit the reference by Age Group and Month.",
+      "fr": "Vous pouvez éventuellement limiter la référence par groupe d'âge et par mois."
+    },
+    {
+      "en": "Food Exposure Risk Assessment",
+      "fr": "Évaluation des risques d'exposition alimentaire"
+    },
+    {
+      "en": "Comparison of case exposures vs. population reference values",
+      "fr": "Comparaison des expositions de cas vs valeurs de référence de la population"
+    },
+    {
+      "en": "Reference scope:",
+      "fr": "Portée de la référence :"
+    },
+    {
+      "en": "Exposure Percentage (%)",
+      "fr": "Pourcentage d'exposition (%)"
+    },
+    {
+      "en": "Outline circles = Reference exposure | Filled circles = Case exposure",
+      "fr": "Cercles creux = Exposition de référence | Cercles pleins = Exposition de cas"
+    },
+    {
+      "en": "Data Source:",
+      "fr": "Source de données :"
+    },
+    {
+      "en": "Total Respondents:",
+      "fr": "Total des répondants :"
+    },
+    {
+      "en": "Respondents by Province/Territory",
+      "fr": "Répondants par province/territoire"
+    },
+    {
+      "en": "Respondents by Month",
+      "fr": "Répondants par mois"
+    },
+    {
+      "en": "CSV must have columns: Exposure, Yes, Probably, No, DK",
+      "fr": "Le CSV doit avoir les colonnes : Exposition, Oui, Probablement, Non, NSP"
+    },
+    {
+      "en": "CEDARS Analysis",
+      "fr": "Analyse SCEDAC"
+    },
+    {
+      "en": "Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information.",
+      "fr": "Téléchargez votre exportation de données d'éclosion SCEDAC. L'outil extraira automatiquement les informations d'exposition des cas."
+    },
+    {
+      "en": "The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist).",
+      "fr": "L'application détectera automatiquement les feuilles avec les colonnes requises : NationalID, ExposureCode, HasExposureOccurred (données d'exposition) et NationalID (liste de cas)."
+    },
+    {
+      "en": "Browse",
+      "fr": "Parcourir"
+    },
+    {
+      "en": "Population Exposure Snapshot (Reference)",
+      "fr": "Instantané d'exposition de la population (Référence)"
+    },
+    {
+      "en": "Microdata Coverage by PT (after filters)",
+      "fr": "Couverture des microdonnées par PT (après filtres)"
+    },
+    {
+      "en": "Microdata Coverage by Month (after filters)",
+      "fr": "Couverture des microdonnées par mois (après filtres)"
+    },
+    {
+      "en": "This app computes reference exposure percentages from Foodbook microdata, weighted and combined across your selected filters.",
+      "fr": "Cette application calcule les pourcentages d'exposition de référence à partir des microdonnées de Foodbook, pondérées et combinées selon vos filtres sélectionnés."
+    },
+    {
+      "en": "Reference PT(s): ",
+      "fr": "PT de référence : "
+    },
+    {
+      "en": "Age group(s): ",
+      "fr": "Groupe(s) d'âge : "
+    },
+    {
+      "en": "Month(s): ",
+      "fr": "Mois : "
+    },
+    {
+      "en": "Tip: Defaults like \"Canada\" and \"All\" auto-deselect once you add another selection.",
+      "fr": "Conseil : Les valeurs par défaut comme « Canada » et « Tous » se désélectionnent automatiquement lorsque vous ajoutez une autre sélection."
+    },
+    {
+      "en": "Observed exposure is significantly higher than reference (p < 0.05)",
+      "fr": "L'exposition observée est significativement plus élevée que la référence (p < 0,05)"
+    },
+    {
+      "en": "Suggestive evidence (0.05 ≤ p < 0.10)",
+      "fr": "Preuves suggestives (0,05 ≤ p < 0,10)"
+    },
+    {
+      "en": "No significant difference from reference (p ≥ 0.10)",
+      "fr": "Aucune différence significative par rapport à la référence (p ≥ 0,10)"
+    },
+    {
+      "en": "Too few cases to calculate statistics (< 5 total responses)",
+      "fr": "Trop peu de cas pour calculer les statistiques (< 5 réponses totales)"
+    },
+    {
+      "en": "Exposure not found in Foodbook database",
+      "fr": "Exposition non trouvée dans la base de données Foodbook"
+    },
+    {
+      "en": "Coverage by PT (after filters)",
+      "fr": "Couverture par PT (après filtres)"
+    },
+    {
+      "en": "Coverage by Month (after filters)",
+      "fr": "Couverture par mois (après filtres)"
+    },
+    {
+      "en": "Records",
+      "fr": "Enregistrements"
+    },
+    {
+      "en": "CEDARS Upload Workflow",
+      "fr": "Flux de travail de téléchargement SCEDAC"
+    },
+    {
+      "en": "This internal tool is designed for PHAC epidemiologists to analyze outbreak data exported from CEDARS.",
+      "fr": "Cet outil interne est conçu pour les épidémiologistes de l'ASPC afin d'analyser les données d'éclosion exportées de SCEDAC."
+    },
+    {
+      "en": "Export case exposure data from CEDARS to Excel (.xlsx)",
+      "fr": "Exporter les données d'exposition des cas de SCEDAC vers Excel (.xlsx)"
+    },
+    {
+      "en": "Upload the file using the file input",
+      "fr": "Télécharger le fichier à l'aide de l'entrée de fichier"
+    },
+    {
+      "en": "The app auto-detects the required sheets (case exposure answer, case linelist)",
+      "fr": "L'application détecte automatiquement les feuilles requises (réponses d'exposition des cas, liste de cas)"
+    },
+    {
+      "en": "Select reference population filters (PT, age, month)",
+      "fr": "Sélectionner les filtres de population de référence (PT, âge, mois)"
+    },
+    {
+      "en": "View results with statistical testing and classifications",
+      "fr": "Afficher les résultats avec tests statistiques et classifications"
+    },
+    {
+      "en": "No cases found for selected province(s)",
+      "fr": "Aucun cas trouvé pour la ou les province(s) sélectionnée(s)"
+    }
+  ],
+  "cultural_date_format": {
+    "en": "%Y-%m-%d",
+    "fr": "%Y-%m-%d"
+  },
+  "cultural_csv_sep": {
+    "en": ",",
+    "fr": ","
+  },
+  "cultural_csv_dec": {
+    "en": ".",
+    "fr": ","
+  }
+}

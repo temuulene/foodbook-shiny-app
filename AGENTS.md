@@ -1,31 +1,43 @@
-Foodbook Shiny App — AGENTS.md
+Foodbook Shiny App - AGENTS.md
 
 Purpose
 - Give agents a fast, practical map of this repo: how to run, where code lives, how data flows, and guardrails to respect when making changes.
 
-At‑a‑Glance
-- Stack: R 4.5.x, Shiny + bslib + thematic, tidyverse (dplyr/tidyr/purrr/stringr), data.table, DT, ggplot2, shinyjs; backend helpers use readxl + haven.
-- Entrypoint: `app.R` (single‑file Shiny app sourcing helpers from `src/`).
-- Data: legacy CSV at `data/foodbook_data.csv`; optional OMD Foodbook microdata + Stata .do files under `upgrade-context/` for “Advanced” features.
-- Deployment: Posit Connect via `manifest.json` (Git‑backed or push‑based with `rsconnect`).
+At-a-Glance
+- Stack: R 4.5.x, Shiny + bslib + thematic + shiny.i18n (bilingual), tidyverse (dplyr/tidyr/purrr/stringr), data.table, DT, ggplot2, shinyjs; backend helpers use readxl + haven.
+- App entrypoints: `app-public.R` (external analysis workflows) and `app-internal.R` (CEDARS upload workflow). Both source helpers under `src/` and are fully bilingual (EN/FR).
+- Data: Open Canada Foodbook CSVs under `data/open-canada/`; legacy CSV at `data/foodbook_data.csv`; optional OMD Foodbook microdata + Stata .do files under `upgrade-context/` for "Advanced" features.
+- Translations: 223 bilingual strings in `translations/translation.json`; i18n helpers in `src/i18n_helper.R`; language selector module in `src/modules/language_selector_module.R`.
+- Deployment: Posit Connect via `manifest-public.json` and `manifest-internal.json` (Git-backed or push-based with `rsconnect`).
 
 Run Locally
-- Install R 4.5.x (Connect manifest targets `platform: 4.5.1`).
-- Install packages shown in README or let Connect resolve from `manifest.json`.
-- From repo root, run: `shiny::runApp(".")`.
+- Install R 4.5.x (Connect manifests target `platform: 4.5.1`).
+- Install packages shown in README or let the appropriate manifest resolve dependencies.
+- From repo root:
+  - Public app: `shiny::runApp("app-public.R")`
+  - Internal app: `shiny::runApp("app-internal.R")`
 
 Repository Layout
-- `app.R` — Main UI/server, modules, theming. Sources `src/foodbook_backend.R`.
-- `src/foodbook_backend.R` — Backend for Foodbook microdata:
+- `app-public.R` - Public UI/server for manual and CSV workflows. Sources helpers under `src/`.
+- `app-internal.R` - Internal UI/server for CEDARS Excel uploads. Sources helpers under `src/`.
+- `src/foodbook_backend.R` - Backend for Foodbook microdata:
   - Detects microdata availability, parses Stata `.do` files for renames/labels,
-  - Loads `.dta` files with haven, normalizes weights, exposes helpers:
-    - `fb_is_available()`, `fb_exposure_choices()`, `fb_reference_percents()`
-    - `fb_pt_names()`, `fb_age_groups()`, `fb_months()`
-- `src/data-clean-proportions.R` — Optional script to regenerate `data/foodbook_data.csv` from the toolkit Excel (Table 6).
-- `data/` — Legacy CSV and optional source workbook: `Toolkit-binomial-probability-calculation-tool-2.0.xlsx`.
-- `upgrade-context/` — OMD Foodbook assets (sensitive): `foodbook.dta`, `foodbook2v2.dta`, and `.do` files for renames/labels.
-- `manifest.json` — Posit Connect dependency manifest (pins R version and packages).
-- `README.md` — Usage, deploy notes, and regeneration steps for legacy CSV.
+  - Loads `.dta` files with haven, normalizes weights, exposes bilingual helpers:
+    - `fb_is_available()`, `fb_exposure_choices(lang)`, `fb_reference_percents()`
+    - `fb_pt_names(lang)`, `fb_age_groups()`, `fb_months()`, `fb_month_names(lang)`
+- `src/i18n_helper.R` - Internationalization helpers: `init_translator()`, `get_translator()`, `set_language()`, `t_()`.
+- `src/modules/` - Reusable Shiny modules:
+  - `exposure_module.R` - Exposure input/display module with bilingual support.
+  - `language_selector_module.R` - Language switcher dropdown.
+- `src/data-clean-proportions.R` - Optional script to regenerate `data/foodbook_data.csv` from the toolkit Excel (Table 6).
+- `translations/translation.json` - 223 bilingual strings (EN/FR) for all UI elements.
+- `data/` - Open Canada Foodbook CSVs (`foodbook-1/`, `foodbook-2/`), legacy CSV, and optional source workbook.
+- `upgrade-context/` - OMD Foodbook assets (sensitive): `foodbook.dta`, `foodbook2v2.dta`, and `.do` files for renames/labels.
+- `archive/app.R.legacy` - Original combined app (no longer maintained).
+- `manifest-public.json` / `manifest-internal.json` - Posit Connect dependency manifests (pin R version and packages per app).
+- `README.md` - Usage, deploy notes, and regeneration steps for legacy CSV.
+- `CLAUDE.md` - Developer/agent guidance with common gotchas and patterns.
+- `DEPLOYMENT.md` - Deployment guide for both apps.
 
 How the App Works
 - References:
@@ -33,50 +45,55 @@ How the App Works
   - Otherwise, the app falls back to `data/foodbook_data.csv` (Canada or simple mean across selected PTs). Advanced tab shows instructions.
 - UI/UX:
   - Bootstrap 5 via `bslib` with custom variables/rules; `thematic` enables plot theming.
-  - “Canada” and “All” selections auto‑deselect when specific values are chosen.
+  - "Canada" and "All" selections auto-deselect when specific values are chosen.
   - Results are downloadable via `DT` and classified by significance thresholds.
 
 Dependencies
-- App (core): `shiny`, `bslib`, `thematic`, `dplyr`, `purrr`, `tidyr`, `stringr`, `data.table`, `DT`, `ggplot2`, `shinyjs`, `rlang`.
+- App (core): `shiny`, `bslib`, `thematic`, `shiny.i18n`, `dplyr`, `purrr`, `tidyr`, `stringr`, `data.table`, `DT`, `ggplot2`, `shinyjs`, `shinycssloaders`, `rlang`.
 - Backend (advanced): `readxl`, `haven`.
 - Data prep (optional): `here`, `skimr`, `readxl`, `dplyr`, `tidyr`.
-- Connect: See `manifest.json` (targets R `4.5.1`). Keep it updated when changing deps.
+- Testing: `testthat`, `writexl`.
+- Connect: See app manifests (target R `4.5.1`). Keep them updated when changing deps.
 
 Development Tips
-- Start in `app.R`. The app sources backend helpers: `source("src/foodbook_backend.R")`.
+- Start from the relevant app file (`app-public.R` or `app-internal.R`). Each sources backend helpers via `source("src/foodbook_backend.R")`.
 - Advanced tab toggles with `fb_is_available()`. To enable locally, place the microdata + `.do` files in `upgrade-context/`.
 - Legacy CSV regeneration: run `source("src/data-clean-proportions.R")` after ensuring the toolkit Excel exists under `data/` (sheet "Table 6"). This overwrites `data/foodbook_data.csv`.
-- Update manifest after dependency changes: `rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app.R")`.
+- Update manifests after dependency changes:
+  - Public: `rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app-public.R", appFiles = "manifest-public.json")`
+  - Internal: `rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app-internal.R", appFiles = "manifest-internal.json")`
 
 Coding Conventions (R)
-- Follow tidyverse style (snake_case for functions/objects, clear verbs for functions, pure helpers over side‑effects).
+- Follow tidyverse style (snake_case for functions/objects, clear verbs for functions, pure helpers over side-effects).
 - Keep Shiny UI/server logic readable: small helpers, avoid deep nesting; prefer modules when adding sizeable UI blocks.
-- Place non‑UI logic in `src/` helpers; keep `app.R` focused on orchestration and presentation.
+- Place non-UI logic in `src/` helpers; keep `app.R` focused on orchestration and presentation.
 - Prefer vectorized dplyr/tidyr operations over manual loops; avoid expensive work in reactive contexts when possible.
 
 Data & Privacy Guardrails
 - Treat `upgrade-context/` contents as sensitive/large. Do not commit or redistribute microdata externally unless policy allows.
-- The app tolerates absence of microdata (falls back to CSV) — do not hard‑require those files in code paths intended for general use.
+- The app tolerates absence of microdata (falls back to CSV) - do not hard-require those files in code paths intended for general use.
 
 Safe Changes for Agents
-- UI copy/labels/theme tweaks in `app.R`.
+- UI copy/labels/theme tweaks in `app-public.R` or `app-internal.R`.
 - Add/adjust table/plot formatting; keep accessibility and contrast in mind (Bootstrap 5 theme already tuned).
 - Performance improvements in backend functions under `src/` without changing public helper signatures.
 - Small features behind clear conditionals that preserve current defaults and fallbacks.
 
 Gotchas
-- If `data/foodbook_data.csv` is missing and microdata aren’t present, some reference displays will be `NA` — ensure at least one reference source exists.
+- If `data/foodbook_data.csv` is missing and microdata aren't present, some reference displays will be `NA` - ensure at least one reference source exists.
 - PT codes vs names: backend maps OMD PT codes to names; be consistent when adding filters.
 - Ensure `weight` normalization when loading new microdata columns; backend already maps common weight fields to `weight`.
-- UNC/Windows paths are fine; avoid hard‑coding absolute paths — work relative to project root.
+- UNC/Windows paths are fine; avoid hard-coding absolute paths - work relative to project root.
+- **Language switching**: When adding translatable UI elements, use `renderUI()` that creates fresh translator instances with `current_lang()` instead of JavaScript DOM manipulation. Avoids encoding issues, race conditions, and broken bindings. See `app-internal.R:577-614` for pattern. Never use JavaScript text matching with accented characters.
 
 Deploying to Posit Connect
-- Git‑backed: point Connect at this repo/branch; it uses `manifest.json` to resolve R/packages.
-- Push‑based: `rsconnect` (see README). Keep `manifest.json` current for reproducibility.
+- Git-backed: point Connect at this repo/branch; configure each app with its manifest (`manifest-public.json`, `manifest-internal.json`).
+- Push-based: `rsconnect` (see README). Keep manifests current for reproducibility.
 
 Quick Commands
-- Run app: `shiny::runApp(".")`
-- Update manifest: `rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app.R")`
+- Run public app: `shiny::runApp("app-public.R")`
+- Run internal app: `shiny::runApp("app-internal.R")`
+- Update manifests: see commands above
 - Regenerate CSV: `source("src/data-clean-proportions.R")`
 
 Contact & Issues
@@ -118,7 +135,7 @@ You are an R programming assistant, make sure to use the best practices when pro
 - Use spaces around operators (\`a + b\`, not \`a+b\`).
 - Keep line length <= 80 characters for readability.
 - Use consistent indentation (2 spaces preferred).
-- Use '#' for inline comments and section headers. Comment only when necessary (e.g., complex code needing explanation). The code should be self‑explanatory.
+- Use '#' for inline comments and section headers. Comment only when necessary (e.g., complex code needing explanation). The code should be self-explanatory.
 - Write modular, reusable functions instead of long scripts.
 - Prefer vectorized operations over loops for performance.
 - Always handle missing values explicitly (\`na.rm = TRUE\`, \`is.na()\`).
@@ -131,7 +148,7 @@ You are an R programming assistant, make sure to use the best practices when pro
 - Profile code with \`profvis\` to identify bottlenecks.
 - Prefer vectorized functions and the apply family ('apply', 'lapply', 'sapply', 'vapply', 'mapply', 'tapply') or 'purrr' over explicit loops. When using loops, preallocate type and memory beforehand.
 - Use data.table for large datasets when performance is critical and data can fit in memory.
-- When reading a CSV, prefer 'data.table::fread' or 'readr::read_csv' depending on the codebase. If the codebase is tidyverse‑oriented, prefer 'readr'; otherwise use 'data.table'.
+- When reading a CSV, prefer 'data.table::fread' or 'readr::read_csv' depending on the codebase. If the codebase is tidyverse-oriented, prefer 'readr'; otherwise use 'data.table'.
 
 - Use duckdb when data is out of memory.
 - Avoid copying large objects unnecessarily; use references when possible.
@@ -157,7 +174,7 @@ You are an R programming assistant, make sure to use the best practices when pro
 - Comment code for clarity, but prefer self-explanatory variable and function names.
 - Use NEWS.md to follow the project development life cycle. 
     
-## Shiny — App Structure & Modules
+## Shiny - App Structure & Modules
 - Use Shiny modules (\`moduleServer\`, \`NS()\`) for encapsulation, reusability, and testability.
 - Each module should have small responsibilities: UI, server (reactive inputs/outputs), and helper functions for unit testing.
 - Keep UI code declarative and separate from data-processing logic.
