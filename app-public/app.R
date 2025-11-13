@@ -452,7 +452,7 @@ ui <- function(request) {
               icon = icon("calculator"),
               layout_sidebar(
                 sidebar = sidebar(
-                  title = translator$t("Analysis Parameters"),
+                  uiOutput("sidebar_analysis_title"),
                   tooltip(
                     selectInput("province", translator$t("Reference PT(s)"),
                                 choices = stats::setNames(
@@ -488,8 +488,7 @@ ui <- function(request) {
                     accordion_panel(
                       title = translator$t("Upload Exposure Counts (Optional)"),
                       icon = icon("upload"),
-                      fileInput("simple_csv_upload", translator$t("Upload CSV File"),
-                               accept = c(".csv", "text/csv")),
+                      uiOutput("csv_file_input_ui"),
                       helpText(translator$t("Upload a CSV file with columns: Exposure, Yes, Probably, No, DK"))
                     )
                   ),
@@ -567,6 +566,29 @@ server <- function(input, output, session) {
                                          session_parent = session,
                                          style = "dropdown")
   current_lang <- lang_state$language
+
+  # Render sidebar title with current language
+  output$sidebar_analysis_title <- renderUI({
+    lang <- current_lang()
+    # Create translator with current language to avoid race condition
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    tags$div(class = "title", tr$t("Analysis Parameters"))
+  })
+
+  # Render CSV file input with current language
+  output$csv_file_input_ui <- renderUI({
+    lang <- current_lang()
+    # Create translator with current language to avoid race condition
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    fileInput("simple_csv_upload",
+             tr$t("Upload CSV File"),
+             accept = c(".csv", "text/csv"),
+             buttonLabel = tr$t("Browse"),
+             placeholder = tr$t("No file selected"))
+  })
 
   # Update UI when language changes
   observeEvent(current_lang(), {
