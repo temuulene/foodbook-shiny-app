@@ -6,13 +6,13 @@ This guide covers deploying both the public and internal Foodbook apps to Posit 
 
 The Foodbook project consists of **two separate applications**:
 
-1. **Public App** (`app-public.R`) - For PT users and external partners
+1. **Public App** (`app-public/app.R`) - For PT users and external partners
    - Analysis workflow (manual entry, CSV upload, custom exposures)
    - Uses Open Canada public data exclusively
    - Fully bilingual (EN/FR)
    - No sensitive data
 
-2. **Internal App** (`app-internal.R`) - For PHAC internal use
+2. **Internal App** (`app-internal/app.R`) - For PHAC internal use
    - CEDARS Excel upload workflow
    - Uses Open Canada data + optional legacy microdata
    - Fully bilingual (EN/FR)
@@ -39,7 +39,7 @@ Internal app additionally supports:
 - **Minimum:** R 4.4.x
 
 ### Required Packages
-See `manifest-public.json` and `manifest-internal.json` for full dependency lists.
+See `app-public/manifest.json` and `app-internal/manifest.json` for full dependency lists.
 
 **Key dependencies:**
 - `shiny`, `bslib`, `thematic`
@@ -80,15 +80,15 @@ git push origin main
 2. Click "New Content" → "Import from Git"
 3. Select your repository
 4. **Content Type:** Shiny Application
-5. **App File:** `app-public.R`
+5. **App File:** `app-public/app.R`
 6. **Branch:** `main`
-7. **Manifest File:** `manifest-public.json`
+7. **Manifest File:** `app-public/manifest.json`
 8. Click "Deploy"
 
 **For Internal App:**
 1. Repeat steps above but use:
-   - **App File:** `app-internal.R`
-   - **Manifest File:** `manifest-internal.json`
+   - **App File:** `app-internal/app.R`
+   - **Manifest File:** `app-internal/manifest.json`
 2. Set access control to "Specific users/groups" (PHAC internal only)
 
 #### 3. Configure Data Access (Internal App Only)
@@ -131,7 +131,7 @@ rsconnect::connectUser(server = "prod")
 rsconnect::deployApp(
   appDir = ".",
   appFiles = c(
-    "app-public.R",
+    "app-public/app.R",
     "src/foodbook_backend.R",
     "src/i18n_helper.R",
     "src/modules/exposure_module.R",
@@ -139,7 +139,7 @@ rsconnect::deployApp(
     "translations/translation.json",
     "data/open-canada/"  # Include all Open Canada data
   ),
-  appPrimaryDoc = "app-public.R",
+  appPrimaryDoc = "app-public/app.R",
   appName = "foodbook-public",
   server = "prod",
   account = "your-account",
@@ -153,7 +153,7 @@ rsconnect::deployApp(
 rsconnect::deployApp(
   appDir = ".",
   appFiles = c(
-    "app-internal.R",
+    "app-internal/app.R",
     "src/foodbook_backend.R",
     "src/i18n_helper.R",
     "src/modules/language_selector_module.R",
@@ -161,7 +161,7 @@ rsconnect::deployApp(
     "data/open-canada/",
     "upgrade-context/"  # Optional - only if using legacy data
   ),
-  appPrimaryDoc = "app-internal.R",
+  appPrimaryDoc = "app-internal/app.R",
   appName = "foodbook-internal",
   server = "prod",
   account = "your-account",
@@ -269,7 +269,7 @@ chmod 644 data/open-canada/foodbook-2/*.csv
 # Update manifest
 rsconnect::writeManifest(
   appDir = ".",
-  appPrimaryDoc = "app-public.R",
+  appPrimaryDoc = "app-public/app.R",
   appFiles = c(...)
 )
 ```
@@ -320,6 +320,7 @@ git push origin main
 # Redeploy with forceUpdate
 rsconnect::deployApp(
   appDir = ".",
+  appPrimaryDoc = "app-public/app.R",
   appName = "foodbook-public",
   server = "prod",
   forceUpdate = TRUE

@@ -5,8 +5,8 @@
 An interactive Shiny application to compare observed case exposures against Foodbook reference percentages from the Canadian Foodbook survey. The app uses public Foodbook data from Open Canada to compute weighted references, supports combined PT references and optional age/month restrictions, and provides multiple input workflows.
 
 **Two Deployment Options:**
-- **Public App** (`app-public.R`) - Analysis tab for PT users and external partners
-- **Internal App** (`app-internal.R`) - CEDARS upload workflow for PHAC internal use
+- **Public App** (`app-public/app.R`) - Analysis tab for PT users and external partners
+- **Internal App** (`app-internal/app.R`) - CEDARS upload workflow for PHAC internal use
 
 ## Features
 
@@ -75,7 +75,7 @@ shiny::runApp("app-public")
 # Internal app (CEDARS workflow)
 shiny::runApp("app-internal")
 
-# Note: Legacy single-file apps (app-public.R, app-internal.R) are deprecated
+# Note: Legacy single-file apps were removed; use the app directories above
 # Original combined app has been archived to archive/app.R.legacy
 ```
 
@@ -218,11 +218,11 @@ Results are classified based on statistical significance and direction:
 - All filters, exposures, and case counts restore correctly
 
 ## Deploying to Posit Connect
-This repo includes a `manifest.json` for Git-backed deployment.
+Each app directory includes its own `manifest.json` for Git-backed deployment.
 
 - Push changes to the default branch (e.g., `main`).
 - In Posit Connect, create (or reconfigure) a Git-backed content item pointing at this repo and branch.
-- Connect will use `manifest.json` to resolve R version and packages.
+- Connect will use the manifest inside each app directory to resolve R version and packages.
 
 If you prefer push-based deploys from R instead of Git-backed:
 
@@ -272,8 +272,6 @@ foodbook-shiny-app/
 │       ├── test-backend-parsing.R      # Stata parsing tests (28 tests)
 │       ├── test-backend-calculations.R # Statistical tests (20 tests)
 │       └── test-new-features.R         # New features tests (43 tests)
-├── app-public.R                   # DEPRECATED: Legacy public app (moved to app-public/app.R)
-├── app-internal.R                 # DEPRECATED: Legacy internal app (moved to app-internal/app.R)
 ├── DEPLOYMENT.md                  # Deployment guide for both apps
 ├── README.md                      # This file - User documentation
 ├── CLAUDE.md                      # Developer/agent guidance
@@ -317,10 +315,11 @@ testthat::test_file("tests/testthat/test-new-features.R")  # October 2025 featur
 See [tests/README.md](tests/README.md) for detailed testing documentation.
 
 ## Notes
-- Keep `manifest.json` up to date when changing packages. Regenerate with:
+- Keep each app's `manifest.json` up to date when changing packages. Regenerate with:
 
 ```r
-rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app.R")
+rsconnect::writeManifest(appDir = "app-public", appPrimaryDoc = "app.R")
+rsconnect::writeManifest(appDir = "app-internal", appPrimaryDoc = "app.R")
 ```
 
 - For detailed implementation notes and developer guidance, see [CLAUDE.md](CLAUDE.md)

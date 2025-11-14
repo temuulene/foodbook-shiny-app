@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Run the Internal App (CEDARS analysis):**
 ```r
-shiny::runApp("app-internal.R")
+shiny::runApp("app-internal")
 ```
 
 **Run the Public App (Manual/CSV upload):**
 ```r
-shiny::runApp("app-public.R")
+shiny::runApp("app-public")
 ```
 
 **Legacy App:** The original `app.R` has been archived to `archive/app.R.legacy` and is no longer maintained.
@@ -32,9 +32,9 @@ testthat::test_file("tests/testthat/test-backend-calculations.R")
 **Update manifests after changing dependencies:**
 ```r
 # For internal app:
-rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app-internal.R", appFiles = "manifest-internal.json")
+rsconnect::writeManifest(appDir = "app-internal", appPrimaryDoc = "app.R", appFiles = "manifest.json")
 # For public app:
-rsconnect::writeManifest(appDir = ".", appPrimaryDoc = "app-public.R", appFiles = "manifest-public.json")
+rsconnect::writeManifest(appDir = "app-public", appPrimaryDoc = "app.R", appFiles = "manifest.json")
 ```
 
 **Regenerate legacy CSV (optional):**
@@ -46,8 +46,8 @@ source("src/data-clean-proportions.R")
 
 This project provides **two separate Shiny applications** for analyzing food exposure data against Foodbook survey references:
 
-1. **Public App** (`app-public.R`) - For PT users and external partners
-2. **Internal App** (`app-internal.R`) - For PHAC CEDARS analysis
+1. **Public App** (`app-public/app.R`) - For PT users and external partners
+2. **Internal App** (`app-internal/app.R`) - For PHAC CEDARS analysis
 
 Both apps share a common backend and are **fully bilingual** (EN/FR).
 
@@ -123,8 +123,8 @@ Both apps share a common backend and are **fully bilingual** (EN/FR).
 ## File Organization
 
 ```
-app-public.R            # Public app - Manual/CSV analysis workflow
-app-internal.R          # Internal app - CEDARS outbreak analysis workflow
+app-public/             # Public app directory (see app.R for entry point)
+app-internal/           # Internal app directory (see app.R for entry point)
 archive/
   app.R.legacy          # Original combined app (ARCHIVED - no longer maintained)
 src/
@@ -150,8 +150,8 @@ tests/
   testthat/
     test-backend-parsing.R      # Tests for Stata parsing, renames, labels
     test-backend-calculations.R # Tests for weighted %, PT mapping, filtering
-manifest-public.json    # Posit Connect manifest for public app (NEW)
-manifest-internal.json  # Posit Connect manifest for internal app (NEW)
+app-public/manifest.json    # Posit Connect manifest for public app (NEW)
+app-internal/manifest.json  # Posit Connect manifest for internal app (NEW)
 DEPLOYMENT.md           # Deployment guide for both apps (NEW)
 CLAUDE.md               # This file - developer/agent guidance
 AGENTS.md               # Quick reference for AI agents
@@ -341,7 +341,7 @@ Based on PHAC-OMD demo meeting feedback, the following features were added:
    - **DON'T**: Use JavaScript text matching to update element content (encoding issues, fragile selectors, breaks on special characters)
    - **Pattern**: `output$my_element <- renderUI({ tr <- Translator$new(...); tr$set_translation_language(current_lang()); ... })`
    - **Why**: Avoids race conditions between `observeEvent(current_lang())` and `renderUI()`, ensures proper translation on language change
-   - **Examples**: File input labels, sidebar titles, card headers (see `app-internal.R:577-614`)
+   - **Examples**: File input labels, sidebar titles, card headers (see `app-internal/app.R:540-590`)
    - **JavaScript**: Use icon classes or data attributes to identify elements, never text matching with accented characters
    - **File inputs**: When wrapping in `renderUI()`, use `buttonLabel` and `placeholder` parameters instead of JavaScript manipulation
    - **Note**: Uploaded data (reactive values) persists when UI re-renders, only the visual input widget resets

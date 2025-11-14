@@ -181,6 +181,30 @@ ui <- function(request) {
       "),
     header = tagList(
       useShinyjs(),
+      extendShinyjs(
+        text = "
+          shinyjs.resetFileInput = function(params) {
+            var id = params.id;
+            var $fileInput = $('input[type=\"file\"][id=' + id + ']');
+            if (!$fileInput.length) {
+              $fileInput = $('#' + id).find('input[type=\"file\"]');
+            }
+            if ($fileInput.length) {
+              $fileInput.val('');
+              $fileInput.trigger('change');
+            }
+            var $wrapper = $fileInput.length ? $fileInput.closest('.shiny-file-input') : $('#' + id);
+            if ($wrapper.length) {
+              var $textInput = $wrapper.find('input[type=\"text\"]');
+              if ($textInput.length) {
+                $textInput.val('');
+              }
+              $wrapper.find('.progress-bar').css('width', '0%');
+            }
+          };
+        ",
+        functions = c("resetFileInput")
+      ),
       tags$head(
         tags$script(HTML("
           // Inject language selector into navbar on page load
@@ -501,10 +525,7 @@ ui <- function(request) {
                   card_header(translator$t("Exposure Data Input")),
                   card_body(
                     helpText(translator$t("Enter case counts for each exposure in each selected location.")),
-                    selectizeInput("exposure_select", translator$t("Select Exposures:"),
-                                   choices = NULL, multiple = TRUE,
-                                   options = list(placeholder = translator$t("Start typing..."),
-                                                  plugins = list("remove_button"), create = TRUE)),
+                    uiOutput("exposure_select_ui"),
                     div(style = "max-height: 60vh; overflow-y: auto;",
                         uiOutput("exposure_modules_ui"))
                   )
@@ -618,6 +639,40 @@ server <- function(input, output, session) {
     )
   })
 
+  # Render exposure select to avoid re-initializing selectize plugins on language change
+  output$exposure_select_ui <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    all_exposures <- tryCatch(
+      as.list(fb_exposure_choices(lang)),
+      error = function(e) {
+        warning("Unable to load exposure choices: ", e$message)
+        showNotification(
+          tr$t("Unable to load exposure list. Please try again."),
+          type = "error"
+        )
+        list()
+      }
+    )
+
+    current_selection <- isolate(input$exposure_select)
+
+    selectizeInput(
+      "exposure_select",
+      tr$t("Select Exposures:"),
+      choices = all_exposures,
+      selected = current_selection,
+      multiple = TRUE,
+      options = list(
+        placeholder = tr$t("Start typing..."),
+        plugins = list("remove_button"),
+        create = TRUE
+      )
+    )
+  })
+
   # Update UI when language changes
   observeEvent(current_lang(), {
     lang <- current_lang()
@@ -664,16 +719,6 @@ server <- function(input, output, session) {
                      choices = month_choices,
                      selected = current_month)
 
-    # Update exposure select choices with placeholder
-    all_exposures <- fb_exposure_choices(lang)
-    updateSelectizeInput(session, "exposure_select",
-                        label = translator$t("Select Exposures:"),
-                        choices = as.list(all_exposures),
-                        selected = input$exposure_select,
-                        options = list(placeholder = translator$t("Start typing..."),
-                                      plugins = list("remove_button"), create = TRUE),
-                        server = TRUE)
-
     # Update button labels via JavaScript
     session$sendCustomMessage("update-button-labels", list(
       reset = translator$t("Reset Inputs"),
@@ -715,35 +760,13 @@ server <- function(input, output, session) {
       upload_csv_help = translator$t("Upload a CSV file with columns: Exposure, Yes, Probably, No, DK"),
       browse = translator$t("Browse")
     ))
+
+    # If CSV data exists, trigger re-population after language change
+    if (!is.null(csv_data())) {
+      message("=== Language changed with CSV data present, triggering re-population ===")
+      csv_needs_population(TRUE)
+    }
   }, ignoreInit = TRUE)
-
-  # Initialize exposure choices
-  observe({
-    lang <- current_lang()
-
-    # Get all available exposures
-    all_exposures <- tryCatch({
-      choices <- fb_exposure_choices(lang)
-
-      # Debug: Print to console
-      cat("Number of exposures:", length(choices), "\n")
-      if (length(choices) > 0) {
-        cat("First few exposures:\n")
-        print(head(choices, 10))
-      }
-
-      choices
-    }, error = function(e) {
-      cat("Error loading exposures:", e$message, "\n")
-      showNotification(paste("Error loading exposures:", e$message), type = "error")
-      character(0)
-    })
-
-    # Convert to list for selectize server-side mode
-    updateSelectizeInput(session, "exposure_select",
-                        choices = as.list(all_exposures),
-                        server = TRUE)
-  })
 
   # Auto-deselect "Canada" when specific PTs are selected
   observeEvent(input$province, {
@@ -868,7 +891,9 @@ server <- function(input, output, session) {
   # Clear CSV upload
   observeEvent(input$csv_clear, {
     csv_data(NULL)
+    csv_needs_population(FALSE)
     shinyjs::js$resetFileInput(id = "simple_csv_upload")
+    updateSelectizeInput(session, "exposure_select", selected = character(0))
     lang <- current_lang()
     tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
