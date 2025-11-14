@@ -694,6 +694,30 @@
       "fr": "expositions chargées"
     },
     {
+      "en": "matched",
+      "fr": "correspondants"
+    },
+    {
+      "en": "custom",
+      "fr": "personnalisés"
+    },
+    {
+      "en": "all matched",
+      "fr": "tous correspondants"
+    },
+    {
+      "en": "Note",
+      "fr": "Remarque"
+    },
+    {
+      "en": "Exposure names will be matched against Foodbook database in English or French (case-insensitive). Unmatched exposures will use custom references.",
+      "fr": "Les noms d'expositions seront appariés avec la base de données Foodbook en anglais ou français (insensible à la casse). Les expositions non appariées utiliseront des références personnalisées."
+    },
+    {
+      "en": "cases",
+      "fr": "cas"
+    },
+    {
       "en": "Available Exposures:",
       "fr": "Expositions disponibles :"
     },

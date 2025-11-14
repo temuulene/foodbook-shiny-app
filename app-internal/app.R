@@ -305,11 +305,16 @@ ui <- function(request) {
               var $icon = $link.find('i');
               var iconHtml = $icon.length ? $icon.prop('outerHTML') + ' ' : '';
 
-              if ($icon.hasClass('fa-upload')) {
+              // Check for upload icon (fa-upload or fa-file-arrow-up)
+              if ($icon.hasClass('fa-upload') || $icon.hasClass('fa-file-arrow-up')) {
                 $link.html(iconHtml + labels.cedars);
-              } else if ($icon.hasClass('fa-database')) {
+              }
+              // Check for database icon
+              else if ($icon.hasClass('fa-database')) {
                 $link.html(iconHtml + labels.data_info);
-              } else if ($icon.hasClass('fa-info-circle')) {
+              }
+              // Check for info icon (fa-info-circle or fa-circle-info)
+              else if ($icon.hasClass('fa-info-circle') || $icon.hasClass('fa-circle-info')) {
                 $link.html(iconHtml + labels.about);
               }
             });
@@ -472,22 +477,23 @@ ui <- function(request) {
     nav_panel(
       title = translator$t("Data Info"),
       icon = icon("database"),
-
-      card(
-        card_header(translator$t("Data Source")),
-        card_body(
-          div(
-            h5(translator$t("Reference Population Statistics")),
-            p(strong(translator$t("Data Source:")),
-              if (backend_ok) fb_env$data_source else "No microdata"),
-            p(strong(translator$t("Total Respondents:")),
-              if (backend_ok && !is.null(fb_env$micro)) nrow(fb_env$micro) else "N/A"),
-            p(strong(translator$t("Available Exposures:")),
-              if (backend_ok) length(fb_exposure_choices()) else "N/A"),
-            hr(),
-            p(translator$t("This tool uses public Foodbook data from Open Canada (Foodbook 1 and Foodbook 2).")),
-            p("For internal use, legacy microdata from upgrade-context/ is also supported if available.")
-          )
+      layout_columns(
+        col_widths = c(6, 6),
+        card(
+          card_header(uiOutput("ref_settings_header", inline = TRUE)),
+          card_body(uiOutput("ref_summary_ui"))
+        ),
+        card(
+          card_header(uiOutput("ref_snapshot_header", inline = TRUE)),
+          card_body(withSpinner(DTOutput("ref_top_exposures"), type = 4, color = "#0f4c81"))
+        ),
+        card(
+          card_header(uiOutput("ref_pt_header", inline = TRUE)),
+          card_body(withSpinner(plotOutput("ref_pt_plot", height = "350px"), type = 4, color = "#0f4c81"))
+        ),
+        card(
+          card_header(uiOutput("ref_month_header", inline = TRUE)),
+          card_body(withSpinner(plotOutput("ref_month_plot", height = "350px"), type = 4, color = "#0f4c81"))
         )
       )
     ),
@@ -539,7 +545,7 @@ server <- function(input, output, session) {
   output$cedars_file_input_ui <- renderUI({
     lang <- current_lang()
     # Create translator with current language to avoid race condition
-    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
 
     tooltip(
@@ -555,14 +561,14 @@ server <- function(input, output, session) {
   # Render sidebar titles
   output$sidebar_upload_title <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
     h4(tr$t("Upload CEDARS Exposure Data"))
   })
 
   output$sidebar_parameters_title <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
     h5(tr$t("Analysis Parameters"))
   })
@@ -570,7 +576,7 @@ server <- function(input, output, session) {
   # Render results card header
   output$results_card_header <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "translations/translation.json")
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
     tr$t("Results")
   })
@@ -579,7 +585,9 @@ server <- function(input, output, session) {
   observeEvent(current_lang(), {
     lang <- current_lang()
     set_language(lang, session)
-    translator <- get_translator(session)
+    # Create fresh translator to avoid encoding issues
+    translator <- Translator$new(translation_json_path = "../translations/translation.json")
+    translator$set_translation_language(lang)
 
     # Re-initialize backend
     fb_env$initialised <- NULL
@@ -687,16 +695,19 @@ server <- function(input, output, session) {
   observeEvent(input$cedars_file, {
     req(input$cedars_file)
     lang <- current_lang()
+    # Create fresh translator to avoid encoding issues
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
 
     tryCatch({
-      df <- withProgress(message = translator$t("Processing..."), value = 0, {
+      df <- withProgress(message = tr$t("Processing..."), value = 0, {
         path <- input$cedars_file$datapath
         filename <- input$cedars_file$name
 
         # Validate file type
         validate(need(
           grepl("\\.xlsx?$", tolower(filename)),
-          translator$t("Invalid file format")
+          tr$t("Invalid file format")
         ))
 
         # Auto-detect exposure data sheet
@@ -800,8 +811,9 @@ server <- function(input, output, session) {
 
         validate(need(nrow(df) > 0, "No matching cases found between sheets"))
 
+        # Use enc2utf8 to ensure proper UTF-8 encoding in notification
         showNotification(
-          paste0(translator$t("Success"), ": ", length(unique(df$natid)), " ", translator$t("cases")),
+          enc2utf8(paste0(tr$t("Success"), ": ", length(unique(df$natid)), " ", tr$t("cases"))),
           type = "message"
         )
 
@@ -813,7 +825,7 @@ server <- function(input, output, session) {
       adv_cases(NULL)
       shinyjs::js$resetFileInput(id = "cedars_file")
       if (!inherits(e, "shiny.silent.error")) {
-        showNotification(paste(translator$t("Error"), ": ", e$message), type = "error")
+        showNotification(enc2utf8(paste(tr$t("Error"), ": ", e$message)), type = "error")
       }
     })
   }, ignoreNULL = TRUE)
@@ -824,6 +836,9 @@ server <- function(input, output, session) {
     shinyjs::js$resetFileInput(id = "cedars_file")
 
     lang <- current_lang()
+    # Create fresh translator to avoid encoding issues
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
 
     updateSelectInput(session, "adv_province",
                      choices = build_province_choices(lang),
@@ -832,18 +847,19 @@ server <- function(input, output, session) {
     updateSelectInput(session, "adv_age_group",
                      choices = stats::setNames(
                        c("All Ages", fb_age_groups()),
-                       c(translator$t("All Ages"), fb_age_groups())
+                       c(tr$t("All Ages"), fb_age_groups())
                      ),
                      selected = "All Ages")
 
     updateSelectInput(session, "adv_month",
                      choices = stats::setNames(
                        c("All Months", as.character(1:12)),
-                       c(translator$t("All Months"), fb_month_names(lang))
+                       c(tr$t("All Months"), fb_month_names(lang))
                      ),
                      selected = "All Months")
 
-    showNotification(translator$t("Upload cleared"), type = "message")
+    # Use enc2utf8 to ensure proper UTF-8 encoding in notification
+    showNotification(enc2utf8(tr$t("Upload cleared")), type = "message")
   })
 
   # Get unique PTs from uploaded cases
@@ -1053,36 +1069,189 @@ server <- function(input, output, session) {
       )
   })
 
+  # Reference filter helpers (for Data Info tab)
+  ref_filters <- reactive({
+    all_ages_labels <- unique(c("All Ages", t_("All Ages", lang = "en"), t_("All Ages", lang = "fr")))
+    all_months_labels <- unique(c("All Months", t_("All Months", lang = "en"), t_("All Months", lang = "fr")))
+    list(
+      pts = input$adv_province,
+      ages = if (is.null(input$adv_age_group) || (length(input$adv_age_group) == 1 && any(all_ages_labels %in% input$adv_age_group))) NULL else input$adv_age_group,
+      months = if (is.null(input$adv_month) || (length(input$adv_month) == 1 && any(all_months_labels %in% input$adv_month))) NULL else as.integer(input$adv_month)
+    )
+  })
+
+  fb_filtered <- reactive({
+    req(backend_ok)
+    f <- ref_filters()
+    fb_filter_micro(pt_names = f$pts, months = f$months, age_groups = f$ages)
+  })
+
+  # Data Info tab card headers (reactive for translation)
+  output$ref_settings_header <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    tr$t("Reference Settings")
+  })
+
+  output$ref_snapshot_header <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    tr$t("Population Exposure Snapshot (Reference)")
+  })
+
+  output$ref_pt_header <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    tr$t("Microdata Coverage by PT (after filters)")
+  })
+
+  output$ref_month_header <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    tr$t("Microdata Coverage by Month (after filters)")
+  })
+
+  # Data Info tab outputs
+  output$ref_summary_ui <- renderUI({
+    lang <- current_lang()
+    # Create fresh translator to avoid encoding issues
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    f <- ref_filters()
+    pts <- f$pts %||% tr$t("Canada")
+    ages <- f$ages %||% tr$t("All Ages")
+
+    # Get month names in current language
+    if (is.null(f$months)) {
+      months <- tr$t("All Months")
+    } else {
+      month_names <- fb_month_names(lang)
+      months <- paste(month_names[as.integer(f$months)], collapse = ", ")
+    }
+
+    tagList(
+      p(tr$t("This app computes reference exposure percentages from Foodbook microdata, weighted and combined across your selected filters.")),
+      tags$ul(
+        tags$li(tags$b(tr$t("Reference PT(s): ")), paste(pts, collapse = ", ")),
+        tags$li(tags$b(tr$t("Age group(s): ")), paste(ages, collapse = ", ")),
+        tags$li(tags$b(tr$t("Month(s): ")), months)
+      ),
+      p(tr$t("Tip: Defaults like \"Canada\" and \"All\" auto-deselect once you add another selection."))
+    )
+  })
+
+  output$ref_top_exposures <- renderDT({
+    req(backend_ok)
+    lang <- current_lang()
+    f <- ref_filters()
+
+    codes <- as.vector(fb_exposure_choices(lang))
+    refs <- fb_reference_percents(codes, pt_names = f$pts, months = f$months, age_groups = f$ages)
+    lbls <- names(fb_exposure_choices(lang))
+    names(lbls) <- as.vector(fb_exposure_choices(lang))
+
+    tibble::tibble(
+      Exposure = lbls[names(refs)],
+      `Reference %` = round(as.numeric(refs), 1)
+    ) %>%
+      arrange(desc(`Reference %`)) %>%
+      head(30) %>%
+      datatable(options = list(pageLength = 10, order = list(list(1, 'desc'))), rownames = FALSE)
+  })
+
+  output$ref_pt_plot <- renderPlot({
+    d <- fb_filtered()
+    req(nrow(d) > 0)
+    lang <- current_lang()
+    # Create fresh translator to avoid encoding issues
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    pt_map <- fb_pt_names(lang)
+    # invert mapping names->codes to codes->names
+    codes <- unname(fb_pt_map())
+    names(codes) <- names(fb_pt_map())
+    inv <- stats::setNames(names(codes), codes)
+
+    tibble::tibble(PT = d$PT) %>%
+      mutate(PT = inv[as.character(PT)] %||% PT) %>%
+      count(PT) %>%
+      ggplot(aes(x = reorder(PT, n), y = n)) +
+      geom_col(fill = "#0f4c81", alpha = 0.85) +
+      coord_flip() +
+      labs(title = tr$t("Coverage by PT (after filters)"), x = NULL, y = tr$t("Records")) +
+      theme_minimal(base_size = 15) +
+      theme(
+        plot.title = element_text(face = "bold", size = 18, color = "#0f4c81"),
+        axis.title = element_text(size = 15, face = "bold"),
+        axis.text = element_text(size = 13)
+      )
+  })
+
+  output$ref_month_plot <- renderPlot({
+    d <- fb_filtered()
+    req(nrow(d) > 0)
+    lang <- current_lang()
+    # Create fresh translator to avoid encoding issues
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    month_names_display <- if (lang == "fr") fb_month_names("fr") else month.name
+
+    tibble::tibble(Month = as.integer(d$Month)) %>%
+      filter(!is.na(Month), Month >= 1, Month <= 12) %>%
+      mutate(MonthName = factor(month_names_display[Month], levels = month_names_display)) %>%
+      count(MonthName) %>%
+      ggplot(aes(x = MonthName, y = n)) +
+      geom_col(fill = "#1b7b57", alpha = 0.85) +
+      labs(title = tr$t("Coverage by Month (after filters)"), x = NULL, y = tr$t("Records")) +
+      theme_minimal(base_size = 15) +
+      theme(
+        plot.title = element_text(face = "bold", size = 18, color = "#0f4c81"),
+        axis.title = element_text(size = 15, face = "bold"),
+        axis.text = element_text(size = 13),
+        axis.text.x = element_text(angle = 45, hjust = 1)
+      )
+  })
+
   # About page content (reactive for translation)
   output$about_content <- renderUI({
     lang <- current_lang()
+    # Create fresh translator to avoid encoding issues
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
 
     tagList(
-      h4(translator$t("Methodology")),
-      p(translator$t("This tool compares observed case exposures against Foodbook reference percentages using statistical significance testing.")),
+      h4(tr$t("Methodology")),
+      p(tr$t("This tool compares observed case exposures against Foodbook reference percentages using statistical significance testing.")),
 
       hr(),
 
-      h4(translator$t("CEDARS Upload Workflow")),
-      p(translator$t("This internal tool is designed for PHAC epidemiologists to analyze outbreak data exported from CEDARS.")),
+      h4(tr$t("CEDARS Upload Workflow")),
+      p(tr$t("This internal tool is designed for PHAC epidemiologists to analyze outbreak data exported from CEDARS.")),
 
       tags$ol(
-        tags$li(translator$t("Export case exposure data from CEDARS to Excel (.xlsx)")),
-        tags$li(translator$t("Upload the file using the file input")),
-        tags$li(translator$t("The app auto-detects the required sheets (case exposure answer, case linelist)")),
-        tags$li(translator$t("Select reference population filters (PT, age, month)")),
-        tags$li(translator$t("View results with statistical testing and classifications"))
+        tags$li(tr$t("Export case exposure data from CEDARS to Excel (.xlsx)")),
+        tags$li(tr$t("Upload the file using the file input")),
+        tags$li(tr$t("The app auto-detects the required sheets (case exposure answer, case linelist)")),
+        tags$li(tr$t("Select reference population filters (PT, age, month)")),
+        tags$li(tr$t("View results with statistical testing and classifications"))
       ),
 
       hr(),
 
-      h4(translator$t("Interpretation Guide")),
+      h4(tr$t("Interpretation Guide")),
       tags$ul(
-        tags$li(strong(translator$t("Alert")), ": ", translator$t("Observed exposure is significantly higher than reference (p < 0.05)")),
-        tags$li(strong(translator$t("Borderline")), ": ", translator$t("Suggestive evidence (0.05 Ã¢â€°Â¤ p < 0.10)")),
-        tags$li(strong(translator$t("Not Significant")), ": ", translator$t("No significant difference from reference (p Ã¢â€°Â¥ 0.10)")),
-        tags$li(strong(translator$t("Insufficient Data")), ": ", translator$t("Too few cases to calculate statistics (< 5 total responses)")),
-        tags$li(strong(translator$t("No Reference Value")), ": ", translator$t("Exposure not found in Foodbook database"))
+        tags$li(strong(tr$t("Alert")), ": ", tr$t("Observed exposure is significantly higher than reference (p < 0.05)")),
+        tags$li(strong(tr$t("Borderline")), ": ", tr$t("Suggestive evidence (0.05 ≤ p < 0.10)")),
+        tags$li(strong(tr$t("Not Significant")), ": ", tr$t("No significant difference from reference (p ≥ 0.10)")),
+        tags$li(strong(tr$t("Insufficient Data")), ": ", tr$t("Too few cases to calculate statistics (< 5 total responses)")),
+        tags$li(strong(tr$t("No Reference Value")), ": ", tr$t("Exposure not found in Foodbook database"))
       )
     )
   })

@@ -489,7 +489,8 @@ ui <- function(request) {
                       title = translator$t("Upload Exposure Counts (Optional)"),
                       icon = icon("upload"),
                       uiOutput("csv_file_input_ui"),
-                      helpText(translator$t("Upload a CSV file with columns: Exposure, Yes, Probably, No, DK"))
+                      uiOutput("csv_help_text"),
+                      uiOutput("csv_clear_button")
                     )
                   ),
                   hr(),
@@ -567,6 +568,9 @@ server <- function(input, output, session) {
                                          style = "dropdown")
   current_lang <- lang_state$language
 
+  # Store uploaded CSV data
+  csv_data <- reactiveVal(NULL)
+
   # Render sidebar title with current language
   output$sidebar_analysis_title <- renderUI({
     lang <- current_lang()
@@ -588,6 +592,30 @@ server <- function(input, output, session) {
              accept = c(".csv", "text/csv"),
              buttonLabel = tr$t("Browse"),
              placeholder = tr$t("No file selected"))
+  })
+
+  # Render CSV help text
+  output$csv_help_text <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    tagList(
+      helpText(tr$t("CSV must have columns: Exposure, Yes, Probably, No, DK")),
+      helpText(HTML(paste0("<strong>", tr$t("Note"), ":</strong> ", tr$t("Exposure names will be matched against Foodbook database in English or French (case-insensitive). Unmatched exposures will use custom references."))))
+    )
+  })
+
+  # Render CSV clear button
+  output$csv_clear_button <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    actionButton(
+      "csv_clear",
+      label = tr$t("Remove File"),
+      icon = icon("trash"),
+      class = "btn btn-outline-secondary w-100 mt-2"
+    )
   })
 
   # Update UI when language changes
@@ -745,22 +773,106 @@ server <- function(input, output, session) {
   observeEvent(input$simple_csv_upload, {
     req(input$simple_csv_upload)
     lang <- current_lang()
+    # Create fresh translator to avoid encoding issues
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
 
     tryCatch({
-      df <- read.csv(input$simple_csv_upload$datapath, stringsAsFactors = FALSE)
+      # Read CSV with fileEncoding to handle BOM
+      df <- read.csv(input$simple_csv_upload$datapath, stringsAsFactors = FALSE, fileEncoding = "UTF-8-BOM")
+      message("CSV read successfully. Columns: ", paste(names(df), collapse=", "))
+      message("First row: ", paste(df[1,], collapse=", "))
+
       names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
+      message("After normalization. Columns: ", paste(names(df), collapse=", "))
 
       validate(need(all(c("exposure", "yes", "probably", "no", "dk") %in% names(df)),
-                   translator$t("CSV must have columns: Exposure, Yes, Probably, No, DK")))
+                   tr$t("CSV must have columns: Exposure, Yes, Probably, No, DK")))
 
-      # Update exposure selection with uploaded exposures
-      updateSelectizeInput(session, "exposure_select", selected = df$exposure)
+      message("CSV validation passed. Rows: ", nrow(df))
+      print(df)
 
-      showNotification(paste(translator$t("Success"), ": ", nrow(df), " ", translator$t("exposures loaded")),
-                      type = "message")
+      # Match CSV exposures against Foodbook database (case-insensitive)
+      # Check BOTH English and French labels regardless of current language
+      lang <- current_lang()
+      foodbook_choices_en <- fb_exposure_choices("en")  # label = code format
+      foodbook_choices_fr <- fb_exposure_choices("fr")  # label = code format
+
+      # Create lookups: lowercase label -> code for both languages
+      fb_lookup_en <- stats::setNames(
+        foodbook_choices_en,
+        tolower(names(foodbook_choices_en))
+      )
+      fb_lookup_fr <- stats::setNames(
+        foodbook_choices_fr,
+        tolower(names(foodbook_choices_fr))
+      )
+
+      # Match each CSV exposure
+      matched_exposures <- character(nrow(df))
+      match_count <- 0
+      custom_count <- 0
+
+      for (i in seq_len(nrow(df))) {
+        csv_name <- df$exposure[i]
+        csv_name_lower <- tolower(csv_name)
+
+        # Try to find in English first, then French
+        if (csv_name_lower %in% names(fb_lookup_en)) {
+          # Found in English!
+          matched_exposures[i] <- fb_lookup_en[[csv_name_lower]]
+          match_count <- match_count + 1
+          message("  Matched '", csv_name, "' (EN) -> Foodbook code: ", fb_lookup_en[[csv_name_lower]])
+        } else if (csv_name_lower %in% names(fb_lookup_fr)) {
+          # Found in French!
+          matched_exposures[i] <- fb_lookup_fr[[csv_name_lower]]
+          match_count <- match_count + 1
+          message("  Matched '", csv_name, "' (FR) -> Foodbook code: ", fb_lookup_fr[[csv_name_lower]])
+        } else {
+          # Not found in either language, keep as custom
+          matched_exposures[i] <- csv_name
+          custom_count <- custom_count + 1
+          message("  No match for '", csv_name, "' - will use custom reference")
+        }
+      }
+
+      # Update df with matched exposure codes for later use
+      df$matched_exposure <- matched_exposures
+
+      # Store CSV data for populating modules
+      csv_data(df)
+      message("CSV data stored in reactive")
+
+      # Update exposure selection with matched exposures
+      # Use the matched codes, not the original CSV names
+      updateSelectizeInput(session, "exposure_select",
+                          selected = matched_exposures)
+      message("Exposure selection updated with matched codes")
+
+      # Show notification with match statistics
+      if (custom_count > 0) {
+        msg <- paste0(tr$t("Success"), ": ", nrow(df), " ", tr$t("exposures loaded"),
+                     " (", match_count, " ", tr$t("matched"), ", ",
+                     custom_count, " ", tr$t("custom"), ")")
+      } else {
+        msg <- paste0(tr$t("Success"), ": ", nrow(df), " ", tr$t("exposures loaded"),
+                     " (", tr$t("all matched"), ")")
+      }
+      showNotification(enc2utf8(msg), type = "message")
     }, error = function(e) {
-      showNotification(paste(translator$t("Error"), ": ", e$message), type = "error")
+      message("CSV upload error: ", e$message)
+      showNotification(enc2utf8(paste(tr$t("Error"), ": ", e$message)), type = "error")
     })
+  })
+
+  # Clear CSV upload
+  observeEvent(input$csv_clear, {
+    csv_data(NULL)
+    shinyjs::js$resetFileInput(id = "simple_csv_upload")
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+    showNotification(enc2utf8(tr$t("Upload cleared")), type = "message")
   })
 
   # Store module server instances
@@ -807,6 +919,74 @@ server <- function(input, output, session) {
       exposure_module_ui(safe_id, exposure_label,
                         if (!is.na(ref_val)) round(ref_val, 1) else "N/A",
                         is_custom, lang)
+    })
+  })
+
+  # Populate modules with CSV data when available
+  # Use a flag to track whether we need to populate
+  csv_needs_population <- reactiveVal(FALSE)
+
+  # Set flag when CSV is uploaded
+  observeEvent(csv_data(), {
+    req(csv_data())
+    message("=== CSV data uploaded, setting population flag ===")
+    csv_needs_population(TRUE)
+  }, ignoreNULL = TRUE, ignoreInit = TRUE)
+
+  # Debug: Watch exposure_select changes
+  observeEvent(input$exposure_select, {
+    message("*** input$exposure_select changed to: ", paste(input$exposure_select %||% "NULL", collapse=", "))
+  }, ignoreNULL = FALSE)
+
+  # Populate when BOTH csv data exists AND exposure selection is updated
+  observe({
+    req(csv_needs_population())
+    req(input$exposure_select)
+    req(csv_data())
+
+    df <- csv_data()
+
+    message("=== Both CSV data and exposure selection ready ===")
+    message("CSV has ", nrow(df), " exposures")
+    message("Exposure selection: ", paste(input$exposure_select, collapse=", "))
+
+    # Wait for modules to be fully rendered (1 second should be enough now)
+    shinyjs::delay(1000, {
+      message("=== Starting module population (after 1s delay) ===")
+
+      for (i in seq_len(nrow(df))) {
+        # Use matched_exposure (Foodbook code) instead of original CSV name
+        exp_code <- df$matched_exposure[i]
+        safe_id <- make_safe_id(exp_code)
+
+        message("[", i, "/", nrow(df), "] Processing '", df$exposure[i], "' (matched: '", exp_code, "') -> safe_id: '", safe_id, "'")
+
+        # Check if this exposure is in the selection
+        selection_current <- isolate(input$exposure_select)
+
+        if (exp_code %in% selection_current) {
+          tryCatch({
+            exposure_module_update(
+              session,
+              safe_id,
+              yes = as.numeric(df$yes[i]),
+              prob = as.numeric(df$probably[i]),
+              no = as.numeric(df$no[i]),
+              dk = as.numeric(df$dk[i])
+            )
+            message("      SUCCESS: yes=", df$yes[i], ", prob=", df$probably[i],
+                   ", no=", df$no[i], ", dk=", df$dk[i])
+          }, error = function(e) {
+            message("      ERROR: ", e$message)
+          })
+        } else {
+          message("      SKIPPED: not in selection")
+        }
+      }
+      message("=== Module population complete ===")
+
+      # Clear the flag so we don't re-populate
+      csv_needs_population(FALSE)
     })
   })
 
