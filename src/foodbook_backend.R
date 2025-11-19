@@ -539,6 +539,27 @@ fb_init <- function(lang = "en") {
   invisible(TRUE)
 }
 
+# Update language without re-initializing entire backend
+# More efficient than calling fb_init() when only language changed
+fb_update_language <- function(lang = "en") {
+  # Ensure backend is initialized
+  if (!isTRUE(fb_env$initialised)) {
+    fb_init(lang = lang)
+    return(invisible(TRUE))
+  }
+
+  # Update the active label column based on language
+  if (!is.null(fb_env$label_map) && nrow(fb_env$label_map) > 0) {
+    if (lang == "fr" && "label_fr" %in% names(fb_env$label_map)) {
+      fb_env$label_map$label <- fb_env$label_map$label_fr
+    } else {
+      fb_env$label_map$label <- fb_env$label_map$label_en
+    }
+  }
+
+  invisible(TRUE)
+}
+
 fb_exposure_choices <- function(lang = "en") {
   fb_init(lang = lang)
   # If microdata + labels available, return label->code; else fall back to CSV Exposure labels

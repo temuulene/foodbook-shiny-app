@@ -464,7 +464,7 @@ ui <- function(request) {
           card_header(uiOutput("results_card_header", inline = TRUE)),
           card_body(
             withSpinner(
-              DTOutput("adv_results_table", width = "100%"),
+              uiOutput("adv_results_table_container", width = "100%"),
               type = 4,
               color = "#0f4c81"
             )
@@ -589,9 +589,8 @@ server <- function(input, output, session) {
     translator <- Translator$new(translation_json_path = "../translations/translation.json")
     translator$set_translation_language(lang)
 
-    # Re-initialize backend
-    fb_env$initialised <- NULL
-    fb_init(lang = lang)
+    # Update language labels only, don't re-initialize entire backend
+    fb_update_language(lang = lang)
 
     # Preserve current selections by converting to appropriate format
     current_prov <- input$adv_province
@@ -993,16 +992,37 @@ server <- function(input, output, session) {
   })
 
   # Render results table
+  # Render results table container (with empty state support)
+  output$adv_results_table_container <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    res <- adv_results()
+
+    # Show empty state if no CEDARS file uploaded
+    if (is.null(res)) {
+      return(div(
+        class = "empty-state",
+        style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
+        div(
+          icon("file-excel", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+        ),
+        h4(tr$t("No data available"), style = "margin-bottom: 0.5rem;"),
+        p(tr$t("Upload a CEDARS file to begin your analysis"))
+      ))
+    }
+
+    # Otherwise, render the table
+    DTOutput("adv_results_table", width = "100%")
+  })
+
   output$adv_results_table <- renderDT({
     res <- adv_results()
     lang <- current_lang()
 
     if (is.null(res)) {
-      return(DT::datatable(
-        data.frame(),
-        options = list(dom = "t"),
-        rownames = FALSE
-      ))
+      return(NULL)
     }
 
     res <- res %>%

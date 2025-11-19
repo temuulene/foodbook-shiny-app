@@ -307,29 +307,11 @@ ui <- function(request) {
 
           // Custom message handler for updating misc labels (help text, file inputs, etc)
           Shiny.addCustomMessageHandler('update-misc-labels', function(labels) {
-            // Update help text
+            // Update help text (but NOT file input controls - they're handled by renderUI)
             $('span.help-block, span.form-text, .shiny-input-container .help-block').each(function() {
               var text = $(this).text().trim();
               if (text.includes('Enter case counts') || text.includes('Entrez les comptes')) {
                 $(this).text(labels.enter_case_counts);
-              }
-              if (text.includes('Upload a CSV file with columns') || text.includes('Téléchargez un fichier CSV')) {
-                $(this).text(labels.upload_csv_help);
-              }
-            });
-
-            // Update file input labels
-            $('.form-label').each(function() {
-              var text = $(this).text().trim();
-              if (text === 'Upload CSV File' || text === 'Télécharger un fichier CSV') {
-                $(this).text(labels.upload_csv_file);
-              }
-            });
-
-            // Update Browse button
-            $('.btn-file, .form-control[type=\\'file\\'] + .btn').each(function() {
-              if ($(this).text().includes('Browse') || $(this).text().includes('Parcourir')) {
-                $(this).text(labels.browse);
               }
             });
           });
@@ -512,9 +494,9 @@ ui <- function(request) {
                     accordion_panel(
                       title = translator$t("Upload Exposure Counts (Optional)"),
                       icon = icon("upload"),
-                      uiOutput("csv_file_input_ui"),
-                      uiOutput("csv_help_text"),
-                      uiOutput("csv_clear_button")
+                      uiOutput("xlsx_file_input_ui"),
+                      uiOutput("xlsx_help_text"),
+                      uiOutput("xlsx_clear_button")
                     )
                   ),
                   hr(),
@@ -533,10 +515,10 @@ ui <- function(request) {
                 navset_card_tab(
                   full_screen = TRUE,
                   nav_panel(translator$t("Results"), class = "results-panel",
-                           withSpinner(DTOutput("results_table", width = "100%"), type = 4, color = "#0f4c81")),
+                           withSpinner(uiOutput("results_table_container", width = "100%"), type = 4, color = "#0f4c81")),
                   nav_panel(translator$t("Visualization"), class = "visual-panel",
                             div(style = "margin-bottom: 1rem;",
-                                downloadButton("download_plot", translator$t("Download Plot"), class = "btn-primary")),
+                                uiOutput("download_plot_button_ui")),
                             uiOutput("plot_container"))
                 )
               )
@@ -601,38 +583,35 @@ server <- function(input, output, session) {
     tags$div(class = "title", tr$t("Analysis Parameters"))
   })
 
-  # Render CSV file input with current language
-  output$csv_file_input_ui <- renderUI({
+  # Render XLSX file input
+  output$xlsx_file_input_ui <- renderUI({
     lang <- current_lang()
-    # Create translator with current language to avoid race condition
     tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
-
-    fileInput("simple_csv_upload",
-             tr$t("Upload CSV File"),
-             accept = c(".csv", "text/csv"),
+    fileInput("simple_xlsx_upload",
+             label = tr$t("Upload Excel File"),
+             accept = c(".xlsx"),
              buttonLabel = tr$t("Browse"),
              placeholder = tr$t("No file selected"))
   })
 
-  # Render CSV help text
-  output$csv_help_text <- renderUI({
+  # Render XLSX help text
+  output$xlsx_help_text <- renderUI({
     lang <- current_lang()
     tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
     tagList(
-      helpText(tr$t("CSV must have columns: Exposure, Yes, Probably, No, DK")),
       helpText(HTML(paste0("<strong>", tr$t("Note"), ":</strong> ", tr$t("Exposure names will be matched against Foodbook database in English or French (case-insensitive). Unmatched exposures will use custom references."))))
     )
   })
 
-  # Render CSV clear button
-  output$csv_clear_button <- renderUI({
+  # Render XLSX clear button
+  output$xlsx_clear_button <- renderUI({
     lang <- current_lang()
     tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
     actionButton(
-      "csv_clear",
+      "xlsx_clear",
       label = tr$t("Remove File"),
       icon = icon("trash"),
       class = "btn btn-outline-secondary w-100 mt-2"
@@ -678,8 +657,8 @@ server <- function(input, output, session) {
     lang <- current_lang()
     set_language(lang, session)
     translator <- get_translator(session)
-    fb_env$initialised <- NULL
-    fb_init(lang = lang)
+    # Only update language labels, don't re-initialize entire backend
+    fb_update_language(lang = lang)
 
     # Preserve current selections by converting to appropriate format
     current_prov <- input$province
@@ -753,12 +732,9 @@ server <- function(input, output, session) {
       about_tool = translator$t("About This Tool")
     ))
 
-    # Update help text and file input labels via JavaScript
+    # Update help text via JavaScript
     session$sendCustomMessage("update-misc-labels", list(
-      enter_case_counts = translator$t("Enter case counts for each exposure in each selected location."),
-      upload_csv_file = translator$t("Upload CSV File"),
-      upload_csv_help = translator$t("Upload a CSV file with columns: Exposure, Yes, Probably, No, DK"),
-      browse = translator$t("Browse")
+      enter_case_counts = translator$t("Enter case counts for each exposure in each selected location.")
     ))
 
     # If CSV data exists, trigger re-population after language change
@@ -792,25 +768,26 @@ server <- function(input, output, session) {
     }
   })
 
-  # Process CSV upload
-  observeEvent(input$simple_csv_upload, {
-    req(input$simple_csv_upload)
+  # Process XLSX upload
+  observeEvent(input$simple_xlsx_upload, {
+    req(input$simple_xlsx_upload)
+    file_info <- input$simple_xlsx_upload
     lang <- current_lang()
     # Create fresh translator to avoid encoding issues
     tr <- Translator$new(translation_json_path = "../translations/translation.json")
     tr$set_translation_language(lang)
 
     tryCatch({
-      # Read CSV with fileEncoding to handle BOM
-      df <- read.csv(input$simple_csv_upload$datapath, stringsAsFactors = FALSE, fileEncoding = "UTF-8-BOM")
-      message("CSV read successfully. Columns: ", paste(names(df), collapse=", "))
+      # Read Excel file
+      df <- readxl::read_excel(file_info$datapath)
+      message("Excel file read successfully. Columns: ", paste(names(df), collapse=", "))
       message("First row: ", paste(df[1,], collapse=", "))
 
       names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
       message("After normalization. Columns: ", paste(names(df), collapse=", "))
 
       validate(need(all(c("exposure", "yes", "probably", "no", "dk") %in% names(df)),
-                   tr$t("CSV must have columns: Exposure, Yes, Probably, No, DK")))
+                   "Excel file must have columns: Exposure, Yes, Probably, No, DK"))
 
       message("CSV validation passed. Rows: ", nrow(df))
       print(df)
@@ -883,16 +860,16 @@ server <- function(input, output, session) {
       }
       showNotification(enc2utf8(msg), type = "message")
     }, error = function(e) {
-      message("CSV upload error: ", e$message)
+      message("XLSX upload error: ", e$message)
       showNotification(enc2utf8(paste(tr$t("Error"), ": ", e$message)), type = "error")
     })
   })
 
-  # Clear CSV upload
-  observeEvent(input$csv_clear, {
+  # Clear XLSX upload
+  observeEvent(input$xlsx_clear, {
     csv_data(NULL)
     csv_needs_population(FALSE)
-    shinyjs::js$resetFileInput(id = "simple_csv_upload")
+    shinyjs::js$resetFileInput(id = "simple_xlsx_upload")
     updateSelectizeInput(session, "exposure_select", selected = character(0))
     lang <- current_lang()
     tr <- Translator$new(translation_json_path = "../translations/translation.json")
@@ -903,8 +880,8 @@ server <- function(input, output, session) {
   # Store module server instances
   exposure_module_returns <- reactiveValues()
 
-  # Generate exposure module UIs and instantiate servers
-  output$exposure_modules_ui <- renderUI({
+  # Cache reference percentages to avoid duplicate backend calls
+  cached_ref_percents <- reactive({
     req(input$exposure_select)
     lang <- current_lang()
 
@@ -923,7 +900,17 @@ server <- function(input, output, session) {
     months <- if (translator$t("All Months") %in% input$month) NULL else as.integer(input$month)
 
     exposure_codes <- input$exposure_select
-    ref_perc <- fb_reference_percents(exposure_codes, pt_names = pts, months = months, age_groups = ages)
+    fb_reference_percents(exposure_codes, pt_names = pts, months = months, age_groups = ages)
+  })
+
+  # Generate exposure module UIs and instantiate servers
+  output$exposure_modules_ui <- renderUI({
+    req(input$exposure_select)
+    lang <- current_lang()
+
+    # Use cached reference percentages
+    ref_perc <- cached_ref_percents()
+    exposure_codes <- input$exposure_select
 
     # Get exposure choices (label = code format)
     all_exposure_choices <- fb_exposure_choices(lang)
@@ -1020,21 +1007,9 @@ server <- function(input, output, session) {
     req(input$exposure_select)
     lang <- current_lang()
 
-    pts <- input$province
-    if (translator$t("Canada") %in% pts) pts <- "Canada"
-
-    if (lang == "fr" && !translator$t("Canada") %in% pts) {
-      en_pt_names <- fb_pt_names("en")
-      fr_pt_names <- fb_pt_names("fr")
-      pt_map <- stats::setNames(en_pt_names, fr_pt_names)
-      pts <- sapply(pts, function(pt) if (pt %in% names(pt_map)) pt_map[pt] else pt)
-    }
-
-    ages <- if (translator$t("All Ages") %in% input$age_group) NULL else input$age_group
-    months <- if (translator$t("All Months") %in% input$month) NULL else as.integer(input$month)
-
+    # Use cached reference percentages
+    ref_perc <- cached_ref_percents()
     exposure_codes <- input$exposure_select
-    ref_perc <- fb_reference_percents(exposure_codes, pt_names = pts, months = months, age_groups = ages)
 
     # Get exposure choices (label = code format)
     all_exposure_choices <- fb_exposure_choices(lang)
@@ -1098,6 +1073,42 @@ server <- function(input, output, session) {
       select(`Reference Scope`, everything())
   })
 
+  # Render results table container (with empty state support)
+  output$results_table_container <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    # Check if exposures are selected
+    if (is.null(input$exposure_select) || length(input$exposure_select) == 0) {
+      return(div(
+        class = "empty-state",
+        style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
+        div(
+          icon("chart-bar", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+        ),
+        h4(tr$t("No exposures selected"), style = "margin-bottom: 0.5rem;"),
+        p(tr$t("Add exposures to the exposure data input box or upload an Excel file from the sidebar to get started"))
+      ))
+    }
+
+    # If exposures selected but no results data, show loading or different message
+    res <- results_data()
+    if (is.null(res) || nrow(res) == 0) {
+      return(div(
+        class = "empty-state",
+        style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
+        div(
+          icon("info-circle", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+        ),
+        h4(tr$t("No data available"))
+      ))
+    }
+
+    # Otherwise, render the table
+    DTOutput("results_table", width = "100%")
+  })
+
   # Render results table
   output$results_table <- renderDT({
     req(results_data())
@@ -1154,9 +1165,61 @@ server <- function(input, output, session) {
     updateSelectizeInput(session, "exposure_select", selected = character(0))
   })
 
+  # Conditionally show Download Plot button
+  output$download_plot_button_ui <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    # Only show button if there's data to plot
+    res <- results_data()
+    if (!is.null(res) && nrow(res) > 0) {
+      # Check if there's plottable data (non-NA observed and reference percentages)
+      plot_data <- res %>%
+        dplyr::filter(!is.na(`Observed %`), !is.na(`Reference %`))
+
+      if (nrow(plot_data) > 0) {
+        return(downloadButton("download_plot", tr$t("Download Plot"), class = "btn-primary"))
+      }
+    }
+
+    # Otherwise, return nothing (hide button)
+    return(NULL)
+  })
+
   # Visualization
   output$plot_container <- renderUI({
-    req(results_data())
+    lang <- current_lang()
+    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr$set_translation_language(lang)
+
+    # Check if exposures are selected
+    if (is.null(input$exposure_select) || length(input$exposure_select) == 0) {
+      return(div(
+        class = "empty-state",
+        style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
+        div(
+          icon("chart-line", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+        ),
+        h4(tr$t("No plot to display"), style = "margin-bottom: 0.5rem;"),
+        p(tr$t("Select at least one exposure to generate visualization"))
+      ))
+    }
+
+    # Check if results data exists
+    res <- results_data()
+    if (is.null(res) || nrow(res) == 0) {
+      return(div(
+        class = "empty-state",
+        style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
+        div(
+          icon("info-circle", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+        ),
+        h4(tr$t("No data available"))
+      ))
+    }
+
+    # Otherwise, render the plot with dynamic height
     plot_height <- max(500, length(input$exposure_select) * 180)
     withSpinner(plotOutput("results_plot", height = paste0(plot_height, "px")), type = 4, color = "#0f4c81")
   })

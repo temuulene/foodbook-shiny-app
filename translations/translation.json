@@ -802,16 +802,24 @@
       "fr": "Répondants par mois"
     },
     {
-      "en": "CSV must have columns: Exposure, Yes, Probably, No, DK",
-      "fr": "Le CSV doit avoir les colonnes : Exposition, Oui, Probablement, Non, NSP"
+      "en": "Excel file must have columns: Exposure, Yes, Probably, No, DK",
+      "fr": "Le fichier Excel doit avoir les colonnes : Exposition, Oui, Probablement, Non, NSP"
+    },
+    {
+      "en": "Upload Excel File",
+      "fr": "Téléverser un fichier Excel"
+    },
+    {
+      "en": "Upload an Excel file with columns: Exposure, Yes, Probably, No, DK",
+      "fr": "Téléversez un fichier Excel avec les colonnes : Exposition, Oui, Probablement, Non, NSP"
     },
     {
       "en": "CEDARS Analysis",
-      "fr": "Analyse SCEDAC"
+      "fr": "Analyse CEDARS"
     },
     {
       "en": "Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information.",
-      "fr": "Téléchargez votre exportation de données d'éclosion SCEDAC. L'outil extraira automatiquement les informations d'exposition des cas."
+      "fr": "Téléchargez votre exportation de données d'éclosion CEDARS. L'outil extraira automatiquement les informations d'exposition des cas."
     },
     {
       "en": "The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist).",
@@ -887,15 +895,15 @@
     },
     {
       "en": "CEDARS Upload Workflow",
-      "fr": "Flux de travail de téléchargement SCEDAC"
+      "fr": "Flux de travail de téléchargement CEDARS"
     },
     {
       "en": "This internal tool is designed for PHAC epidemiologists to analyze outbreak data exported from CEDARS.",
-      "fr": "Cet outil interne est conçu pour les épidémiologistes de l'ASPC afin d'analyser les données d'éclosion exportées de SCEDAC."
+      "fr": "Cet outil interne est conçu pour les épidémiologistes de l'ASPC afin d'analyser les données d'éclosion exportées de CEDARS."
     },
     {
       "en": "Export case exposure data from CEDARS to Excel (.xlsx)",
-      "fr": "Exporter les données d'exposition des cas de SCEDAC vers Excel (.xlsx)"
+      "fr": "Exporter les données d'exposition des cas de CEDARS vers Excel (.xlsx)"
     },
     {
       "en": "Upload the file using the file input",
@@ -916,6 +924,34 @@
     {
       "en": "No cases found for selected province(s)",
       "fr": "Aucun cas trouvé pour la ou les province(s) sélectionnée(s)"
+    },
+    {
+      "en": "Select exposures to view results",
+      "fr": "Sélectionnez des expositions pour voir les résultats"
+    },
+    {
+      "en": "Select at least one exposure to generate visualization",
+      "fr": "Sélectionnez au moins une exposition pour générer la visualisation"
+    },
+    {
+      "en": "Upload a CEDARS Excel file to begin analysis",
+      "fr": "Téléversez un fichier Excel CEDARS pour commencer l'analyse"
+    },
+    {
+      "en": "No exposures selected",
+      "fr": "Aucune exposition sélectionnée"
+    },
+    {
+      "en": "No plot to display",
+      "fr": "Aucun graphique à afficher"
+    },
+    {
+      "en": "Add exposures to the exposure data input box or upload an Excel file from the sidebar to get started",
+      "fr": "Ajoutez des expositions dans la boîte de saisie des données d'exposition ou téléversez un fichier Excel depuis la barre latérale pour commencer"
+    },
+    {
+      "en": "Upload a CEDARS file to begin your analysis",
+      "fr": "Téléversez un fichier CEDARS pour commencer votre analyse"
     }
   ],
   "cultural_date_format": {
