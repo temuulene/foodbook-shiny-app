@@ -274,7 +274,7 @@ foodbook-shiny-app/
 │       └── test-new-features.R         # New features tests (43 tests)
 ├── DEPLOYMENT.md                  # Deployment guide for both apps
 ├── README.md                      # This file - User documentation
-├── CLAUDE.md                      # Developer/agent guidance
+├── AGENT.md                       # Developer/agent guidance
 ├── AGENTS.md                      # Quick reference for AI agents
 └── foodbook-shiny-app.Rproj      # RStudio project file
 ```
@@ -322,7 +322,7 @@ rsconnect::writeManifest(appDir = "app-public", appPrimaryDoc = "app.R")
 rsconnect::writeManifest(appDir = "app-internal", appPrimaryDoc = "app.R")
 ```
 
-- For detailed implementation notes and developer guidance, see [CLAUDE.md](CLAUDE.md)
+- For detailed implementation notes and developer guidance, see [AGENT.md](AGENT.md)
 - For AI agent quick reference, see [AGENTS.md](AGENTS.md)
 
 ## Support

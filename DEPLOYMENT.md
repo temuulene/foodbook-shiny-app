@@ -406,7 +406,7 @@ Track:
 
 ### Documentation
 - `README.md` - User guide
-- `CLAUDE.md` - Developer guide
+- `AGENT.md` - Developer guide
 - `AGENTS.md` - Quick reference
 
 ### Contacts

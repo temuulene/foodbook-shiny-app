@@ -36,7 +36,7 @@ Repository Layout
 - `archive/app.R.legacy` - Original combined app (no longer maintained).
 - `app-public/manifest.json` / `app-internal/manifest.json` - Posit Connect dependency manifests (pin R version and packages per app).
 - `README.md` - Usage, deploy notes, and regeneration steps for legacy CSV.
-- `CLAUDE.md` - Developer/agent guidance with common gotchas and patterns.
+- `AGENT.md` - Developer/agent guidance with common gotchas and patterns.
 - `DEPLOYMENT.md` - Deployment guide for both apps.
 
 How the App Works
