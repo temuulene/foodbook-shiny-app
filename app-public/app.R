@@ -166,7 +166,7 @@ ui <- function(request) {
         .selectize-input {
           border: 2px solid #d0ddf0;
           border-radius: 0.65rem;
-          min-height: 44px;
+          min-height: 50px;
           font-weight: 500;
           transition: all 0.2s ease;
         }
@@ -508,8 +508,8 @@ ui <- function(request) {
                   card_body(
                     helpText(translator$t("Enter case counts for each exposure in each selected location.")),
                     uiOutput("exposure_select_ui"),
-                    div(style = "max-height: 60vh; overflow-y: auto;",
-                        uiOutput("exposure_modules_ui"))
+                    div(style = "max-height: 60vh; overflow-y: auto;", uiOutput("exposure_modules_ui")),
+                    helpText(translator$t("* Exposures from Foodbook 1.0"), style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;")
                   )
                 ),
                 navset_card_tab(
@@ -1110,7 +1110,7 @@ server <- function(input, output, session) {
   })
 
   # Render results table
-  output$results_table <- renderDT({
+  output$results_table <- renderDT(server = FALSE, {
     req(results_data())
     lang <- current_lang()
 

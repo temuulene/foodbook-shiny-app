@@ -959,7 +959,7 @@ server <- function(input, output, session) {
       results <- exposure_counts %>%
         rowwise() %>%
         mutate(
-          Exposure = code_to_label[exposure] %||% exposure,
+          Exposure = sub(" \\([^)]+\\)$", "", code_to_label[exposure] %||% exposure),
           province_ref = as.numeric(ref_perc[match(exposure, names(ref_perc))]),
           y_plus_p = (Y %||% 0) + (P %||% 0),
           total = y_plus_p + (N %||% 0),
@@ -1014,10 +1014,13 @@ server <- function(input, output, session) {
     }
 
     # Otherwise, render the table
-    DTOutput("adv_results_table", width = "100%")
+    tagList(
+      DTOutput("adv_results_table", width = "100%"),
+      helpText(tr$t("*Data available from Foodbook 1.0 only"), style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;")
+    )
   })
 
-  output$adv_results_table <- renderDT({
+  output$adv_results_table <- renderDT(server = FALSE, {
     res <- adv_results()
     lang <- current_lang()
 

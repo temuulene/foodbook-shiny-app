@@ -412,6 +412,19 @@ fb_init <- function(lang = "en") {
 
   # Store supplementary FB1 data if FB2 is primary
   if (!is.null(fb2_data) && !is.null(fb1_data)) {
+    # Normalize FB1 column names for filtering compatibility
+    if ("QINTRO3" %in% names(fb1_data) && !"PT" %in% names(fb1_data)) {
+      fb1_data$PT <- fb1_data$QINTRO3
+    }
+    if ("month_dv" %in% names(fb1_data) && !"Month" %in% names(fb1_data)) {
+      fb1_data$Month <- fb1_data$month_dv
+    }
+    # Convert age_grp_dv (1-4) to AgeBand ("0-9", "10-19", "20-64", "65+")
+    if ("age_grp_dv" %in% names(fb1_data) && !"AgeBand" %in% names(fb1_data)) {
+      age_map <- c(`1` = "0-9", `2` = "10-19", `3` = "20-64", `4` = "65+")
+      fb1_data$AgeBand <- unname(age_map[as.character(fb1_data$age_grp_dv)])
+    }
+    
     fb_env$micro_fb1 <- fb1_data
   } else {
     fb_env$micro_fb1 <- NULL
@@ -472,8 +485,19 @@ fb_init <- function(lang = "en") {
   # Determine exposure columns present in microdata
   # =============================================================================
   if (!is.null(fb_env$micro)) {
-    fb_env$exposure_codes <- fb_env$label_map$code[fb_env$label_map$code %in% names(fb_env$micro)]
-    # Filter label map to only exposures available in microdata
+    # Get codes from primary microdata (FB2)
+    primary_codes <- fb_env$label_map$code[fb_env$label_map$code %in% names(fb_env$micro)]
+    
+    # Get codes from supplementary microdata (FB1) if available
+    supp_codes <- character()
+    if (!is.null(fb_env$micro_fb1)) {
+      supp_codes <- fb_env$label_map$code[fb_env$label_map$code %in% names(fb_env$micro_fb1)]
+    }
+    
+    # Combine unique codes
+    fb_env$exposure_codes <- unique(c(primary_codes, supp_codes))
+    
+    # Filter label map to only exposures available in ANY microdata
     fb_env$label_map <- fb_env$label_map |>
       dplyr::filter(code %in% fb_env$exposure_codes)
   } else {
@@ -575,10 +599,51 @@ fb_exposure_choices <- function(lang = "en") {
       label_col <- lm$label
     }
 
-    # Handle duplicate labels
-    duplicated_labels <- duplicated(label_col)
-    label_col[duplicated_labels] <- paste0(label_col[duplicated_labels], " (", lm$code[duplicated_labels], ")")
-
+    # Filter out unwanted variables (hunting/game questions and non-food FB1 vars)
+    # Exclude:
+    # - Hunting/game: Q60-Q66
+    # - FB1 non-food: BQ*, AQ*, QINTRO*, uniqueid, weight
+    # - FB1 food safety: Q141-Q146
+    # - FB1 general Q140_FS (but keep Q140_FSA etc. as they are food)
+    
+    unwanted_pattern <- "^(Q6[0-6]|BQ|AQ|QINTRO|uniqueid|weight|Q14[1-6]|Q140_FS$)"
+    keep_mask <- !grepl(unwanted_pattern, lm$code)
+    
+    lm <- lm[keep_mask, ]
+    label_col <- label_col[keep_mask]
+    
+    # Deduplicate by label: If an FB1 exposure has the same label 
+    # as an FB2 exposure, remove the FB1 version (prefer FB2).
+    
+    if (!is.null(fb_env$micro) && !is.null(fb_env$micro_fb1)) {
+      fb2_codes <- names(fb_env$micro)
+      fb1_codes <- names(fb_env$micro_fb1)
+      
+      # Get labels for FB2 vars (before adding any asterisks)
+      fb2_mask <- lm$code %in% fb2_codes
+      fb2_labels <- unique(label_col[fb2_mask])
+      
+      # Identify FB1 vars that are NOT in FB2 (candidates for *)
+      fb1_only_mask <- !lm$code %in% fb2_codes
+      
+      # Among these FB1-only vars, check if their label exists in FB2_labels
+      # If so, it's a "cross-version duplicate" (same name, different code) -> Hide it
+      duplicate_label_mask <- fb1_only_mask & (label_col %in% fb2_labels)
+      
+      # Remove these duplicates from the list
+      if (any(duplicate_label_mask)) {
+        lm <- lm[!duplicate_label_mask, ]
+        label_col <- label_col[!duplicate_label_mask]
+        # Re-calculate mask after dropping rows
+        fb1_only_mask <- !lm$code %in% fb2_codes
+      }
+      
+      # Now add * to the remaining FB1-only vars
+      if (any(fb1_only_mask)) {
+        label_col[fb1_only_mask] <- paste0(label_col[fb1_only_mask], "*")
+      }
+    }
+    
     return(stats::setNames(lm$code, label_col))
   }
   # Fallback: read from legacy CSV
@@ -648,7 +713,11 @@ fb_exposure_choices_all <- function(lang = "en") {
   duplicated_labels <- duplicated(label_col)
   label_col[duplicated_labels] <- paste0(label_col[duplicated_labels], " (", lm$code[duplicated_labels], ")")
 
-  return(stats::setNames(lm$code, label_col))
+  # Filter out unwanted variables (hunting/game questions)
+  exclude_codes <- c("Q60", "Q61", "Q62", "Q63", "Q64", "Q65", "Q66")
+  keep_mask <- !lm$code %in% exclude_codes
+
+  return(stats::setNames(lm$code[keep_mask], label_col[keep_mask]))
 }
 
 fb_age_groups <- function() {
@@ -707,18 +776,41 @@ fb_month_names <- function(lang = "en") {
 # Internal: filter microdata given reference selections
 fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
   fb_init()
-  d <- fb_env$micro
-  if (is.null(d)) return(data.frame())
-  if (!is.null(pt_names) && length(pt_names) && !("Canada" %in% pt_names) && "PT" %in% names(d)) {
-    codes <- unname(fb_env$pt_map[pt_names])
-    d <- d |> dplyr::filter(PT %in% codes)
+  
+  # Helper to filter a single dataset
+  filter_df <- function(d) {
+    if (is.null(d)) return(NULL)
+    if (!is.null(pt_names) && length(pt_names) && !("Canada" %in% pt_names) && "PT" %in% names(d)) {
+      codes <- unname(fb_env$pt_map[pt_names])
+      d <- d |> dplyr::filter(PT %in% codes)
+    }
+    if (!is.null(months) && length(months) && "Month" %in% names(d)) {
+      d <- d |> dplyr::filter(Month %in% months)
+    }
+    if (!is.null(age_groups) && length(age_groups) && "AgeBand" %in% names(d)) {
+      d <- d |> dplyr::filter(AgeBand %in% age_groups)
+    }
+    d
   }
-  if (!is.null(months) && length(months) && "Month" %in% names(d)) {
-    d <- d |> dplyr::filter(Month %in% months)
+
+  # Filter primary dataset (FB2)
+  d_main <- filter_df(fb_env$micro)
+  
+  # Filter supplementary dataset (FB1)
+  d_supp <- filter_df(fb_env$micro_fb1)
+  
+  # Combine if both exist
+  if (!is.null(d_main) && !is.null(d_supp)) {
+    # Bind rows (keeping all columns, filling missing with NA)
+    d <- dplyr::bind_rows(d_main, d_supp)
+  } else if (!is.null(d_main)) {
+    d <- d_main
+  } else if (!is.null(d_supp)) {
+    d <- d_supp
+  } else {
+    d <- data.frame()
   }
-  if (!is.null(age_groups) && length(age_groups) && "AgeBand" %in% names(d)) {
-    d <- d |> dplyr::filter(AgeBand %in% age_groups)
-  }
+  
   d
 }
 
@@ -793,42 +885,21 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL, age_gro
       }
     }, character(1), USE.NAMES = FALSE)
 
-    d_fb2 <- fb_filter_micro(pt_names, months, age_groups)
-
-    d_fb1 <- NULL
-    if (!is.null(fb_env$micro_fb1)) {
-      d_fb1 <- fb_env$micro_fb1
-
-      if (!is.null(pt_names) && "PT" %in% names(d_fb1)) {
-        pt_codes <- fb_pt_map()[pt_names]
-        d_fb1 <- d_fb1[d_fb1$PT %in% pt_codes, , drop = FALSE]
-      }
-
-      if (!is.null(months) && "month_dv" %in% names(d_fb1)) {
-        d_fb1 <- d_fb1[d_fb1$month_dv %in% months, , drop = FALSE]
-      }
-
-      if (!is.null(age_groups) && "age_grp_dv" %in% names(d_fb1)) {
-        age_map <- c("0-9" = 1L, "10-19" = 2L, "20-64" = 3L, "65+" = 4L)
-        age_codes <- age_map[age_groups]
-        d_fb1 <- d_fb1[d_fb1$age_grp_dv %in% age_codes, , drop = FALSE]
-      }
-    }
-
+    # Use fb_filter_micro to get BOTH FB2 and FB1 data with consistent filtering
+    # This ensures proper PT, month, and age group filtering for both datasets
+    d_combined <- fb_filter_micro(pt_names, months, age_groups)
+    
+    # Calculate reference percentages for each code
     results <- vapply(fb_codes, function(fb_col) {
-      if (length(d_fb2) && fb_col %in% names(d_fb2)) {
-        return(fb_weighted_percent(fb_col, d_fb2))
+      # Try the code as-is first
+      if (fb_col %in% names(d_combined)) {
+        return(fb_weighted_percent(fb_col, d_combined))
       }
-
-      if (!is.null(d_fb1)) {
-        if (fb_col %in% names(d_fb1)) {
-          return(fb_weighted_percent(fb_col, d_fb1))
-        }
-
-        fb_col_dv <- paste0(fb_col, "_dv")
-        if (fb_col_dv %in% names(d_fb1)) {
-          return(fb_weighted_percent(fb_col_dv, d_fb1))
-        }
+      
+      # Try with _dv suffix (common in FB1)
+      fb_col_dv <- paste0(fb_col, "_dv")
+      if (fb_col_dv %in% names(d_combined)) {
+        return(fb_weighted_percent(fb_col_dv, d_combined))
       }
 
       NA_real_
