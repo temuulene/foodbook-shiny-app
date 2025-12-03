@@ -257,8 +257,8 @@ fb_parse_label_map <- function(path) {
       dplyr::filter(
         label != "",
         !grepl("^\\*", code),  # Skip commented lines
-        # Only keep exposure variables: Q-prefixed or specific exposure patterns
-        grepl("^Q[0-9]", code) | code %in% c("organic_dv", "freshherbs_dv")
+        # Only keep exposure variables: Q-prefixed, DQ-prefixed, or specific exposure patterns
+        grepl("^(D?Q)[0-9]", code) | code %in% c("organic_dv", "freshherbs_dv")
       ) |>
       dplyr::distinct(code, .keep_all = TRUE)
     return(out)
@@ -467,12 +467,87 @@ fb_init <- function(lang = "en") {
   # =============================================================================
   # Create unified label map: FB2 priority, FB1 supplementary, legacy fallback
   # =============================================================================
+  
+  # Handle collisions: If FB1 has a code that is also in FB2 but with a different label,
+  # rename the FB1 code to code_FB1 to preserve it.
+  if (!is.null(fb_env$label_map_fb2) && nrow(fb_env$label_map_fb2) > 0 &&
+      !is.null(fb_env$label_map_fb1) && nrow(fb_env$label_map_fb1) > 0) {
+      
+    fb2_codes <- fb_env$label_map_fb2$code
+    
+    # Identify collisions
+    collisions <- fb_env$label_map_fb1 |>
+      dplyr::filter(code %in% fb2_codes)
+      
+    if (nrow(collisions) > 0) {
+      # For each collision, check if labels are significantly different
+      # (Simple check: if not identical)
+      # Actually, we should just rename all collisions to be safe and let user decide,
+      # or only if they are different.
+      # Let's rename all collisions to _FB1 to allow access to the old variable.
+      
+      colliding_codes <- collisions$code
+      
+      # Rename in label map (keep labels unchanged, * will indicate FB1)
+      fb_env$label_map_fb1 <- fb_env$label_map_fb1 |>
+        dplyr::mutate(
+          code = ifelse(code %in% colliding_codes, paste0(code, "_FB1"), code)
+        )
+        
+      # Rename in microdata
+      if (!is.null(fb_env$micro_fb1)) {
+        # Check which colliding codes are actually in the microdata
+        cols_to_rename <- intersect(names(fb_env$micro_fb1), colliding_codes)
+        if (length(cols_to_rename) > 0) {
+          # dplyr::rename takes new_name = old_name
+          new_names <- paste0(cols_to_rename, "_FB1")
+          rename_vec <- stats::setNames(cols_to_rename, new_names)
+          fb_env$micro_fb1 <- dplyr::rename(fb_env$micro_fb1, !!!rename_vec)
+        }
+      }
+    }
+  }
+
+  # Construct missing FB1 derived variables (DQ2_dv, DQ6_dv)
+  if (!is.null(fb_env$micro_fb1)) {
+    # Helper for FB1 construction
+    get_val_fb1 <- function(col) {
+      # Handle potential _FB1 suffix if renamed
+      if (!col %in% names(fb_env$micro_fb1)) {
+        col_fb1 <- paste0(col, "_FB1")
+        if (col_fb1 %in% names(fb_env$micro_fb1)) col <- col_fb1
+      }
+      if (col %in% names(fb_env$micro_fb1)) {
+        v <- suppressWarnings(as.numeric(fb_env$micro_fb1[[col]]))
+        return(ifelse(is.na(v), 2, v)) # Treat NA as No
+      }
+      return(rep(2, nrow(fb_env$micro_fb1))) # Default to No if missing
+    }
+
+    # DQ2_dv: Any carrots (Q20 + Q21)
+    if (!"DQ2_dv" %in% names(fb_env$micro_fb1)) {
+      v20 <- get_val_fb1("Q20")
+      v21 <- get_val_fb1("Q21")
+      fb_env$micro_fb1$DQ2_dv <- ifelse(v20==1 | v21==1, 1, 2)
+    }
+
+    # DQ6_dv: Any berries (Q_58 + Q_59 + Q_60 + Q_61 + QN1_A)
+    if (!"DQ6_dv" %in% names(fb_env$micro_fb1)) {
+      v58 <- get_val_fb1("Q_58")
+      v59 <- get_val_fb1("Q_59")
+      v60 <- get_val_fb1("Q_60")
+      v61 <- get_val_fb1("Q_61")
+      vn1a <- get_val_fb1("QN1_A")
+      fb_env$micro_fb1$DQ6_dv <- ifelse(v58==1 | v59==1 | v60==1 | v61==1 | vn1a==1, 1, 2)
+    }
+  }
+
   fb_env$label_map <- dplyr::bind_rows(
     fb_env$label_map_fb2,
     fb_env$label_map_fb1,
     fb_env$label_map_legacy
   ) |>
-    dplyr::distinct(code, .keep_all = TRUE)  # Remove duplicates, keeping first (FB2 priority)
+    dplyr::distinct(code, .keep_all = TRUE)  # Remove duplicates (should be none now for collisions)
 
   # For backward compatibility with existing code that expects single "label" column
   if (lang == "fr") {
@@ -531,6 +606,26 @@ fb_init <- function(lang = "en") {
       "PT", "Month", "Age_group", "Gender", "age", "sex",
       "weight", "fb_source", fb_env$exposure_codes
     ))
+    
+    # Ensure berries_dv is kept if it exists in FB2
+    if ("berries_dv" %in% names(fb_env$micro)) {
+      keep_cols <- c(keep_cols, "berries_dv")
+      if (!"berries_dv" %in% fb_env$exposure_codes) {
+        fb_env$exposure_codes <- c(fb_env$exposure_codes, "berries_dv")
+      }
+      
+      # Add to label map if missing
+      if (!"berries_dv" %in% fb_env$label_map$code) {
+        new_row <- tibble::tibble(
+          code = "berries_dv",
+          label_en = "Any berries",
+          label_fr = "Toutes les baies", # Approximate translation
+          label = if (lang == "fr") "Toutes les baies" else "Any berries"
+        )
+        fb_env$label_map <- dplyr::bind_rows(fb_env$label_map, new_row)
+      }
+    }
+
     fb_env$micro <- fb_env$micro[, intersect(keep_cols, names(fb_env$micro)), drop = FALSE]
   }
 
@@ -606,7 +701,12 @@ fb_exposure_choices <- function(lang = "en") {
     # - FB1 food safety: Q141-Q146
     # - FB1 general Q140_FS (but keep Q140_FSA etc. as they are food)
     
-    unwanted_pattern <- "^(Q6[0-6]|BQ|AQ|QINTRO|uniqueid|weight|Q14[1-6]|Q140_FS$)"
+    # - FB1 non-food: BQ*, AQ*, QINTRO*, uniqueid, weight
+    # - FB1 food safety: Q141-Q146
+    # - FB1 general Q140_FS (but keep Q140_FSA etc. as they are food)
+    # - Q21_FB1 (Mini carrots) is redundant with FB2 Q10 (Mini/baby carrots)
+    
+    unwanted_pattern <- "^(Q6[0-6]|BQ|AQ|QINTRO|uniqueid|weight|Q14[1-6]|Q140_FS$|Q21_FB1$)"
     keep_mask <- !grepl(unwanted_pattern, lm$code)
     
     lm <- lm[keep_mask, ]
@@ -773,31 +873,31 @@ fb_month_names <- function(lang = "en") {
   }
 }
 
+# Internal: Filter a single dataset
+fb_filter_dataset <- function(d, pt_names = NULL, months = NULL, age_groups = NULL) {
+  if (is.null(d)) return(NULL)
+  if (!is.null(pt_names) && length(pt_names) && !("Canada" %in% pt_names) && "PT" %in% names(d)) {
+    codes <- unname(fb_env$pt_map[pt_names])
+    d <- d |> dplyr::filter(PT %in% codes)
+  }
+  if (!is.null(months) && length(months) && "Month" %in% names(d)) {
+    d <- d |> dplyr::filter(Month %in% months)
+  }
+  if (!is.null(age_groups) && length(age_groups) && "AgeBand" %in% names(d)) {
+    d <- d |> dplyr::filter(AgeBand %in% age_groups)
+  }
+  d
+}
+
 # Internal: filter microdata given reference selections
 fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
   fb_init()
   
-  # Helper to filter a single dataset
-  filter_df <- function(d) {
-    if (is.null(d)) return(NULL)
-    if (!is.null(pt_names) && length(pt_names) && !("Canada" %in% pt_names) && "PT" %in% names(d)) {
-      codes <- unname(fb_env$pt_map[pt_names])
-      d <- d |> dplyr::filter(PT %in% codes)
-    }
-    if (!is.null(months) && length(months) && "Month" %in% names(d)) {
-      d <- d |> dplyr::filter(Month %in% months)
-    }
-    if (!is.null(age_groups) && length(age_groups) && "AgeBand" %in% names(d)) {
-      d <- d |> dplyr::filter(AgeBand %in% age_groups)
-    }
-    d
-  }
-
   # Filter primary dataset (FB2)
-  d_main <- filter_df(fb_env$micro)
+  d_main <- fb_filter_dataset(fb_env$micro, pt_names, months, age_groups)
   
   # Filter supplementary dataset (FB1)
-  d_supp <- filter_df(fb_env$micro_fb1)
+  d_supp <- fb_filter_dataset(fb_env$micro_fb1, pt_names, months, age_groups)
   
   # Combine if both exist
   if (!is.null(d_main) && !is.null(d_supp)) {
@@ -885,21 +985,34 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL, age_gro
       }
     }, character(1), USE.NAMES = FALSE)
 
-    # Use fb_filter_micro to get BOTH FB2 and FB1 data with consistent filtering
-    # This ensures proper PT, month, and age group filtering for both datasets
-    d_combined <- fb_filter_micro(pt_names, months, age_groups)
+    # Filter datasets separately
+    d_main <- fb_filter_dataset(fb_env$micro, pt_names, months, age_groups)
+    d_supp <- fb_filter_dataset(fb_env$micro_fb1, pt_names, months, age_groups)
     
     # Calculate reference percentages for each code
     results <- vapply(fb_codes, function(fb_col) {
-      # Try the code as-is first
-      if (fb_col %in% names(d_combined)) {
-        return(fb_weighted_percent(fb_col, d_combined))
+      # 1. Try Primary Dataset (FB2)
+      if (!is.null(d_main)) {
+        if (fb_col %in% names(d_main)) {
+          return(fb_weighted_percent(fb_col, d_main))
+        }
+        # Try with _dv suffix
+        fb_col_dv <- paste0(fb_col, "_dv")
+        if (fb_col_dv %in% names(d_main)) {
+          return(fb_weighted_percent(fb_col_dv, d_main))
+        }
       }
       
-      # Try with _dv suffix (common in FB1)
-      fb_col_dv <- paste0(fb_col, "_dv")
-      if (fb_col_dv %in% names(d_combined)) {
-        return(fb_weighted_percent(fb_col_dv, d_combined))
+      # 2. Fallback to Supplementary Dataset (FB1)
+      if (!is.null(d_supp)) {
+        if (fb_col %in% names(d_supp)) {
+          return(fb_weighted_percent(fb_col, d_supp))
+        }
+        # Try with _dv suffix
+        fb_col_dv <- paste0(fb_col, "_dv")
+        if (fb_col_dv %in% names(d_supp)) {
+          return(fb_weighted_percent(fb_col_dv, d_supp))
+        }
       }
 
       NA_real_
