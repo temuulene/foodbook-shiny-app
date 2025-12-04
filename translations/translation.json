@@ -958,24 +958,24 @@
       "fr": "*Données disponibles uniquement à partir de Foodbook 1.0"
     },
     {
-      "en": "This tool uses data from two national Foodbook surveys conducted by the Public Health Agency of Canada:",
-      "fr": "Cet outil utilise les données de deux enquêtes nationales Foodbook menées par l'Agence de la santé publique du Canada :"
+      "en": "Foodbook is a population-based survey conducted in all Canadian provinces and territories. It provides essential data on food, animal and water exposure used to understand, respond to, control and prevent enteric illness in Canada.",
+      "fr": "Foodbook est une enquête en population menée dans toutes les provinces et tous les territoires canadiens. Elle fournit des données essentielles sur l'exposition aux aliments, aux animaux et à l'eau, utilisées pour comprendre, réagir, contrôler et prévenir les maladies entériques au Canada."
     },
     {
       "en": "Foodbook 2.0 (2023-2024)",
       "fr": "Foodbook 2.0 (2023-2024)"
     },
     {
-      "en": "~21,000 respondents across Canada",
-      "fr": "~21 000 répondants à travers le Canada"
+      "en": "Online and telephone survey with ~21,000 respondents across Canada",
+      "fr": "Enquête en ligne et par téléphone auprès d'environ 21 000 répondants à travers le Canada"
     },
     {
       "en": "Foodbook 1.0 (2014-2015)",
       "fr": "Foodbook 1.0 (2014-2015)"
     },
     {
-      "en": "~10,000 respondents (exposures marked with * are from this survey only)",
-      "fr": "~10 000 répondants (les expositions marquées d'un * proviennent uniquement de cette enquête)"
+      "en": "Telephone survey with ~10,000 respondents (exposures marked with * are from this survey only)",
+      "fr": "Enquête téléphonique auprès d'environ 10 000 répondants (les expositions marquées d'un * proviennent uniquement de cette enquête)"
     },
     {
       "en": "Statistical Methodology",

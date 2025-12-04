@@ -1274,15 +1274,15 @@ server <- function(input, output, session) {
 
       # Data Sources
       h4(tr$t("Data Sources")),
-      p("Foodbook is a population-based survey conducted in all Canadian provinces and territories. It provides essential data on food, animal and water exposure used to understand, respond to, control and prevent enteric illness in Canada."),
+      p(tr$t("Foodbook is a population-based survey conducted in all Canadian provinces and territories. It provides essential data on food, animal and water exposure used to understand, respond to, control and prevent enteric illness in Canada.")),
       tags$ul(
         tags$li(
-          strong("Foodbook 2.0 (2023-2024)"), ": ",
-          "Online and telephone survey with ~21,000 respondents across Canada"
+          strong(tr$t("Foodbook 2.0 (2023-2024)")), ": ",
+          tr$t("Online and telephone survey with ~21,000 respondents across Canada")
         ),
         tags$li(
-          strong("Foodbook 1.0 (2014-2015)"), ": ",
-          "Telephone survey with ~10,000 respondents (exposures marked with * are from this survey only)"
+          strong(tr$t("Foodbook 1.0 (2014-2015)")), ": ",
+          tr$t("Telephone survey with ~10,000 respondents (exposures marked with * are from this survey only)")
         )
       ),
 
