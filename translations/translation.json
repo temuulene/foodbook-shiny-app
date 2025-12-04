@@ -956,6 +956,130 @@
     {
       "en": "*Data available from Foodbook 1.0 only",
       "fr": "*Données disponibles uniquement à partir de Foodbook 1.0"
+    },
+    {
+      "en": "This tool uses data from two national Foodbook surveys conducted by the Public Health Agency of Canada:",
+      "fr": "Cet outil utilise les données de deux enquêtes nationales Foodbook menées par l'Agence de la santé publique du Canada :"
+    },
+    {
+      "en": "Foodbook 2.0 (2021)",
+      "fr": "Foodbook 2.0 (2021)"
+    },
+    {
+      "en": "~21,000 respondents across Canada",
+      "fr": "~21 000 répondants à travers le Canada"
+    },
+    {
+      "en": "Foodbook 1.0 (2014-2015)",
+      "fr": "Foodbook 1.0 (2014-2015)"
+    },
+    {
+      "en": "~10,000 respondents (exposures marked with * are from this survey only)",
+      "fr": "~10 000 répondants (les expositions marquées d'un * proviennent uniquement de cette enquête)"
+    },
+    {
+      "en": "Statistical Methodology",
+      "fr": "Méthodologie statistique"
+    },
+    {
+      "en": "The tool uses a one-sided binomial test to compare observed case exposure rates against population reference values:",
+      "fr": "L'outil utilise un test binomial unilatéral pour comparer les taux d'exposition observés chez les cas aux valeurs de référence de la population :"
+    },
+    {
+      "en": "Null hypothesis: Case exposure rate ≤ Population reference rate",
+      "fr": "Hypothèse nulle : Taux d'exposition des cas ≤ Taux de référence de la population"
+    },
+    {
+      "en": "Alternative hypothesis: Case exposure rate > Population reference rate",
+      "fr": "Hypothèse alternative : Taux d'exposition des cas > Taux de référence de la population"
+    },
+    {
+      "en": "Reference percentages are calculated using survey weights to ensure population representativeness.",
+      "fr": "Les pourcentages de référence sont calculés en utilisant les poids de l'enquête pour assurer la représentativité de la population."
+    },
+    {
+      "en": "Limitations",
+      "fr": "Limitations"
+    },
+    {
+      "en": "Survey data may not reflect current food consumption patterns (data collected in 2014-2015 and 2021)",
+      "fr": "Les données de l'enquête peuvent ne pas refléter les habitudes alimentaires actuelles (données collectées en 2014-2015 et 2021)"
+    },
+    {
+      "en": "Self-reported exposure data is subject to recall bias",
+      "fr": "Les données d'exposition autodéclarées sont sujettes à un biais de rappel"
+    },
+    {
+      "en": "Some exposures may have seasonal variations not captured when using annual data",
+      "fr": "Certaines expositions peuvent avoir des variations saisonnières non capturées lors de l'utilisation de données annuelles"
+    },
+    {
+      "en": "Small sample sizes in specific PT/age/month combinations may yield unstable estimates",
+      "fr": "Les petites tailles d'échantillon dans des combinaisons spécifiques PT/âge/mois peuvent produire des estimations instables"
+    },
+    {
+      "en": "Exposures from Foodbook 1.0 (*) use different survey weights than Foodbook 2.0",
+      "fr": "Les expositions de Foodbook 1.0 (*) utilisent des poids d'enquête différents de ceux de Foodbook 2.0"
+    },
+    {
+      "en": "Useful Links",
+      "fr": "Liens utiles"
+    },
+    {
+      "en": "Foodbook 2.0 Data (Open Canada)",
+      "fr": "Données Foodbook 2.0 (Canada Ouvert)"
+    },
+    {
+      "en": "Foodbook 1.0 Data (Open Canada)",
+      "fr": "Données Foodbook 1.0 (Canada Ouvert)"
+    },
+    {
+      "en": "Public Health Agency of Canada",
+      "fr": "Agence de la santé publique du Canada"
+    },
+    {
+      "en": "Frequently Asked Questions",
+      "fr": "Foire aux questions"
+    },
+    {
+      "en": "Why is my exposure showing 'No Reference Value'?",
+      "fr": "Pourquoi mon exposition affiche-t-elle « Aucune valeur de référence » ?"
+    },
+    {
+      "en": "This means the exposure was not asked in either Foodbook survey, or the variable name doesn't match. Try searching for a similar exposure name.",
+      "fr": "Cela signifie que l'exposition n'a pas été posée dans les enquêtes Foodbook, ou que le nom de la variable ne correspond pas. Essayez de rechercher un nom d'exposition similaire."
+    },
+    {
+      "en": "What does the * mean next to some exposures?",
+      "fr": "Que signifie le * à côté de certaines expositions ?"
+    },
+    {
+      "en": "Exposures marked with * are only available from Foodbook 1.0 (2014-2015). They are included for completeness but may not reflect current consumption patterns.",
+      "fr": "Les expositions marquées d'un * ne sont disponibles que dans Foodbook 1.0 (2014-2015). Elles sont incluses pour exhaustivité mais peuvent ne pas refléter les habitudes de consommation actuelles."
+    },
+    {
+      "en": "Why do reference values change when I select different PTs?",
+      "fr": "Pourquoi les valeurs de référence changent-elles lorsque je sélectionne différentes PT ?"
+    },
+    {
+      "en": "Food consumption varies by region. The reference is recalculated using only respondents from the selected province(s)/territory(ies).",
+      "fr": "La consommation alimentaire varie selon la région. La référence est recalculée en utilisant uniquement les répondants des provinces/territoires sélectionnés."
+    },
+    {
+      "en": "How should I interpret 'Borderline' results?",
+      "fr": "Comment dois-je interpréter les résultats « Limite » ?"
+    },
+    {
+      "en": "Borderline results (p-value between 0.05 and 0.10) suggest a possible association that warrants further investigation but doesn't meet conventional significance thresholds.",
+      "fr": "Les résultats limites (valeur p entre 0,05 et 0,10) suggèrent une association possible qui mérite une enquête plus approfondie mais qui ne répond pas aux seuils de signification conventionnels."
+    },
+    {
+      "en": "For questions or support, please contact:",
+      "fr": "Pour toute question ou assistance, veuillez contacter :"
+    },
+    {
+      "en": "[Contact email placeholder]",
+      "fr": "[Courriel de contact - espace réservé]"
     }
   ],
   "cultural_date_format": {

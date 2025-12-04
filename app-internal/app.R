@@ -1253,14 +1253,15 @@ server <- function(input, output, session) {
     tr$set_translation_language(lang)
 
     tagList(
+      # Purpose/Methodology
       h4(tr$t("Methodology")),
       p(tr$t("This tool compares observed case exposures against Foodbook reference percentages using statistical significance testing.")),
 
       hr(),
 
+      # CEDARS Upload Workflow
       h4(tr$t("CEDARS Upload Workflow")),
       p(tr$t("This internal tool is designed for PHAC epidemiologists to analyze outbreak data exported from CEDARS.")),
-
       tags$ol(
         tags$li(tr$t("Export case exposure data from CEDARS to Excel (.xlsx)")),
         tags$li(tr$t("Upload the file using the file input")),
@@ -1271,6 +1272,34 @@ server <- function(input, output, session) {
 
       hr(),
 
+      # Data Sources
+      h4(tr$t("Data Sources")),
+      p("Foodbook is a population-based survey conducted in all Canadian provinces and territories. It provides essential data on food, animal and water exposure used to understand, respond to, control and prevent enteric illness in Canada."),
+      tags$ul(
+        tags$li(
+          strong("Foodbook 2.0 (2023-2024)"), ": ",
+          "Online and telephone survey with ~21,000 respondents across Canada"
+        ),
+        tags$li(
+          strong("Foodbook 1.0 (2014-2015)"), ": ",
+          "Telephone survey with ~10,000 respondents (exposures marked with * are from this survey only)"
+        )
+      ),
+
+      hr(),
+
+      # Statistical Methodology
+      h4(tr$t("Statistical Methodology")),
+      p(tr$t("The tool uses a one-sided binomial test to compare observed case exposure rates against population reference values:")),
+      tags$ul(
+        tags$li(tr$t("Null hypothesis: Case exposure rate ≤ Population reference rate")),
+        tags$li(tr$t("Alternative hypothesis: Case exposure rate > Population reference rate"))
+      ),
+      p(tr$t("Reference percentages are calculated using survey weights to ensure population representativeness.")),
+
+      hr(),
+
+      # Interpretation Guide
       h4(tr$t("Interpretation Guide")),
       tags$ul(
         tags$li(strong(tr$t("Alert")), ": ", tr$t("Observed exposure is significantly higher than reference (p < 0.05)")),
@@ -1278,7 +1307,77 @@ server <- function(input, output, session) {
         tags$li(strong(tr$t("Not Significant")), ": ", tr$t("No significant difference from reference (p ≥ 0.10)")),
         tags$li(strong(tr$t("Insufficient Data")), ": ", tr$t("Too few cases to calculate statistics (< 5 total responses)")),
         tags$li(strong(tr$t("No Reference Value")), ": ", tr$t("Exposure not found in Foodbook database"))
-      )
+      ),
+
+      hr(),
+
+      # Limitations
+      h4(tr$t("Limitations")),
+      tags$ul(
+        tags$li(tr$t("Survey data may not reflect current food consumption patterns (data collected in 2014-2015 and 2021)")),
+        tags$li(tr$t("Self-reported exposure data is subject to recall bias")),
+        tags$li(tr$t("Some exposures may have seasonal variations not captured when using annual data")),
+        tags$li(tr$t("Small sample sizes in specific PT/age/month combinations may yield unstable estimates")),
+        tags$li(tr$t("Exposures from Foodbook 1.0 (*) use different survey weights than Foodbook 2.0"))
+      ),
+
+      hr(),
+
+      # FAQ
+      h4(tr$t("Frequently Asked Questions")),
+      tags$div(
+        class = "faq-section",
+        tags$p(strong(tr$t("Why is my exposure showing 'No Reference Value'?"))),
+        tags$p(tr$t("This means the exposure was not asked in either Foodbook survey, or the variable name doesn't match. Try searching for a similar exposure name."), style = "margin-bottom: 1rem;"),
+
+        tags$p(strong(tr$t("What does the * mean next to some exposures?"))),
+        tags$p(tr$t("Exposures marked with * are only available from Foodbook 1.0 (2014-2015). They are included for completeness but may not reflect current consumption patterns."), style = "margin-bottom: 1rem;"),
+
+        tags$p(strong(tr$t("Why do reference values change when I select different PTs?"))),
+        tags$p(tr$t("Food consumption varies by region. The reference is recalculated using only respondents from the selected province(s)/territory(ies)."), style = "margin-bottom: 1rem;"),
+
+        tags$p(strong(tr$t("How should I interpret 'Borderline' results?"))),
+        tags$p(tr$t("Borderline results (p-value between 0.05 and 0.10) suggest a possible association that warrants further investigation but doesn't meet conventional significance thresholds."))
+      ),
+
+      hr(),
+
+      # Links
+      h4(tr$t("Useful Links")),
+      tags$ul(
+        tags$li(tags$a(
+          href = "https://health-infobase.canada.ca/foodbook/about.html",
+          target = "_blank",
+          "About Foodbook (Health Infobase)"
+        )),
+        tags$li(tags$a(
+          href = "https://www.canada.ca/en/public-health/services/publications/food-nutrition/foodbook-report-2.html",
+          target = "_blank",
+          "Foodbook 2.0 Report"
+        )),
+        tags$li(tags$a(
+          href = "https://open.canada.ca/data/en/dataset/1efcd118-a3df-4cd0-86ae-e4233386b0c6",
+          target = "_blank",
+          "Foodbook 2.0 Microdata (Open Canada)"
+        )),
+        tags$li(tags$a(
+          href = "https://www.canada.ca/en/public-health/services/publications/food-nutrition/foodbook-report.html",
+          target = "_blank",
+          "Foodbook 1.0 Report"
+        )),
+        tags$li(tags$a(
+          href = "https://open.canada.ca/data/en/dataset/ddf6c129-2698-422a-abb5-f7465ed549ee",
+          target = "_blank",
+          "Foodbook 1.0 Microdata (Open Canada)"
+        ))
+      ),
+
+      hr(),
+
+      # Contact
+      h4(tr$t("Contact")),
+      p(tr$t("For questions or support, please contact:")),
+      p(tags$code(tr$t("[Contact email placeholder]")))
     )
   })
 }

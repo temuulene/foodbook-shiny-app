@@ -385,6 +385,36 @@ fb_pt_map <- function() {
   )
 }
 
+#' Normalize PT names to numeric codes
+#' Accepts English names, French names, and abbreviations
+#' @param pt_names Character vector of PT names (any format)
+#' @return Integer vector of PT codes (1-13)
+fb_normalize_pt_names <- function(pt_names) {
+  if (is.null(pt_names) || length(pt_names) == 0) return(integer())
+  
+  # Mapping from all accepted formats to numeric codes
+  all_pt_map <- c(
+    # English names
+    "British Columbia" = 1L, "Alberta" = 2L, "Saskatchewan" = 3L,
+    "Manitoba" = 4L, "Ontario" = 5L, "Quebec" = 6L,
+    "New Brunswick" = 7L, "Nova Scotia" = 8L, "Prince Edward Island" = 9L,
+    "Newfoundland and Labrador" = 10L, "Yukon" = 11L,
+    "Northwest Territories" = 12L, "Nunavut" = 13L,
+    # French names
+    "Colombie-Britannique" = 1L, "Québec" = 6L,
+    "Nouveau-Brunswick" = 7L, "Nouvelle-Écosse" = 8L,
+    "Île-du-Prince-Édouard" = 9L, "Terre-Neuve-et-Labrador" = 10L,
+    "Territoires du Nord-Ouest" = 12L,
+    # Abbreviations
+    "BC" = 1L, "AB" = 2L, "SK" = 3L, "MB" = 4L, "ON" = 5L, "QC" = 6L,
+    "NB" = 7L, "NS" = 8L, "PE" = 9L, "PEI" = 9L, "NL" = 10L,
+    "YT" = 11L, "NT" = 12L, "NU" = 13L
+  )
+  
+  codes <- unname(all_pt_map[pt_names])
+  codes[!is.na(codes)]
+}
+
 # Initialise and cache everything we need
 fb_init <- function(lang = "en") {
   if (!is.null(fb_env$initialised) && isTRUE(fb_env$initialised)) return(invisible(TRUE))
@@ -747,7 +777,6 @@ fb_exposure_choices <- function(lang = "en") {
     
     if (!is.null(fb_env$micro) && !is.null(fb_env$micro_fb1)) {
       fb2_codes <- names(fb_env$micro)
-      fb1_codes <- names(fb_env$micro_fb1)
       
       # Get labels for FB2 vars (before adding any asterisks)
       fb2_mask <- lm$code %in% fb2_codes
@@ -906,10 +935,15 @@ fb_month_names <- function(lang = "en") {
 # Internal: Filter a single dataset
 fb_filter_dataset <- function(d, pt_names = NULL, months = NULL, age_groups = NULL) {
   if (is.null(d)) return(NULL)
+  
+  # PT filtering: accept English, French, or abbreviations
   if (!is.null(pt_names) && length(pt_names) && !("Canada" %in% pt_names) && "PT" %in% names(d)) {
-    codes <- unname(fb_env$pt_map[pt_names])
-    d <- d |> dplyr::filter(PT %in% codes)
+    codes <- fb_normalize_pt_names(pt_names)
+    if (length(codes) > 0) {
+      d <- d |> dplyr::filter(PT %in% codes)
+    }
   }
+  
   if (!is.null(months) && length(months) && "Month" %in% names(d)) {
     d <- d |> dplyr::filter(Month %in% months)
   }
@@ -978,6 +1012,8 @@ fb_pt_abbrev_map <- function() {
 }
 
 fb_reference_percents_csv <- function(codes, pt_names = NULL) {
+  # NOTE: This fallback uses pre-computed CSV data and calculates simple (unweighted)
+  # average when multiple PTs are selected. Results may differ from microdata calculations.
   df <- tryCatch(read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE), error = function(e) NULL)
   if (is.null(df) || !all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))) {
     return(stats::setNames(rep(NA_real_, length(codes)), codes))
@@ -991,7 +1027,7 @@ fb_reference_percents_csv <- function(codes, pt_names = NULL) {
     }, numeric(1))
     return(res)
   }
-  # Otherwise, average across selected PTs (simple mean; weights unavailable in CSV)
+  # Otherwise, average across selected PTs (simple mean; survey weights unavailable in CSV)
   ab <- fb_pt_abbrev_map()
   sel_ab <- unname(ab[pt_names])
   res <- vapply(codes, function(x) {
@@ -1035,6 +1071,7 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL, age_gro
       
       # 2. Fallback to Supplementary Dataset (FB1)
       if (!is.null(d_supp)) {
+        # Try direct match
         if (fb_col %in% names(d_supp)) {
           return(fb_weighted_percent(fb_col, d_supp))
         }
@@ -1042,6 +1079,11 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL, age_gro
         fb_col_dv <- paste0(fb_col, "_dv")
         if (fb_col_dv %in% names(d_supp)) {
           return(fb_weighted_percent(fb_col_dv, d_supp))
+        }
+        # Try with _FB1 suffix (for collision-renamed FB1 columns)
+        fb_col_fb1 <- paste0(fb_col, "_FB1")
+        if (fb_col_fb1 %in% names(d_supp)) {
+          return(fb_weighted_percent(fb_col_fb1, d_supp))
         }
       }
 
