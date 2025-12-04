@@ -123,7 +123,7 @@
     },
     {
       "en": "Upload cleared",
-      "fr": "T\\u00e9l\\u00e9versement r\\u00e9initialis\\u00e9"
+      "fr": "Téléversement réinitialisé"
     },
     {
       "en": "Yes",
@@ -952,6 +952,10 @@
     {
       "en": "Upload a CEDARS file to begin your analysis",
       "fr": "Téléversez un fichier CEDARS pour commencer votre analyse"
+    },
+    {
+      "en": "*Data available from Foodbook 1.0 only",
+      "fr": "*Données disponibles uniquement à partir de Foodbook 1.0"
     }
   ],
   "cultural_date_format": {

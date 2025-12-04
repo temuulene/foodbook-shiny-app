@@ -36,6 +36,9 @@ fb_init(lang = "en")
 backend_ok <- tryCatch(fb_is_available(), error = function(e) FALSE)
 
 # --- 3. Helper Functions ---
+# NOTE: classify_exposure and make_safe_id are now also defined in foodbook_backend.R
+# These local definitions are kept for clarity and backwards compatibility
+
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
   if (is.na(ref_prop)) return("No Reference Value")
   ref_prop_decimal <- ref_prop / 100
@@ -562,8 +565,6 @@ ui <- function(request) {
 
 # --- 6. Server Logic ---
 server <- function(input, output, session) {
-  enableBookmarking("url")
-
   translator <- init_translator(session, translation_path = "../translations/translation.json")
 
   lang_state <- language_selector_server("lang_selector",
@@ -573,6 +574,9 @@ server <- function(input, output, session) {
 
   # Store uploaded CSV data
   csv_data <- reactiveVal(NULL)
+  
+  # Flag for CSV population (defined early to avoid reference before definition)
+  csv_needs_population <- reactiveVal(FALSE)
 
   # Render sidebar title with current language
   output$sidebar_analysis_title <- renderUI({
@@ -935,8 +939,7 @@ server <- function(input, output, session) {
   })
 
   # Populate modules with CSV data when available
-  # Use a flag to track whether we need to populate
-  csv_needs_population <- reactiveVal(FALSE)
+  # csv_needs_population is already defined at the top of the server function
 
   # Set flag when CSV is uploaded
   observeEvent(csv_data(), {
@@ -1224,7 +1227,8 @@ server <- function(input, output, session) {
     withSpinner(plotOutput("results_plot", height = paste0(plot_height, "px")), type = 4, color = "#0f4c81")
   })
 
-  output$results_plot <- renderPlot({
+  # Reactive to store the plot object for both display and download
+  plot_reactive <- reactive({
     req(results_data())
     lang <- current_lang()
 
@@ -1288,12 +1292,19 @@ server <- function(input, output, session) {
       )
   })
 
+  output$results_plot <- renderPlot({
+    plot_reactive()
+  })
+
   output$download_plot <- downloadHandler(
     filename = function() {
       paste0("exposure_plot_", Sys.Date(), ".png")
     },
     content = function(file) {
-      ggsave(file, output$results_plot(), width = 12, height = 8, dpi = 300)
+      p <- plot_reactive()
+      if (!is.null(p)) {
+        ggsave(file, p, width = 12, height = 8, dpi = 300)
+      }
     }
   )
 
@@ -1436,4 +1447,4 @@ server <- function(input, output, session) {
 }
 
 # --- 7. Run Application ---
-shinyApp(ui, server)
+shinyApp(ui, server, enableBookmarking = "url")

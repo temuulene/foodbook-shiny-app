@@ -38,6 +38,9 @@ fb_init(lang = "en")
 backend_ok <- tryCatch(fb_is_available(), error = function(e) FALSE)
 
 # --- 3. Helper Functions ---
+# NOTE: classify_exposure is now also defined in foodbook_backend.R
+# This local definition is kept for clarity and backwards compatibility
+
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
   if (is.na(ref_prop)) return("No Reference Value")
   ref_prop_decimal <- ref_prop / 100
@@ -1281,7 +1284,7 @@ server <- function(input, output, session) {
 }
 
 # --- 6. Run Application ---
-shinyApp(ui, server)
+shinyApp(ui, server, enableBookmarking = "url")
 
 
 

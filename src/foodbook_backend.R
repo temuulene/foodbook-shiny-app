@@ -9,6 +9,36 @@ suppressPackageStartupMessages({
   }
 })
 
+# =============================================================================
+# Shared Utility Functions (used by both app-public and app-internal)
+# =============================================================================
+
+#' Classify exposure based on p-value and observed vs reference proportions
+#' @param p_value P-value from binomial test
+#' @param observed_prop Observed proportion (0-1 scale)
+#' @param ref_prop Reference percentage (0-100 scale)
+#' @return Character classification: "Alert", "Borderline", "Not Significant", 
+#'         "Insufficient Data", or "No Reference Value"
+classify_exposure <- function(p_value, observed_prop, ref_prop) {
+  if (is.na(ref_prop)) return("No Reference Value")
+  ref_prop_decimal <- ref_prop / 100
+  if (is.na(p_value)) return("Insufficient Data")
+  if (observed_prop > ref_prop_decimal) {
+    case_when(p_value <= 0.05 ~ "Alert",
+              p_value <= 0.10 ~ "Borderline",
+              TRUE ~ "Not Significant")
+  } else {
+    "Not Significant"
+  }
+}
+
+#' Create safe HTML ID from exposure name
+#' @param exposure_name Character string to sanitize
+#' @return Character string with only alphanumeric characters
+make_safe_id <- function(exposure_name) {
+  gsub("[^a-zA-Z0-9]", "", exposure_name)
+}
+
 fb_env <- new.env(parent = emptyenv())
 
 # Helper to detect correct base directory (handles both root and subdirectory apps)
