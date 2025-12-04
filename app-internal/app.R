@@ -1314,7 +1314,7 @@ server <- function(input, output, session) {
       # Limitations
       h4(tr$t("Limitations")),
       tags$ul(
-        tags$li(tr$t("Survey data may not reflect current food consumption patterns (data collected in 2014-2015 and 2021)")),
+        tags$li(tr$t("Survey data may not reflect current food consumption patterns (data collected in 2014-2015 and 2023-2024)")),
         tags$li(tr$t("Self-reported exposure data is subject to recall bias")),
         tags$li(tr$t("Some exposures may have seasonal variations not captured when using annual data")),
         tags$li(tr$t("Small sample sizes in specific PT/age/month combinations may yield unstable estimates")),
