@@ -16,6 +16,7 @@ library(ggplot2)
 library(shinyjs)
 library(shinycssloaders)
 library(shiny.i18n)
+library(readxl)
 
 # Load backend and modules (using relative paths from app-public directory)
 source("../src/foodbook_backend.R")
@@ -29,7 +30,9 @@ Sys.setenv("SASS_SILENCE_DEPRECATION" = "1")
 options(bslib.precompiled = TRUE)
 
 # --- 2. Initialize Backend and Translator ---
-translator <- Translator$new(translation_json_path = "../translations/translation.json")
+translator <- Translator$new(
+  translation_json_path = "../translations/translation.json"
+)
 translator$set_translation_language("en")
 
 fb_init(lang = "en")
@@ -40,13 +43,19 @@ backend_ok <- tryCatch(fb_is_available(), error = function(e) FALSE)
 # These local definitions are kept for clarity and backwards compatibility
 
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
-  if (is.na(ref_prop)) return("No Reference Value")
+  if (is.na(ref_prop)) {
+    return("No Reference Value")
+  }
   ref_prop_decimal <- ref_prop / 100
-  if (is.na(p_value)) return("Insufficient Data")
+  if (is.na(p_value)) {
+    return("Insufficient Data")
+  }
   if (observed_prop > ref_prop_decimal) {
-    case_when(p_value <= 0.05 ~ "Alert",
-              p_value <= 0.10 ~ "Borderline",
-              TRUE ~ "Not Significant")
+    case_when(
+      p_value <= 0.05 ~ "Alert",
+      p_value <= 0.10 ~ "Borderline",
+      TRUE ~ "Not Significant"
+    )
   } else {
     "Not Significant"
   }
@@ -85,7 +94,8 @@ ui <- function(request) {
         "link-color" = "#0e4a7b",
         "link-hover-color" = "#0a3a61"
       ) |>
-      bs_add_rules("
+      bs_add_rules(
+        "
         body {
           background: linear-gradient(135deg, #eef2f8 0%, #fdfdfd 60%);
         }
@@ -181,7 +191,8 @@ ui <- function(request) {
           background: #e8f1ff;
           color: #0f4c81;
         }
-      "),
+      "
+      ),
     header = tagList(
       useShinyjs(),
       extendShinyjs(
@@ -209,7 +220,8 @@ ui <- function(request) {
         functions = c("resetFileInput")
       ),
       tags$head(
-        tags$script(HTML("
+        tags$script(HTML(
+          "
           // Inject language selector into navbar on page load
           $(document).ready(function() {
             setTimeout(function() {
@@ -318,8 +330,10 @@ ui <- function(request) {
               }
             });
           });
-        ")),
-        tags$style(HTML("
+        "
+        )),
+        tags$style(HTML(
+          "
         /* Ensure navbar is above all content */
         nav.navbar {
           position: relative;
@@ -449,132 +463,202 @@ ui <- function(request) {
           margin-bottom: 0.55rem;
           line-height: 1.5;
         }
-      "))
+      "
+        ))
       ),
       # Hidden language selector (will be moved to navbar by JavaScript)
-      tags$div(id = "lang_selector_container", style = "display: none;",
-          language_selector_ui("lang_selector", style = "dropdown"))
+      tags$div(
+        id = "lang_selector_container",
+        style = "display: none;",
+        language_selector_ui("lang_selector", style = "dropdown")
+      )
     ),
 
     # Analysis Tab
-    nav_panel(translator$t("Analysis"),
-              icon = icon("calculator"),
-              layout_sidebar(
-                sidebar = sidebar(
-                  uiOutput("sidebar_analysis_title"),
-                  tooltip(
-                    selectInput("province", translator$t("Reference PT(s)"),
-                                choices = stats::setNames(
-                                  c("Canada", fb_pt_names("en")),
-                                  c(translator$t("Canada"), fb_pt_names("en"))
-                                ),
-                                selected = "Canada",
-                                multiple = TRUE),
-                    translator$t("PT = Province/Territory. Select which geographic areas to include in the reference population.")
-                  ),
-                  tooltip(
-                    selectInput("age_group", translator$t("Restrict by Age Group"),
-                                choices = stats::setNames(
-                                  c("All Ages", fb_age_groups()),
-                                  c(translator$t("All Ages"), fb_age_groups())
-                                ),
-                                selected = "All Ages",
-                                multiple = TRUE),
-                    translator$t("Filter the reference population to specific age groups for age-stratified analysis.")
-                  ),
-                  tooltip(
-                    selectInput("month", translator$t("Restrict by Month"),
-                                choices = stats::setNames(
-                                  c("All Months", as.character(1:12)),
-                                  c(translator$t("All Months"), fb_month_names())
-                                ),
-                                selected = "All Months",
-                                multiple = TRUE),
-                    translator$t("Filter the reference population by month(s) to account for seasonal variation.")
-                  ),
-                  hr(),
-                  accordion(
-                    accordion_panel(
-                      title = translator$t("Upload Exposure Counts (Optional)"),
-                      icon = icon("upload"),
-                      uiOutput("xlsx_file_input_ui"),
-                      uiOutput("xlsx_help_text"),
-                      uiOutput("xlsx_clear_button")
-                    )
-                  ),
-                  hr(),
-                  actionButton("reset", translator$t("Reset Inputs"), class = "btn-warning", width = "100%"),
-                  bookmarkButton(label = translator$t("Bookmark Analysis"), class = "btn-secondary", width = "100%")
-                ),
-                card(
-                  card_header(translator$t("Exposure Data Input")),
-                  card_body(
-                    helpText(translator$t("Enter case counts for each exposure in each selected location.")),
-                    uiOutput("exposure_select_ui"),
-                    div(style = "max-height: 60vh; overflow-y: auto;", uiOutput("exposure_modules_ui")),
-                    helpText(translator$t("* Exposures from Foodbook 1.0"), style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;")
-                  )
-                ),
-                navset_card_tab(
-                  full_screen = TRUE,
-                  nav_panel(translator$t("Results"), class = "results-panel",
-                           withSpinner(uiOutput("results_table_container", width = "100%"), type = 4, color = "#0f4c81")),
-                  nav_panel(translator$t("Visualization"), class = "visual-panel",
-                            div(style = "margin-bottom: 1rem;",
-                                uiOutput("download_plot_button_ui")),
-                            uiOutput("plot_container"))
-                )
-              )
+    nav_panel(
+      translator$t("Analysis"),
+      icon = icon("calculator"),
+      layout_sidebar(
+        sidebar = sidebar(
+          uiOutput("sidebar_analysis_title"),
+          tooltip(
+            selectInput(
+              "province",
+              translator$t("Reference PT(s)"),
+              choices = stats::setNames(
+                c("Canada", fb_pt_names("en")),
+                c(translator$t("Canada"), fb_pt_names("en"))
+              ),
+              selected = "Canada",
+              multiple = TRUE
+            ),
+            translator$t(
+              "PT = Province/Territory. Select which geographic areas to include in the reference population."
+            )
+          ),
+          tooltip(
+            selectInput(
+              "age_group",
+              translator$t("Restrict by Age Group"),
+              choices = stats::setNames(
+                c("All Ages", fb_age_groups()),
+                c(translator$t("All Ages"), fb_age_groups())
+              ),
+              selected = "All Ages",
+              multiple = TRUE
+            ),
+            translator$t(
+              "Filter the reference population to specific age groups for age-stratified analysis."
+            )
+          ),
+          tooltip(
+            selectInput(
+              "month",
+              translator$t("Restrict by Month"),
+              choices = stats::setNames(
+                c("All Months", as.character(1:12)),
+                c(translator$t("All Months"), fb_month_names())
+              ),
+              selected = "All Months",
+              multiple = TRUE
+            ),
+            translator$t(
+              "Filter the reference population by month(s) to account for seasonal variation."
+            )
+          ),
+          hr(),
+          accordion(
+            accordion_panel(
+              title = translator$t("Upload Exposure Counts (Optional)"),
+              icon = icon("upload"),
+              uiOutput("xlsx_file_input_ui"),
+              uiOutput("xlsx_help_text"),
+              uiOutput("xlsx_clear_button")
+            )
+          ),
+          hr(),
+          actionButton(
+            "reset",
+            translator$t("Reset Inputs"),
+            class = "btn-warning",
+            width = "100%"
+          ),
+          bookmarkButton(
+            label = translator$t("Bookmark Analysis"),
+            class = "btn-secondary",
+            width = "100%"
+          )
+        ),
+        card(
+          card_header(translator$t("Exposure Data Input")),
+          card_body(
+            helpText(translator$t(
+              "Enter case counts for each exposure in each selected location."
+            )),
+            uiOutput("exposure_select_ui"),
+            div(
+              style = "max-height: 60vh; overflow-y: auto;",
+              uiOutput("exposure_modules_ui")
+            ),
+            helpText(
+              translator$t("* Exposures from Foodbook 1.0"),
+              style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;"
+            )
+          )
+        ),
+        navset_card_tab(
+          full_screen = TRUE,
+          nav_panel(
+            translator$t("Results"),
+            class = "results-panel",
+            withSpinner(
+              uiOutput("results_table_container", width = "100%"),
+              type = 4,
+              color = "#0f4c81"
+            )
+          ),
+          nav_panel(
+            translator$t("Visualization"),
+            class = "visual-panel",
+            div(
+              style = "margin-bottom: 1rem;",
+              uiOutput("download_plot_button_ui")
+            ),
+            uiOutput("plot_container")
+          )
+        )
+      )
     ),
 
     # Data Info Tab
-    nav_panel(translator$t("Data Info"),
-              icon = icon("database"),
-              layout_columns(
-                col_widths = c(6, 6),
-                card(
-                  card_header(translator$t("Reference Settings")),
-                  card_body(uiOutput("ref_summary_ui"))
-                ),
-                card(
-                  card_header(translator$t("Population Exposure Snapshot (Reference)")),
-                  card_body(withSpinner(DTOutput("ref_top_exposures"), type = 4, color = "#0f4c81"))
-                ),
-                card(
-                  card_header(translator$t("Microdata Coverage by PT (after filters)")),
-                  card_body(withSpinner(plotOutput("ref_pt_plot", height = "350px"), type = 4, color = "#0f4c81"))
-                ),
-                card(
-                  card_header(translator$t("Microdata Coverage by Month (after filters)")),
-                  card_body(withSpinner(plotOutput("ref_month_plot", height = "350px"), type = 4, color = "#0f4c81"))
-                )
-              )
+    nav_panel(
+      translator$t("Data Info"),
+      icon = icon("database"),
+      layout_columns(
+        col_widths = c(6, 6),
+        card(
+          card_header(translator$t("Reference Settings")),
+          card_body(uiOutput("ref_summary_ui"))
+        ),
+        card(
+          card_header(translator$t("Population Exposure Snapshot (Reference)")),
+          card_body(withSpinner(
+            DTOutput("ref_top_exposures"),
+            type = 4,
+            color = "#0f4c81"
+          ))
+        ),
+        card(
+          card_header(translator$t("Microdata Coverage by PT (after filters)")),
+          card_body(withSpinner(
+            plotOutput("ref_pt_plot", height = "350px"),
+            type = 4,
+            color = "#0f4c81"
+          ))
+        ),
+        card(
+          card_header(translator$t(
+            "Microdata Coverage by Month (after filters)"
+          )),
+          card_body(withSpinner(
+            plotOutput("ref_month_plot", height = "350px"),
+            type = 4,
+            color = "#0f4c81"
+          ))
+        )
+      )
     ),
 
     # About Tab
-    nav_panel(translator$t("About"),
-              icon = icon("info-circle"),
-              card(
-                class = "well-panel-about",
-                card_header(h3(translator$t("About This Tool"))),
-                card_body(uiOutput("about_content"))
-              )
+    nav_panel(
+      translator$t("About"),
+      icon = icon("info-circle"),
+      card(
+        class = "well-panel-about",
+        card_header(h3(translator$t("About This Tool"))),
+        card_body(uiOutput("about_content"))
+      )
     )
   )
 }
 
 # --- 6. Server Logic ---
 server <- function(input, output, session) {
-  translator <- init_translator(session, translation_path = "../translations/translation.json")
+  translator <- init_translator(
+    session,
+    translation_path = "../translations/translation.json"
+  )
 
-  lang_state <- language_selector_server("lang_selector",
-                                         session_parent = session,
-                                         style = "dropdown")
+  lang_state <- language_selector_server(
+    "lang_selector",
+    session_parent = session,
+    style = "dropdown"
+  )
   current_lang <- lang_state$language
 
   # Store uploaded CSV data
   csv_data <- reactiveVal(NULL)
-  
+
   # Flag for CSV population (defined early to avoid reference before definition)
   csv_needs_population <- reactiveVal(FALSE)
 
@@ -582,7 +666,9 @@ server <- function(input, output, session) {
   output$sidebar_analysis_title <- renderUI({
     lang <- current_lang()
     # Create translator with current language to avoid race condition
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
     tags$div(class = "title", tr$t("Analysis Parameters"))
   })
@@ -590,29 +676,44 @@ server <- function(input, output, session) {
   # Render XLSX file input
   output$xlsx_file_input_ui <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
-    fileInput("simple_xlsx_upload",
-             label = tr$t("Upload Excel File"),
-             accept = c(".xlsx"),
-             buttonLabel = tr$t("Browse"),
-             placeholder = tr$t("No file selected"))
+    fileInput(
+      "simple_xlsx_upload",
+      label = tr$t("Upload Excel File"),
+      accept = c(".xlsx"),
+      buttonLabel = tr$t("Browse"),
+      placeholder = tr$t("No file selected")
+    )
   })
 
   # Render XLSX help text
   output$xlsx_help_text <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
     tagList(
-      helpText(HTML(paste0("<strong>", tr$t("Note"), ":</strong> ", tr$t("Exposure names will be matched against Foodbook database in English or French (case-insensitive). Unmatched exposures will use custom references."))))
+      helpText(HTML(paste0(
+        "<strong>",
+        tr$t("Note"),
+        ":</strong> ",
+        tr$t(
+          "Exposure names will be matched against Foodbook database in English or French (case-insensitive). Unmatched exposures will use custom references."
+        )
+      )))
     )
   })
 
   # Render XLSX clear button
   output$xlsx_clear_button <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
     actionButton(
       "xlsx_clear",
@@ -625,7 +726,9 @@ server <- function(input, output, session) {
   # Render exposure select to avoid re-initializing selectize plugins on language change
   output$exposure_select_ui <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
 
     all_exposures <- tryCatch(
@@ -657,118 +760,189 @@ server <- function(input, output, session) {
   })
 
   # Update UI when language changes
-  observeEvent(current_lang(), {
-    lang <- current_lang()
-    set_language(lang, session)
-    translator <- get_translator(session)
-    # Only update language labels, don't re-initialize entire backend
-    fb_update_language(lang = lang)
+  observeEvent(
+    current_lang(),
+    {
+      lang <- current_lang()
+      set_language(lang, session)
+      translator <- get_translator(session)
+      # Only update language labels, don't re-initialize entire backend
+      fb_update_language(lang = lang)
 
-    # Preserve current selections by converting to appropriate format
-    current_prov <- input$province
-    current_age <- input$age_group
-    current_month <- input$month
+      # Preserve current selections by converting to appropriate format
+      current_prov <- input$province
+      current_age <- input$age_group
+      current_month <- input$month
 
-    # If default values selected, update them to new language
-    if (!is.null(current_prov) && ("Canada" %in% current_prov)) {
-      current_prov[current_prov == "Canada"] <- translator$t("Canada")
-    }
-    all_ages_en <- t_("All Ages", lang = "en")
-    all_ages_fr <- t_("All Ages", lang = "fr")
-    if (!is.null(current_age) && (all_ages_en %in% current_age || all_ages_fr %in% current_age)) {
-      current_age[current_age %in% c(all_ages_en, all_ages_fr)] <- translator$t("All Ages")
-    }
-    all_months_en <- t_("All Months", lang = "en")
-    all_months_fr <- t_("All Months", lang = "fr")
-    if (!is.null(current_month) && (all_months_en %in% current_month || all_months_fr %in% current_month)) {
-      current_month[current_month %in% c(all_months_en, all_months_fr)] <- translator$t("All Months")
-    }
+      # If default values selected, update them to new language
+      if (!is.null(current_prov) && ("Canada" %in% current_prov)) {
+        current_prov[current_prov == "Canada"] <- translator$t("Canada")
+      }
+      all_ages_en <- t_("All Ages", lang = "en")
+      all_ages_fr <- t_("All Ages", lang = "fr")
+      if (
+        !is.null(current_age) &&
+          (all_ages_en %in% current_age || all_ages_fr %in% current_age)
+      ) {
+        current_age[
+          current_age %in% c(all_ages_en, all_ages_fr)
+        ] <- translator$t("All Ages")
+      }
+      all_months_en <- t_("All Months", lang = "en")
+      all_months_fr <- t_("All Months", lang = "fr")
+      if (
+        !is.null(current_month) &&
+          (all_months_en %in% current_month || all_months_fr %in% current_month)
+      ) {
+        current_month[
+          current_month %in% c(all_months_en, all_months_fr)
+        ] <- translator$t("All Months")
+      }
 
-    # Update all select inputs with new labels
-    updateSelectInput(session, "province",
-                     label = translator$t("Reference PT(s)"),
-                     choices = c(translator$t("Canada"), fb_pt_names(lang)),
-                     selected = current_prov)
+      # Update all select inputs with new labels
+      updateSelectInput(
+        session,
+        "province",
+        label = translator$t("Reference PT(s)"),
+        choices = c(translator$t("Canada"), fb_pt_names(lang)),
+        selected = current_prov
+      )
 
-    updateSelectInput(session, "age_group",
-                     label = translator$t("Restrict by Age Group"),
-                     choices = c(translator$t("All Ages"), fb_age_groups()),
-                     selected = current_age)
+      updateSelectInput(
+        session,
+        "age_group",
+        label = translator$t("Restrict by Age Group"),
+        choices = c(translator$t("All Ages"), fb_age_groups()),
+        selected = current_age
+      )
 
-    # Update month selector with translated month names from backend
-    month_choices <- c(translator$t("All Months"), stats::setNames(1:12, fb_month_names(lang)))
-    updateSelectInput(session, "month",
-                     label = translator$t("Restrict by Month"),
-                     choices = month_choices,
-                     selected = current_month)
+      # Update month selector with translated month names from backend
+      month_choices <- c(
+        translator$t("All Months"),
+        stats::setNames(1:12, fb_month_names(lang))
+      )
+      updateSelectInput(
+        session,
+        "month",
+        label = translator$t("Restrict by Month"),
+        choices = month_choices,
+        selected = current_month
+      )
 
-    # Update button labels via JavaScript
-    session$sendCustomMessage("update-button-labels", list(
-      reset = translator$t("Reset Inputs"),
-      bookmark = translator$t("Bookmark Analysis"),
-      download = translator$t("Download Plot")
-    ))
+      # Update button labels via JavaScript
+      session$sendCustomMessage(
+        "update-button-labels",
+        list(
+          reset = translator$t("Reset Inputs"),
+          bookmark = translator$t("Bookmark Analysis"),
+          download = translator$t("Download Plot")
+        )
+      )
 
-    # Update tab names via JavaScript
-    session$sendCustomMessage("update-tab-names", list(
-      analysis = translator$t("Analysis"),
-      data_info = translator$t("Data Info"),
-      about = translator$t("About"),
-      results = translator$t("Results"),
-      visualization = translator$t("Visualization")
-    ))
+      # Update tab names via JavaScript
+      session$sendCustomMessage(
+        "update-tab-names",
+        list(
+          analysis = translator$t("Analysis"),
+          data_info = translator$t("Data Info"),
+          about = translator$t("About"),
+          results = translator$t("Results"),
+          visualization = translator$t("Visualization")
+        )
+      )
 
-    # Update sidebar title via JavaScript
-    session$sendCustomMessage("update-sidebar-title", translator$t("Analysis Parameters"))
+      # Update sidebar title via JavaScript
+      session$sendCustomMessage(
+        "update-sidebar-title",
+        translator$t("Analysis Parameters")
+      )
 
-    # Update accordion titles via JavaScript
-    session$sendCustomMessage("update-accordion-titles", list(
-      upload_exposure = translator$t("Upload Exposure Counts (Optional)")
-    ))
+      # Update accordion titles via JavaScript
+      session$sendCustomMessage(
+        "update-accordion-titles",
+        list(
+          upload_exposure = translator$t("Upload Exposure Counts (Optional)")
+        )
+      )
 
-    # Update card headers via JavaScript
-    session$sendCustomMessage("update-card-headers", list(
-      exposure_data_input = translator$t("Exposure Data Input"),
-      reference_settings = translator$t("Reference Settings"),
-      population_snapshot = translator$t("Population Exposure Snapshot (Reference)"),
-      microdata_pt = translator$t("Microdata Coverage by PT (after filters)"),
-      microdata_month = translator$t("Microdata Coverage by Month (after filters)"),
-      about_tool = translator$t("About This Tool")
-    ))
+      # Update card headers via JavaScript
+      session$sendCustomMessage(
+        "update-card-headers",
+        list(
+          exposure_data_input = translator$t("Exposure Data Input"),
+          reference_settings = translator$t("Reference Settings"),
+          population_snapshot = translator$t(
+            "Population Exposure Snapshot (Reference)"
+          ),
+          microdata_pt = translator$t(
+            "Microdata Coverage by PT (after filters)"
+          ),
+          microdata_month = translator$t(
+            "Microdata Coverage by Month (after filters)"
+          ),
+          about_tool = translator$t("About This Tool")
+        )
+      )
 
-    # Update help text via JavaScript
-    session$sendCustomMessage("update-misc-labels", list(
-      enter_case_counts = translator$t("Enter case counts for each exposure in each selected location.")
-    ))
+      # Update help text via JavaScript
+      session$sendCustomMessage(
+        "update-misc-labels",
+        list(
+          enter_case_counts = translator$t(
+            "Enter case counts for each exposure in each selected location."
+          )
+        )
+      )
 
-    # If CSV data exists, trigger re-population after language change
-    if (!is.null(csv_data())) {
-      message("=== Language changed with CSV data present, triggering re-population ===")
-      csv_needs_population(TRUE)
-    }
-  }, ignoreInit = TRUE)
+      # If CSV data exists, trigger re-population after language change
+      if (!is.null(csv_data())) {
+        message(
+          "=== Language changed with CSV data present, triggering re-population ==="
+        )
+        csv_needs_population(TRUE)
+      }
+    },
+    ignoreInit = TRUE
+  )
 
   # Auto-deselect "Canada" when specific PTs are selected
   observeEvent(input$province, {
-    if (translator$t("Canada") %in% input$province && length(input$province) > 1) {
-      updateSelectInput(session, "province",
-                       selected = setdiff(input$province, translator$t("Canada")))
+    if (
+      translator$t("Canada") %in% input$province && length(input$province) > 1
+    ) {
+      updateSelectInput(
+        session,
+        "province",
+        selected = setdiff(input$province, translator$t("Canada"))
+      )
     }
   })
 
   # Auto-deselect "All Ages" when specific ages selected
   observeEvent(input$age_group, {
-    if (translator$t("All Ages") %in% input$age_group && length(input$age_group) > 1) {
-      updateSelectInput(session, "age_group",
-                       selected = setdiff(input$age_group, translator$t("All Ages")))
+    if (
+      translator$t("All Ages") %in%
+        input$age_group &&
+        length(input$age_group) > 1
+    ) {
+      updateSelectInput(
+        session,
+        "age_group",
+        selected = setdiff(input$age_group, translator$t("All Ages"))
+      )
     }
   })
 
   # Auto-deselect "All Months" when specific months selected
   observeEvent(input$month, {
-    if (translator$t("All Months") %in% input$month && length(input$month) > 1) {
-      updateSelectInput(session, "month",
-                       selected = setdiff(input$month, translator$t("All Months")))
+    if (
+      translator$t("All Months") %in% input$month && length(input$month) > 1
+    ) {
+      updateSelectInput(
+        session,
+        "month",
+        selected = setdiff(input$month, translator$t("All Months"))
+      )
     }
   })
 
@@ -778,95 +952,149 @@ server <- function(input, output, session) {
     file_info <- input$simple_xlsx_upload
     lang <- current_lang()
     # Create fresh translator to avoid encoding issues
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
 
-    tryCatch({
-      # Read Excel file
-      df <- readxl::read_excel(file_info$datapath)
-      message("Excel file read successfully. Columns: ", paste(names(df), collapse=", "))
-      message("First row: ", paste(df[1,], collapse=", "))
+    tryCatch(
+      {
+        # Read Excel file
+        df <- readxl::read_excel(file_info$datapath)
+        message(
+          "Excel file read successfully. Columns: ",
+          paste(names(df), collapse = ", ")
+        )
+        message("First row: ", paste(df[1, ], collapse = ", "))
 
-      names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
-      message("After normalization. Columns: ", paste(names(df), collapse=", "))
+        names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
+        message(
+          "After normalization. Columns: ",
+          paste(names(df), collapse = ", ")
+        )
 
-      validate(need(all(c("exposure", "yes", "probably", "no", "dk") %in% names(df)),
-                   "Excel file must have columns: Exposure, Yes, Probably, No, DK"))
+        validate(need(
+          all(c("exposure", "yes", "probably", "no", "dk") %in% names(df)),
+          "Excel file must have columns: Exposure, Yes, Probably, No, DK"
+        ))
 
-      message("CSV validation passed. Rows: ", nrow(df))
-      print(df)
+        message("CSV validation passed. Rows: ", nrow(df))
+        print(df)
 
-      # Match CSV exposures against Foodbook database (case-insensitive)
-      # Check BOTH English and French labels regardless of current language
-      lang <- current_lang()
-      foodbook_choices_en <- fb_exposure_choices("en")  # label = code format
-      foodbook_choices_fr <- fb_exposure_choices("fr")  # label = code format
+        # Match CSV exposures against Foodbook database (case-insensitive)
+        # Check BOTH English and French labels regardless of current language
+        lang <- current_lang()
+        foodbook_choices_en <- fb_exposure_choices("en") # label = code format
+        foodbook_choices_fr <- fb_exposure_choices("fr") # label = code format
 
-      # Create lookups: lowercase label -> code for both languages
-      fb_lookup_en <- stats::setNames(
-        foodbook_choices_en,
-        tolower(names(foodbook_choices_en))
-      )
-      fb_lookup_fr <- stats::setNames(
-        foodbook_choices_fr,
-        tolower(names(foodbook_choices_fr))
-      )
+        # Create lookups: lowercase label -> code for both languages
+        fb_lookup_en <- stats::setNames(
+          foodbook_choices_en,
+          tolower(names(foodbook_choices_en))
+        )
+        fb_lookup_fr <- stats::setNames(
+          foodbook_choices_fr,
+          tolower(names(foodbook_choices_fr))
+        )
 
-      # Match each CSV exposure
-      matched_exposures <- character(nrow(df))
-      match_count <- 0
-      custom_count <- 0
+        # Match each CSV exposure
+        matched_exposures <- character(nrow(df))
+        match_count <- 0
+        custom_count <- 0
 
-      for (i in seq_len(nrow(df))) {
-        csv_name <- df$exposure[i]
-        csv_name_lower <- tolower(csv_name)
+        for (i in seq_len(nrow(df))) {
+          csv_name <- df$exposure[i]
+          csv_name_lower <- tolower(csv_name)
 
-        # Try to find in English first, then French
-        if (csv_name_lower %in% names(fb_lookup_en)) {
-          # Found in English!
-          matched_exposures[i] <- fb_lookup_en[[csv_name_lower]]
-          match_count <- match_count + 1
-          message("  Matched '", csv_name, "' (EN) -> Foodbook code: ", fb_lookup_en[[csv_name_lower]])
-        } else if (csv_name_lower %in% names(fb_lookup_fr)) {
-          # Found in French!
-          matched_exposures[i] <- fb_lookup_fr[[csv_name_lower]]
-          match_count <- match_count + 1
-          message("  Matched '", csv_name, "' (FR) -> Foodbook code: ", fb_lookup_fr[[csv_name_lower]])
-        } else {
-          # Not found in either language, keep as custom
-          matched_exposures[i] <- csv_name
-          custom_count <- custom_count + 1
-          message("  No match for '", csv_name, "' - will use custom reference")
+          # Try to find in English first, then French
+          if (csv_name_lower %in% names(fb_lookup_en)) {
+            # Found in English!
+            matched_exposures[i] <- fb_lookup_en[[csv_name_lower]]
+            match_count <- match_count + 1
+            message(
+              "  Matched '",
+              csv_name,
+              "' (EN) -> Foodbook code: ",
+              fb_lookup_en[[csv_name_lower]]
+            )
+          } else if (csv_name_lower %in% names(fb_lookup_fr)) {
+            # Found in French!
+            matched_exposures[i] <- fb_lookup_fr[[csv_name_lower]]
+            match_count <- match_count + 1
+            message(
+              "  Matched '",
+              csv_name,
+              "' (FR) -> Foodbook code: ",
+              fb_lookup_fr[[csv_name_lower]]
+            )
+          } else {
+            # Not found in either language, keep as custom
+            matched_exposures[i] <- csv_name
+            custom_count <- custom_count + 1
+            message(
+              "  No match for '",
+              csv_name,
+              "' - will use custom reference"
+            )
+          }
         }
+
+        # Update df with matched exposure codes for later use
+        df$matched_exposure <- matched_exposures
+
+        # Store CSV data for populating modules
+        csv_data(df)
+        message("CSV data stored in reactive")
+
+        # Update exposure selection with matched exposures
+        # Use the matched codes, not the original CSV names
+        updateSelectizeInput(
+          session,
+          "exposure_select",
+          selected = matched_exposures
+        )
+        message("Exposure selection updated with matched codes")
+
+        # Show notification with match statistics
+        if (custom_count > 0) {
+          msg <- paste0(
+            tr$t("Success"),
+            ": ",
+            nrow(df),
+            " ",
+            tr$t("exposures loaded"),
+            " (",
+            match_count,
+            " ",
+            tr$t("matched"),
+            ", ",
+            custom_count,
+            " ",
+            tr$t("custom"),
+            ")"
+          )
+        } else {
+          msg <- paste0(
+            tr$t("Success"),
+            ": ",
+            nrow(df),
+            " ",
+            tr$t("exposures loaded"),
+            " (",
+            tr$t("all matched"),
+            ")"
+          )
+        }
+        showNotification(enc2utf8(msg), type = "message")
+      },
+      error = function(e) {
+        message("XLSX upload error: ", e$message)
+        showNotification(
+          enc2utf8(paste(tr$t("Error"), ": ", e$message)),
+          type = "error"
+        )
       }
-
-      # Update df with matched exposure codes for later use
-      df$matched_exposure <- matched_exposures
-
-      # Store CSV data for populating modules
-      csv_data(df)
-      message("CSV data stored in reactive")
-
-      # Update exposure selection with matched exposures
-      # Use the matched codes, not the original CSV names
-      updateSelectizeInput(session, "exposure_select",
-                          selected = matched_exposures)
-      message("Exposure selection updated with matched codes")
-
-      # Show notification with match statistics
-      if (custom_count > 0) {
-        msg <- paste0(tr$t("Success"), ": ", nrow(df), " ", tr$t("exposures loaded"),
-                     " (", match_count, " ", tr$t("matched"), ", ",
-                     custom_count, " ", tr$t("custom"), ")")
-      } else {
-        msg <- paste0(tr$t("Success"), ": ", nrow(df), " ", tr$t("exposures loaded"),
-                     " (", tr$t("all matched"), ")")
-      }
-      showNotification(enc2utf8(msg), type = "message")
-    }, error = function(e) {
-      message("XLSX upload error: ", e$message)
-      showNotification(enc2utf8(paste(tr$t("Error"), ": ", e$message)), type = "error")
-    })
+    )
   })
 
   # Clear XLSX upload
@@ -876,7 +1104,9 @@ server <- function(input, output, session) {
     shinyjs::js$resetFileInput(id = "simple_xlsx_upload")
     updateSelectizeInput(session, "exposure_select", selected = character(0))
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
     showNotification(enc2utf8(tr$t("Upload cleared")), type = "message")
   })
@@ -890,21 +1120,38 @@ server <- function(input, output, session) {
     lang <- current_lang()
 
     pts <- input$province
-    if (translator$t("Canada") %in% pts) pts <- "Canada"
+    if (translator$t("Canada") %in% pts) {
+      pts <- "Canada"
+    }
 
     # Map French PT names back to English for backend
     if (lang == "fr" && !translator$t("Canada") %in% pts) {
       en_pt_names <- fb_pt_names("en")
       fr_pt_names <- fb_pt_names("fr")
       pt_map <- stats::setNames(en_pt_names, fr_pt_names)
-      pts <- sapply(pts, function(pt) if (pt %in% names(pt_map)) pt_map[pt] else pt)
+      pts <- sapply(pts, function(pt) {
+        if (pt %in% names(pt_map)) pt_map[pt] else pt
+      })
     }
 
-    ages <- if (translator$t("All Ages") %in% input$age_group) NULL else input$age_group
-    months <- if (translator$t("All Months") %in% input$month) NULL else as.integer(input$month)
+    ages <- if (translator$t("All Ages") %in% input$age_group) {
+      NULL
+    } else {
+      input$age_group
+    }
+    months <- if (translator$t("All Months") %in% input$month) {
+      NULL
+    } else {
+      as.integer(input$month)
+    }
 
     exposure_codes <- input$exposure_select
-    fb_reference_percents(exposure_codes, pt_names = pts, months = months, age_groups = ages)
+    fb_reference_percents(
+      exposure_codes,
+      pt_names = pts,
+      months = months,
+      age_groups = ages
+    )
   })
 
   # Generate exposure module UIs and instantiate servers
@@ -919,7 +1166,10 @@ server <- function(input, output, session) {
     # Get exposure choices (label = code format)
     all_exposure_choices <- fb_exposure_choices(lang)
     # Create reverse map (code = label) for lookups
-    code_to_label <- stats::setNames(names(all_exposure_choices), all_exposure_choices)
+    code_to_label <- stats::setNames(
+      names(all_exposure_choices),
+      all_exposure_choices
+    )
 
     lapply(exposure_codes, function(exp_code) {
       safe_id <- make_safe_id(exp_code)
@@ -932,9 +1182,13 @@ server <- function(input, output, session) {
       exposure_module_returns[[safe_id]] <- exposure_module_server(safe_id)
 
       # Return UI
-      exposure_module_ui(safe_id, exposure_label,
-                        if (!is.na(ref_val)) round(ref_val, 1) else "N/A",
-                        is_custom, lang)
+      exposure_module_ui(
+        safe_id,
+        exposure_label,
+        if (!is.na(ref_val)) round(ref_val, 1) else "N/A",
+        is_custom,
+        lang
+      )
     })
   })
 
@@ -942,16 +1196,28 @@ server <- function(input, output, session) {
   # csv_needs_population is already defined at the top of the server function
 
   # Set flag when CSV is uploaded
-  observeEvent(csv_data(), {
-    req(csv_data())
-    message("=== CSV data uploaded, setting population flag ===")
-    csv_needs_population(TRUE)
-  }, ignoreNULL = TRUE, ignoreInit = TRUE)
+  observeEvent(
+    csv_data(),
+    {
+      req(csv_data())
+      message("=== CSV data uploaded, setting population flag ===")
+      csv_needs_population(TRUE)
+    },
+    ignoreNULL = TRUE,
+    ignoreInit = TRUE
+  )
 
   # Debug: Watch exposure_select changes
-  observeEvent(input$exposure_select, {
-    message("*** input$exposure_select changed to: ", paste(input$exposure_select %||% "NULL", collapse=", "))
-  }, ignoreNULL = FALSE)
+  observeEvent(
+    input$exposure_select,
+    {
+      message(
+        "*** input$exposure_select changed to: ",
+        paste(input$exposure_select %||% "NULL", collapse = ", ")
+      )
+    },
+    ignoreNULL = FALSE
+  )
 
   # Populate when BOTH csv data exists AND exposure selection is updated
   observe({
@@ -963,7 +1229,10 @@ server <- function(input, output, session) {
 
     message("=== Both CSV data and exposure selection ready ===")
     message("CSV has ", nrow(df), " exposures")
-    message("Exposure selection: ", paste(input$exposure_select, collapse=", "))
+    message(
+      "Exposure selection: ",
+      paste(input$exposure_select, collapse = ", ")
+    )
 
     # Wait for modules to be fully rendered (1 second should be enough now)
     shinyjs::delay(1000, {
@@ -974,26 +1243,49 @@ server <- function(input, output, session) {
         exp_code <- df$matched_exposure[i]
         safe_id <- make_safe_id(exp_code)
 
-        message("[", i, "/", nrow(df), "] Processing '", df$exposure[i], "' (matched: '", exp_code, "') -> safe_id: '", safe_id, "'")
+        message(
+          "[",
+          i,
+          "/",
+          nrow(df),
+          "] Processing '",
+          df$exposure[i],
+          "' (matched: '",
+          exp_code,
+          "') -> safe_id: '",
+          safe_id,
+          "'"
+        )
 
         # Check if this exposure is in the selection
         selection_current <- isolate(input$exposure_select)
 
         if (exp_code %in% selection_current) {
-          tryCatch({
-            exposure_module_update(
-              session,
-              safe_id,
-              yes = as.numeric(df$yes[i]),
-              prob = as.numeric(df$probably[i]),
-              no = as.numeric(df$no[i]),
-              dk = as.numeric(df$dk[i])
-            )
-            message("      SUCCESS: yes=", df$yes[i], ", prob=", df$probably[i],
-                   ", no=", df$no[i], ", dk=", df$dk[i])
-          }, error = function(e) {
-            message("      ERROR: ", e$message)
-          })
+          tryCatch(
+            {
+              exposure_module_update(
+                session,
+                safe_id,
+                yes = as.numeric(df$yes[i]),
+                prob = as.numeric(df$probably[i]),
+                no = as.numeric(df$no[i]),
+                dk = as.numeric(df$dk[i])
+              )
+              message(
+                "      SUCCESS: yes=",
+                df$yes[i],
+                ", prob=",
+                df$probably[i],
+                ", no=",
+                df$no[i],
+                ", dk=",
+                df$dk[i]
+              )
+            },
+            error = function(e) {
+              message("      ERROR: ", e$message)
+            }
+          )
         } else {
           message("      SKIPPED: not in selection")
         }
@@ -1017,7 +1309,10 @@ server <- function(input, output, session) {
     # Get exposure choices (label = code format)
     all_exposure_choices <- fb_exposure_choices(lang)
     # Create reverse map (code = label) for lookups
-    code_to_label <- stats::setNames(names(all_exposure_choices), all_exposure_choices)
+    code_to_label <- stats::setNames(
+      names(all_exposure_choices),
+      all_exposure_choices
+    )
 
     rows <- lapply(exposure_codes, function(exp_code) {
       safe_id <- make_safe_id(exp_code)
@@ -1039,14 +1334,20 @@ server <- function(input, output, session) {
 
       ref_val <- if (!is.na(custom_ref)) custom_ref else ref_perc[exp_code]
 
-      p_value <- if (total > 0 && !is.na(ref_val))
-        pbinom(y_plus_p - 1, total, ref_val / 100, lower.tail = FALSE) else NA_real_
+      p_value <- if (total > 0 && !is.na(ref_val)) {
+        pbinom(y_plus_p - 1, total, ref_val / 100, lower.tail = FALSE)
+      } else {
+        NA_real_
+      }
 
       classification <- classify_exposure(p_value, observed_prop, ref_val)
       classification_i18n <- classification_label_i18n(classification, lang)
 
-      exposure_label <- if (exp_code %in% all_exposure_choices)
-        code_to_label[exp_code] else exp_code
+      exposure_label <- if (exp_code %in% all_exposure_choices) {
+        code_to_label[exp_code]
+      } else {
+        exp_code
+      }
 
       tibble(
         Exposure = exposure_label,
@@ -1065,7 +1366,9 @@ server <- function(input, output, session) {
     result_df <- bind_rows(rows)
 
     # Add Reference Scope column showing which PTs were used
-    ref_scope <- if (translator$t("Canada") %in% input$province || length(input$province) == 0) {
+    ref_scope <- if (
+      translator$t("Canada") %in% input$province || length(input$province) == 0
+    ) {
       "Canada"
     } else {
       paste(input$province, collapse = ", ")
@@ -1079,7 +1382,9 @@ server <- function(input, output, session) {
   # Render results table container (with empty state support)
   output$results_table_container <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
 
     # Check if exposures are selected
@@ -1088,10 +1393,15 @@ server <- function(input, output, session) {
         class = "empty-state",
         style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
         div(
-          icon("chart-bar", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+          icon(
+            "chart-bar",
+            style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;"
+          )
         ),
         h4(tr$t("No exposures selected"), style = "margin-bottom: 0.5rem;"),
-        p(tr$t("Add exposures to the exposure data input box or upload an Excel file from the sidebar to get started"))
+        p(tr$t(
+          "Add exposures to the exposure data input box or upload an Excel file from the sidebar to get started"
+        ))
       ))
     }
 
@@ -1102,7 +1412,10 @@ server <- function(input, output, session) {
         class = "empty-state",
         style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
         div(
-          icon("info-circle", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+          icon(
+            "info-circle",
+            style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;"
+          )
         ),
         h4(tr$t("No data available"))
       ))
@@ -1119,9 +1432,20 @@ server <- function(input, output, session) {
 
     res <- results_data()
     pts <- input$province %||% translator$t("Canada")
-    pt_str <- if (length(pts) == 1) gsub(" ", "", pts[1]) else paste0(length(pts), "PTs")
+    pt_str <- if (length(pts) == 1) {
+      gsub(" ", "", pts[1])
+    } else {
+      paste0(length(pts), "PTs")
+    }
     n_exp <- nrow(res)
-    filename <- paste0("analysis_results_", pt_str, "_", n_exp, "exp_", Sys.Date())
+    filename <- paste0(
+      "analysis_results_",
+      pt_str,
+      "_",
+      n_exp,
+      "exp_",
+      Sys.Date()
+    )
 
     datatable(
       res,
@@ -1130,7 +1454,8 @@ server <- function(input, output, session) {
         dom = 'Bfrtip',
         buttons = list(
           list(extend = 'csv', filename = filename),
-          'copy', 'print'
+          'copy',
+          'print'
         )
       ),
       extensions = 'Buttons',
@@ -1152,9 +1477,13 @@ server <- function(input, output, session) {
       formatStyle(
         "Classification",
         backgroundColor = styleEqual(
-          c(translator$t("Alert"), translator$t("Borderline"),
-            translator$t("Not Significant"), translator$t("Insufficient Data"),
-            translator$t("No Reference Value")),
+          c(
+            translator$t("Alert"),
+            translator$t("Borderline"),
+            translator$t("Not Significant"),
+            translator$t("Insufficient Data"),
+            translator$t("No Reference Value")
+          ),
           c("#E74C3C", "#F39C12", "#27AE60", "#95A5A6", "#BDC3C7")
         )
       )
@@ -1171,7 +1500,9 @@ server <- function(input, output, session) {
   # Conditionally show Download Plot button
   output$download_plot_button_ui <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
 
     # Only show button if there's data to plot
@@ -1182,7 +1513,11 @@ server <- function(input, output, session) {
         dplyr::filter(!is.na(`Observed %`), !is.na(`Reference %`))
 
       if (nrow(plot_data) > 0) {
-        return(downloadButton("download_plot", tr$t("Download Plot"), class = "btn-primary"))
+        return(downloadButton(
+          "download_plot",
+          tr$t("Download Plot"),
+          class = "btn-primary"
+        ))
       }
     }
 
@@ -1193,7 +1528,9 @@ server <- function(input, output, session) {
   # Visualization
   output$plot_container <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
     tr$set_translation_language(lang)
 
     # Check if exposures are selected
@@ -1202,7 +1539,10 @@ server <- function(input, output, session) {
         class = "empty-state",
         style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
         div(
-          icon("chart-line", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+          icon(
+            "chart-line",
+            style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;"
+          )
         ),
         h4(tr$t("No plot to display"), style = "margin-bottom: 0.5rem;"),
         p(tr$t("Select at least one exposure to generate visualization"))
@@ -1216,7 +1556,10 @@ server <- function(input, output, session) {
         class = "empty-state",
         style = "text-align: center; padding: 4rem 2rem; color: #6c757d;",
         div(
-          icon("info-circle", style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;")
+          icon(
+            "info-circle",
+            style = "font-size: 4rem; opacity: 0.3; margin-bottom: 1rem;"
+          )
         ),
         h4(tr$t("No data available"))
       ))
@@ -1224,7 +1567,11 @@ server <- function(input, output, session) {
 
     # Otherwise, render the plot with dynamic height
     plot_height <- max(500, length(input$exposure_select) * 180)
-    withSpinner(plotOutput("results_plot", height = paste0(plot_height, "px")), type = 4, color = "#0f4c81")
+    withSpinner(
+      plotOutput("results_plot", height = paste0(plot_height, "px")),
+      type = 4,
+      color = "#0f4c81"
+    )
   })
 
   # Reactive to store the plot object for both display and download
@@ -1235,12 +1582,16 @@ server <- function(input, output, session) {
     plot_data <- results_data() %>%
       filter(!is.na(`Observed %`), !is.na(`Reference %`)) %>%
       mutate(
-        Reference_Comparison = ifelse(`Observed %` > `Reference %`,
-                                      paste0("+", round(`Observed %` - `Reference %`, 1), "%"),
-                                      paste0(round(`Observed %` - `Reference %`, 1), "%"))
+        Reference_Comparison = ifelse(
+          `Observed %` > `Reference %`,
+          paste0("+", round(`Observed %` - `Reference %`, 1), "%"),
+          paste0(round(`Observed %` - `Reference %`, 1), "%")
+        )
       )
 
-    if (nrow(plot_data) == 0) return(NULL)
+    if (nrow(plot_data) == 0) {
+      return(NULL)
+    }
 
     ref_scope <- unique(plot_data$`Reference Scope`)
     ref_scope_str <- paste(ref_scope, collapse = ", ")
@@ -1255,35 +1606,97 @@ server <- function(input, output, session) {
     )
 
     ggplot(plot_data, aes(y = reorder(Exposure, `Observed %`))) +
-      geom_segment(aes(x = `Reference %`, xend = `Observed %`, yend = Exposure, color = Classification),
-                   linewidth = 2, alpha = 0.8) +
-      geom_point(aes(x = `Reference %`, size = `Total Valid`), color = "#0f4c81", shape = 1, stroke = 2) +
-      geom_point(aes(x = `Observed %`, size = `Total Valid`, fill = Classification), color = "#1f2933", shape = 21, stroke = 1.4) +
-      geom_text(aes(x = pmax(`Observed %`, `Reference %`), label = Reference_Comparison),
-                hjust = -0.2, size = 5.2, fontface = "bold", color = "#1f2933") +
-      scale_fill_manual(values = alert_palette, name = "Significance", na.value = "#94a3b8") +
-      scale_color_manual(values = alert_palette, name = "Significance", na.value = "#94a3b8") +
-      guides(size = guide_legend(override.aes = list(shape = 21, fill = "#0f4c81"))) +
+      geom_segment(
+        aes(
+          x = `Reference %`,
+          xend = `Observed %`,
+          yend = Exposure,
+          color = Classification
+        ),
+        linewidth = 2,
+        alpha = 0.8
+      ) +
+      geom_point(
+        aes(x = `Reference %`, size = `Total Valid`),
+        color = "#0f4c81",
+        shape = 1,
+        stroke = 2
+      ) +
+      geom_point(
+        aes(x = `Observed %`, size = `Total Valid`, fill = Classification),
+        color = "#1f2933",
+        shape = 21,
+        stroke = 1.4
+      ) +
+      geom_text(
+        aes(
+          x = pmax(`Observed %`, `Reference %`),
+          label = Reference_Comparison
+        ),
+        hjust = -0.2,
+        size = 5.2,
+        fontface = "bold",
+        color = "#1f2933"
+      ) +
+      scale_fill_manual(
+        values = alert_palette,
+        name = "Significance",
+        na.value = "#94a3b8"
+      ) +
+      scale_color_manual(
+        values = alert_palette,
+        name = "Significance",
+        na.value = "#94a3b8"
+      ) +
+      guides(
+        size = guide_legend(override.aes = list(shape = 21, fill = "#0f4c81"))
+      ) +
       scale_size(range = c(5, 12), name = "Number of Cases") +
       scale_x_continuous(limits = c(0, 110), breaks = seq(0, 100, 25)) +
       labs(
         title = translator$t("Food Exposure Risk Assessment"),
-        subtitle = paste(translator$t("Comparison of case exposures vs. population reference values"), " | ", translator$t("Reference scope:"), ref_scope_str),
+        subtitle = paste(
+          translator$t(
+            "Comparison of case exposures vs. population reference values"
+          ),
+          " | ",
+          translator$t("Reference scope:"),
+          ref_scope_str
+        ),
         x = translator$t("Exposure Percentage (%)"),
         y = NULL,
-        caption = translator$t("Outline circles = Reference exposure | Filled circles = Case exposure")
+        caption = translator$t(
+          "Outline circles = Reference exposure | Filled circles = Case exposure"
+        )
       ) +
       theme_minimal(base_size = 15) +
       theme(
         legend.position = "bottom",
-        legend.title = element_text(face = "bold", size = 14, color = "#0f4c81"),
+        legend.title = element_text(
+          face = "bold",
+          size = 14,
+          color = "#0f4c81"
+        ),
         legend.text = element_text(size = 13, color = "#4b5563"),
         plot.title = element_text(face = "bold", size = 22, color = "#0f4c81"),
-        plot.subtitle = element_text(margin = margin(b = 15), size = 16, color = "#334155"),
+        plot.subtitle = element_text(
+          margin = margin(b = 15),
+          size = 16,
+          color = "#334155"
+        ),
         axis.title = element_text(face = "bold", size = 16, color = "#1f2933"),
         axis.text = element_text(size = 14, color = "#4b5563"),
-        strip.text = element_text(size = 15, face = "bold", hjust = 0, color = "#0f4c81"),
-        strip.background = element_rect(fill = "#f1f5ff", color = "#0f4c81", linewidth = 0.8),
+        strip.text = element_text(
+          size = 15,
+          face = "bold",
+          hjust = 0,
+          color = "#0f4c81"
+        ),
+        strip.background = element_rect(
+          fill = "#f1f5ff",
+          color = "#0f4c81",
+          linewidth = 0.8
+        ),
         panel.grid.minor.x = element_blank(),
         panel.grid.major = element_line(color = "#e2e8f0"),
         panel.spacing.y = unit(1.5, "lines"),
@@ -1310,12 +1723,35 @@ server <- function(input, output, session) {
 
   # Reference filter helpers
   ref_filters <- reactive({
-    all_ages_labels <- unique(c("All Ages", t_("All Ages", lang = "en"), t_("All Ages", lang = "fr")))
-    all_months_labels <- unique(c("All Months", t_("All Months", lang = "en"), t_("All Months", lang = "fr")))
+    all_ages_labels <- unique(c(
+      "All Ages",
+      t_("All Ages", lang = "en"),
+      t_("All Ages", lang = "fr")
+    ))
+    all_months_labels <- unique(c(
+      "All Months",
+      t_("All Months", lang = "en"),
+      t_("All Months", lang = "fr")
+    ))
     list(
       pts = input$province,
-      ages = if (is.null(input$age_group) || (length(input$age_group) == 1 && any(all_ages_labels %in% input$age_group))) NULL else input$age_group,
-      months = if (is.null(input$month) || (length(input$month) == 1 && any(all_months_labels %in% input$month))) NULL else as.integer(input$month)
+      ages = if (
+        is.null(input$age_group) ||
+          (length(input$age_group) == 1 &&
+            any(all_ages_labels %in% input$age_group))
+      ) {
+        NULL
+      } else {
+        input$age_group
+      },
+      months = if (
+        is.null(input$month) ||
+          (length(input$month) == 1 && any(all_months_labels %in% input$month))
+      ) {
+        NULL
+      } else {
+        as.integer(input$month)
+      }
     )
   })
 
@@ -1341,13 +1777,23 @@ server <- function(input, output, session) {
     }
 
     tagList(
-      p(translator$t("This app computes reference exposure percentages from Foodbook microdata, weighted and combined across your selected filters.")),
+      p(translator$t(
+        "This app computes reference exposure percentages from Foodbook microdata, weighted and combined across your selected filters."
+      )),
       tags$ul(
-        tags$li(tags$b(translator$t("Reference PT(s): ")), paste(pts, collapse = ", ")),
-        tags$li(tags$b(translator$t("Age group(s): ")), paste(ages, collapse = ", ")),
+        tags$li(
+          tags$b(translator$t("Reference PT(s): ")),
+          paste(pts, collapse = ", ")
+        ),
+        tags$li(
+          tags$b(translator$t("Age group(s): ")),
+          paste(ages, collapse = ", ")
+        ),
         tags$li(tags$b(translator$t("Month(s): ")), months)
       ),
-      p(translator$t("Tip: Defaults like \"Canada\" and \"All\" auto-deselect once you add another selection."))
+      p(translator$t(
+        "Tip: Defaults like \"Canada\" and \"All\" auto-deselect once you add another selection."
+      ))
     )
   })
 
@@ -1359,21 +1805,31 @@ server <- function(input, output, session) {
     tagList(
       # Purpose
       h4(tr$t("Purpose")),
-      p(tr$t("Compare your case exposures to typical population exposures from Foodbook to prioritise hypotheses during outbreak investigations.")),
+      p(tr$t(
+        "Compare your case exposures to typical population exposures from Foodbook to prioritise hypotheses during outbreak investigations."
+      )),
 
       hr(),
 
       # Data Sources
       h4(tr$t("Data Sources")),
-      p(tr$t("Foodbook is a population-based survey conducted in all Canadian provinces and territories. It provides essential data on food, animal and water exposure used to understand, respond to, control and prevent enteric illness in Canada.")),
+      p(tr$t(
+        "Foodbook is a population-based survey conducted in all Canadian provinces and territories. It provides essential data on food, animal and water exposure used to understand, respond to, control and prevent enteric illness in Canada."
+      )),
       tags$ul(
         tags$li(
-          strong(tr$t("Foodbook 2.0 (2023-2024)")), ": ",
-          tr$t("Online and telephone survey with ~21,000 respondents across Canada")
+          strong(tr$t("Foodbook 2.0 (2023-2024)")),
+          ": ",
+          tr$t(
+            "Online and telephone survey with ~21,000 respondents across Canada"
+          )
         ),
         tags$li(
-          strong(tr$t("Foodbook 1.0 (2014-2015)")), ": ",
-          tr$t("Telephone survey with ~10,000 respondents (exposures marked with * are from this survey only)")
+          strong(tr$t("Foodbook 1.0 (2014-2015)")),
+          ": ",
+          tr$t(
+            "Telephone survey with ~10,000 respondents (exposures marked with * are from this survey only)"
+          )
         )
       ),
 
@@ -1383,31 +1839,65 @@ server <- function(input, output, session) {
       h4(tr$t("How references are computed")),
       tags$ul(
         tags$li(tr$t("References use Foodbook microdata with survey weights.")),
-        tags$li(tr$t("If multiple PTs are selected, a single combined reference is computed across them.")),
-        tags$li(tr$t("You can optionally limit the reference by Age Group and Month."))
+        tags$li(tr$t(
+          "If multiple PTs are selected, a single combined reference is computed across them."
+        )),
+        tags$li(tr$t(
+          "You can optionally limit the reference by Age Group and Month."
+        ))
       ),
 
       hr(),
 
       # Statistical Methodology
       h4(tr$t("Statistical Methodology")),
-      p(tr$t("The tool uses a one-sided binomial test to compare observed case exposure rates against population reference values:")),
+      p(tr$t(
+        "The tool uses a one-sided binomial test to compare observed case exposure rates against population reference values:"
+      )),
       tags$ul(
-        tags$li(tr$t("Null hypothesis: Case exposure rate ≤ Population reference rate")),
-        tags$li(tr$t("Alternative hypothesis: Case exposure rate > Population reference rate"))
+        tags$li(tr$t(
+          "Null hypothesis: Case exposure rate ≤ Population reference rate"
+        )),
+        tags$li(tr$t(
+          "Alternative hypothesis: Case exposure rate > Population reference rate"
+        ))
       ),
-      p(tr$t("Reference percentages are calculated using survey weights to ensure population representativeness.")),
+      p(tr$t(
+        "Reference percentages are calculated using survey weights to ensure population representativeness."
+      )),
 
       hr(),
 
       # Interpretation Guide
       h4(tr$t("Interpretation Guide")),
       tags$ul(
-        tags$li(strong(tr$t("Alert")), ": ", tr$t("Observed exposure is significantly higher than reference (p < 0.05)")),
-        tags$li(strong(tr$t("Borderline")), ": ", tr$t("Suggestive evidence (0.05 ≤ p < 0.10)")),
-        tags$li(strong(tr$t("Not Significant")), ": ", tr$t("No significant difference from reference (p ≥ 0.10)")),
-        tags$li(strong(tr$t("Insufficient Data")), ": ", tr$t("Too few cases to calculate statistics (< 5 total responses)")),
-        tags$li(strong(tr$t("No Reference Value")), ": ", tr$t("Exposure not found in Foodbook database"))
+        tags$li(
+          strong(tr$t("Alert")),
+          ": ",
+          tr$t(
+            "Observed exposure is significantly higher than reference (p < 0.05)"
+          )
+        ),
+        tags$li(
+          strong(tr$t("Borderline")),
+          ": ",
+          tr$t("Suggestive evidence (0.05 ≤ p < 0.10)")
+        ),
+        tags$li(
+          strong(tr$t("Not Significant")),
+          ": ",
+          tr$t("No significant difference from reference (p ≥ 0.10)")
+        ),
+        tags$li(
+          strong(tr$t("Insufficient Data")),
+          ": ",
+          tr$t("Too few cases to calculate statistics (< 5 total responses)")
+        ),
+        tags$li(
+          strong(tr$t("No Reference Value")),
+          ": ",
+          tr$t("Exposure not found in Foodbook database")
+        )
       ),
 
       hr(),
@@ -1415,11 +1905,19 @@ server <- function(input, output, session) {
       # Limitations
       h4(tr$t("Limitations")),
       tags$ul(
-        tags$li(tr$t("Survey data may not reflect current food consumption patterns (data collected in 2014-2015 and 2023-2024)")),
+        tags$li(tr$t(
+          "Survey data may not reflect current food consumption patterns (data collected in 2014-2015 and 2023-2024)"
+        )),
         tags$li(tr$t("Self-reported exposure data is subject to recall bias")),
-        tags$li(tr$t("Some exposures may have seasonal variations not captured when using annual data")),
-        tags$li(tr$t("Small sample sizes in specific PT/age/month combinations may yield unstable estimates")),
-        tags$li(tr$t("Exposures from Foodbook 1.0 (*) use different survey weights than Foodbook 2.0"))
+        tags$li(tr$t(
+          "Some exposures may have seasonal variations not captured when using annual data"
+        )),
+        tags$li(tr$t(
+          "Small sample sizes in specific PT/age/month combinations may yield unstable estimates"
+        )),
+        tags$li(tr$t(
+          "Exposures from Foodbook 1.0 (*) use different survey weights than Foodbook 2.0"
+        ))
       ),
 
       hr(),
@@ -1428,17 +1926,38 @@ server <- function(input, output, session) {
       h4(tr$t("Frequently Asked Questions")),
       tags$div(
         class = "faq-section",
-        tags$p(strong(tr$t("Why is my exposure showing 'No Reference Value'?"))),
-        tags$p(tr$t("This means the exposure was not asked in either Foodbook survey, or the variable name doesn't match. Try searching for a similar exposure name."), style = "margin-bottom: 1rem;"),
+        tags$p(strong(tr$t(
+          "Why is my exposure showing 'No Reference Value'?"
+        ))),
+        tags$p(
+          tr$t(
+            "This means the exposure was not asked in either Foodbook survey, or the variable name doesn't match. Try searching for a similar exposure name."
+          ),
+          style = "margin-bottom: 1rem;"
+        ),
 
         tags$p(strong(tr$t("What does the * mean next to some exposures?"))),
-        tags$p(tr$t("Exposures marked with * are only available from Foodbook 1.0 (2014-2015). They are included for completeness but may not reflect current consumption patterns."), style = "margin-bottom: 1rem;"),
+        tags$p(
+          tr$t(
+            "Exposures marked with * are only available from Foodbook 1.0 (2014-2015). They are included for completeness but may not reflect current consumption patterns."
+          ),
+          style = "margin-bottom: 1rem;"
+        ),
 
-        tags$p(strong(tr$t("Why do reference values change when I select different PTs?"))),
-        tags$p(tr$t("Food consumption varies by region. The reference is recalculated using only respondents from the selected province(s)/territory(ies)."), style = "margin-bottom: 1rem;"),
+        tags$p(strong(tr$t(
+          "Why do reference values change when I select different PTs?"
+        ))),
+        tags$p(
+          tr$t(
+            "Food consumption varies by region. The reference is recalculated using only respondents from the selected province(s)/territory(ies)."
+          ),
+          style = "margin-bottom: 1rem;"
+        ),
 
         tags$p(strong(tr$t("How should I interpret 'Borderline' results?"))),
-        tags$p(tr$t("Borderline results (p-value between 0.05 and 0.10) suggest a possible association that warrants further investigation but doesn't meet conventional significance thresholds."))
+        tags$p(tr$t(
+          "Borderline results (p-value between 0.05 and 0.10) suggest a possible association that warrants further investigation but doesn't meet conventional significance thresholds."
+        ))
       ),
 
       hr(),
@@ -1488,7 +2007,12 @@ server <- function(input, output, session) {
     f <- ref_filters()
 
     codes <- as.vector(fb_exposure_choices(lang))
-    refs <- fb_reference_percents(codes, pt_names = f$pts, months = f$months, age_groups = f$ages)
+    refs <- fb_reference_percents(
+      codes,
+      pt_names = f$pts,
+      months = f$months,
+      age_groups = f$ages
+    )
     lbls <- names(fb_exposure_choices(lang))
     names(lbls) <- as.vector(fb_exposure_choices(lang))
 
@@ -1498,7 +2022,10 @@ server <- function(input, output, session) {
     ) %>%
       arrange(desc(`Reference %`)) %>%
       head(30) %>%
-      datatable(options = list(pageLength = 10, order = list(list(1, 'desc'))), rownames = FALSE)
+      datatable(
+        options = list(pageLength = 10, order = list(list(1, 'desc'))),
+        rownames = FALSE
+      )
   })
 
   output$ref_pt_plot <- renderPlot({
@@ -1518,7 +2045,11 @@ server <- function(input, output, session) {
       ggplot(aes(x = reorder(PT, n), y = n)) +
       geom_col(fill = "#0f4c81", alpha = 0.85) +
       coord_flip() +
-      labs(title = translator$t("Coverage by PT (after filters)"), x = NULL, y = translator$t("Records")) +
+      labs(
+        title = translator$t("Coverage by PT (after filters)"),
+        x = NULL,
+        y = translator$t("Records")
+      ) +
       theme_minimal(base_size = 15) +
       theme(
         plot.title = element_text(face = "bold", size = 18, color = "#0f4c81"),
@@ -1532,15 +2063,28 @@ server <- function(input, output, session) {
     req(nrow(d) > 0)
     lang <- current_lang()
 
-    month_names_display <- if (lang == "fr") fb_month_names("fr") else month.name
+    month_names_display <- if (lang == "fr") {
+      fb_month_names("fr")
+    } else {
+      month.name
+    }
 
     tibble::tibble(Month = as.integer(d$Month)) %>%
       filter(!is.na(Month), Month >= 1, Month <= 12) %>%
-      mutate(MonthName = factor(month_names_display[Month], levels = month_names_display)) %>%
+      mutate(
+        MonthName = factor(
+          month_names_display[Month],
+          levels = month_names_display
+        )
+      ) %>%
       count(MonthName) %>%
       ggplot(aes(x = MonthName, y = n)) +
       geom_col(fill = "#1b7b57", alpha = 0.85) +
-      labs(title = translator$t("Coverage by Month (after filters)"), x = NULL, y = translator$t("Records")) +
+      labs(
+        title = translator$t("Coverage by Month (after filters)"),
+        x = NULL,
+        y = translator$t("Records")
+      ) +
       theme_minimal(base_size = 15) +
       theme(
         plot.title = element_text(face = "bold", size = 18, color = "#0f4c81"),
