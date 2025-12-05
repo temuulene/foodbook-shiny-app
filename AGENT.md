@@ -115,6 +115,21 @@ README.md               # User documentation
     rsconnect::writeManifest(appDir = "app-public", appPrimaryDoc = "app.R")
     ```
 
+## 8.1 Running R from Terminal (Corporate Workstation)
+
+R is not in the system PATH on this workstation. **Before running any R/Rscript commands in a terminal session**, run this PowerShell command first:
+
+```powershell
+$env:PATH = "C:\Program Files\R\R-4.4.1\bin\x64;$env:PATH"
+```
+
+Then you can use commands like:
+```powershell
+Rscript -e "rsconnect::writeManifest()"
+```
+
+**AI Agents**: Always run the PATH command above before attempting any R commands in terminal.
+
 ## 9. Dependencies
 
 **Core**: `shiny`, `bslib`, `thematic`, `shiny.i18n`, `dplyr`, `purrr`, `tidyr`, `stringr`, `data.table`, `DT`, `ggplot2`, `shinyjs`, `shinycssloaders`, `rlang`.
