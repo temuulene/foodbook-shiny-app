@@ -732,7 +732,7 @@ server <- function(input, output, session) {
     tr$set_translation_language(lang)
 
     all_exposures <- tryCatch(
-      as.list(fb_exposure_choices(lang)),
+      as.list(fb_exposure_choices(lang, apply_public_exclusions = TRUE)),
       error = function(e) {
         warning("Unable to load exposure choices: ", e$message)
         showNotification(
@@ -984,8 +984,14 @@ server <- function(input, output, session) {
         # Match CSV exposures against Foodbook database (case-insensitive)
         # Check BOTH English and French labels regardless of current language
         lang <- current_lang()
-        foodbook_choices_en <- fb_exposure_choices("en") # label = code format
-        foodbook_choices_fr <- fb_exposure_choices("fr") # label = code format
+        foodbook_choices_en <- fb_exposure_choices(
+          "en",
+          apply_public_exclusions = TRUE
+        ) # label = code format
+        foodbook_choices_fr <- fb_exposure_choices(
+          "fr",
+          apply_public_exclusions = TRUE
+        ) # label = code format
 
         # Create lookups: lowercase label -> code for both languages
         fb_lookup_en <- stats::setNames(
@@ -1164,7 +1170,10 @@ server <- function(input, output, session) {
     exposure_codes <- input$exposure_select
 
     # Get exposure choices (label = code format)
-    all_exposure_choices <- fb_exposure_choices(lang)
+    all_exposure_choices <- fb_exposure_choices(
+      lang,
+      apply_public_exclusions = TRUE
+    )
     # Create reverse map (code = label) for lookups
     code_to_label <- stats::setNames(
       names(all_exposure_choices),
@@ -1307,7 +1316,10 @@ server <- function(input, output, session) {
     exposure_codes <- input$exposure_select
 
     # Get exposure choices (label = code format)
-    all_exposure_choices <- fb_exposure_choices(lang)
+    all_exposure_choices <- fb_exposure_choices(
+      lang,
+      apply_public_exclusions = TRUE
+    )
     # Create reverse map (code = label) for lookups
     code_to_label <- stats::setNames(
       names(all_exposure_choices),
@@ -2006,15 +2018,21 @@ server <- function(input, output, session) {
     lang <- current_lang()
     f <- ref_filters()
 
-    codes <- as.vector(fb_exposure_choices(lang))
+    codes <- as.vector(fb_exposure_choices(
+      lang,
+      apply_public_exclusions = TRUE
+    ))
     refs <- fb_reference_percents(
       codes,
       pt_names = f$pts,
       months = f$months,
       age_groups = f$ages
     )
-    lbls <- names(fb_exposure_choices(lang))
-    names(lbls) <- as.vector(fb_exposure_choices(lang))
+    lbls <- names(fb_exposure_choices(lang, apply_public_exclusions = TRUE))
+    names(lbls) <- as.vector(fb_exposure_choices(
+      lang,
+      apply_public_exclusions = TRUE
+    ))
 
     tibble::tibble(
       Exposure = lbls[names(refs)],

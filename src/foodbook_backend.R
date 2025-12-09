@@ -17,16 +17,22 @@ suppressPackageStartupMessages({
 #' @param p_value P-value from binomial test
 #' @param observed_prop Observed proportion (0-1 scale)
 #' @param ref_prop Reference percentage (0-100 scale)
-#' @return Character classification: "Alert", "Borderline", "Not Significant", 
+#' @return Character classification: "Alert", "Borderline", "Not Significant",
 #'         "Insufficient Data", or "No Reference Value"
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
-  if (is.na(ref_prop)) return("No Reference Value")
+  if (is.na(ref_prop)) {
+    return("No Reference Value")
+  }
   ref_prop_decimal <- ref_prop / 100
-  if (is.na(p_value)) return("Insufficient Data")
+  if (is.na(p_value)) {
+    return("Insufficient Data")
+  }
   if (observed_prop > ref_prop_decimal) {
-    case_when(p_value <= 0.05 ~ "Alert",
-              p_value <= 0.10 ~ "Borderline",
-              TRUE ~ "Not Significant")
+    case_when(
+      p_value <= 0.05 ~ "Alert",
+      p_value <= 0.10 ~ "Borderline",
+      TRUE ~ "Not Significant"
+    )
   } else {
     "Not Significant"
   }
@@ -76,22 +82,41 @@ fb_load_fb1_csv <- function(lang = "en") {
   }
 
   # Check if files exist
-  if (!file.exists(part1_file) || !file.exists(part2_file) || !file.exists(part3_file)) {
+  if (
+    !file.exists(part1_file) ||
+      !file.exists(part2_file) ||
+      !file.exists(part3_file)
+  ) {
     return(NULL)
   }
 
   # Load all three parts using data.table for speed
   # Use fill=TRUE to handle rows with varying field counts
   part1 <- tryCatch(
-    data.table::fread(part1_file, data.table = FALSE, fill = TRUE, showProgress = FALSE),
+    data.table::fread(
+      part1_file,
+      data.table = FALSE,
+      fill = TRUE,
+      showProgress = FALSE
+    ),
     error = function(e) NULL
   )
   part2 <- tryCatch(
-    data.table::fread(part2_file, data.table = FALSE, fill = TRUE, showProgress = FALSE),
+    data.table::fread(
+      part2_file,
+      data.table = FALSE,
+      fill = TRUE,
+      showProgress = FALSE
+    ),
     error = function(e) NULL
   )
   part3 <- tryCatch(
-    data.table::fread(part3_file, data.table = FALSE, fill = TRUE, showProgress = FALSE),
+    data.table::fread(
+      part3_file,
+      data.table = FALSE,
+      fill = TRUE,
+      showProgress = FALSE
+    ),
     error = function(e) NULL
   )
 
@@ -123,7 +148,9 @@ fb_load_fb1_csv <- function(lang = "en") {
 
 # Normalize FB1 French column names to English
 fb_normalize_fb1_colnames <- function(df, lang) {
-  if (lang != "fr") return(df)
+  if (lang != "fr") {
+    return(df)
+  }
 
   # French → English mapping for key columns
   name_map <- c(
@@ -150,9 +177,15 @@ fb_load_fb2_csv <- function(lang = "en") {
 
   # File patterns based on language
   if (lang == "fr") {
-    fb2_file <- file.path(base_dir, "atlas-alimentaire-2.0-fichier-de-microdonnees-a-grande-diffusion-2023.csv")
+    fb2_file <- file.path(
+      base_dir,
+      "atlas-alimentaire-2.0-fichier-de-microdonnees-a-grande-diffusion-2023.csv"
+    )
   } else {
-    fb2_file <- file.path(base_dir, "foodbook-2.0-public-use-microdata-file-2023.csv")
+    fb2_file <- file.path(
+      base_dir,
+      "foodbook-2.0-public-use-microdata-file-2023.csv"
+    )
   }
 
   # Check if file exists
@@ -162,7 +195,12 @@ fb_load_fb2_csv <- function(lang = "en") {
 
   # Load using data.table for speed
   df <- tryCatch(
-    data.table::fread(fb2_file, data.table = FALSE, fill = TRUE, showProgress = FALSE),
+    data.table::fread(
+      fb2_file,
+      data.table = FALSE,
+      fill = TRUE,
+      showProgress = FALSE
+    ),
     error = function(e) NULL
   )
 
@@ -216,7 +254,7 @@ fb_parse_label_map_bilingual <- function(en_path, fr_path = NULL) {
     en_labels <- en_labels |>
       dplyr::mutate(
         label_en = label,
-        label_fr = as.character(label)  # Explicit character conversion for type safety
+        label_fr = as.character(label) # Explicit character conversion for type safety
       )
     return(en_labels)
   }
@@ -243,8 +281,12 @@ fb_parse_label_map_bilingual <- function(en_path, fr_path = NULL) {
 # Parse Stata rename directives from a .do file
 # Returns tibble with old (Foodbook column) and new (CEDARS code) names
 fb_parse_renames <- function(path) {
-  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) character())
-  if (!length(lines)) return(tibble::tibble(old = character(), new = character()))
+  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) {
+    character()
+  })
+  if (!length(lines)) {
+    return(tibble::tibble(old = character(), new = character()))
+  }
   m <- stringr::str_match(lines, "^\\s*rename\\s+([^\\s]+)\\s+([^\\s]+)")
   m <- m[!is.na(m[, 1]), , drop = FALSE]
   tibble::tibble(old = m[, 2], new = m[, 3])
@@ -273,20 +315,30 @@ fb_cedars_to_foodbook_map <- function() {
 
 # Parse exposure code -> human label mapping from the variable labeling .do file
 fb_parse_label_map <- function(path) {
-  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) character())
-  if (!length(lines)) return(tibble::tibble(code = character(), label = character()))
+  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) {
+    character()
+  })
+  if (!length(lines)) {
+    return(tibble::tibble(code = character(), label = character()))
+  }
 
   # Try Open Canada format first: label var CODE "Label"
-  m_open <- stringr::str_match(lines, '^\\s*label\\s+var\\s+([^\\s]+)\\s+"([^"]+)"')
+  m_open <- stringr::str_match(
+    lines,
+    '^\\s*label\\s+var\\s+([^\\s]+)\\s+"([^"]+)"'
+  )
   m_open <- m_open[!is.na(m_open[, 1]), , drop = FALSE]
 
   if (nrow(m_open) > 0) {
     # Open Canada format found
     # Filter to keep only exposure variables (Q-prefixed and special exposure codes)
-    out <- tibble::tibble(code = m_open[, 2], label = stringr::str_squish(m_open[, 3])) |>
+    out <- tibble::tibble(
+      code = m_open[, 2],
+      label = stringr::str_squish(m_open[, 3])
+    ) |>
       dplyr::filter(
         label != "",
-        !grepl("^\\*", code),  # Skip commented lines
+        !grepl("^\\*", code), # Skip commented lines
         # Only keep exposure variables: Q-prefixed, DQ-prefixed, or specific exposure patterns
         grepl("^(D?Q)[0-9]", code) | code %in% c("organic_dv", "freshherbs_dv")
       ) |>
@@ -295,7 +347,10 @@ fb_parse_label_map <- function(path) {
   }
 
   # Fall back to legacy format: gen label = "..." if exposure == "code"
-  m <- stringr::str_match(lines, '^\\s*(?:gen|replace)\\s+label\\s*=\\s*"([^"]+)"\\s+if\\s+exposure\\s*==\\s*"([^"]+)"')
+  m <- stringr::str_match(
+    lines,
+    '^\\s*(?:gen|replace)\\s+label\\s*=\\s*"([^"]+)"\\s+if\\s+exposure\\s*==\\s*"([^"]+)"'
+  )
   m <- m[!is.na(m[, 1]), , drop = FALSE]
   # Some labels contain stray control chars; trim and normalise spaces
   out <- tibble::tibble(label = stringr::str_squish(m[, 2]), code = m[, 3]) |>
@@ -306,9 +361,13 @@ fb_parse_label_map <- function(path) {
 
 # Apply a rename mapping to a data.frame (only where cols exist)
 fb_apply_renames <- function(df, renames) {
-  if (!nrow(renames)) return(df)
+  if (!nrow(renames)) {
+    return(df)
+  }
   present <- renames$old %in% names(df)
-  if (!any(present)) return(df)
+  if (!any(present)) {
+    return(df)
+  }
   map <- renames$new[present]
   names(map) <- renames$old[present]
   dplyr::rename(df, !!!rlang::set_names(names(map), map))
@@ -318,14 +377,24 @@ fb_apply_renames <- function(df, renames) {
 fb_normalise_weight <- function(df) {
   w <- NULL
   # Try Open Canada FB2 weight column first
-  if ("Proj_weight_non_traveller_dv" %in% names(df)) w <- df$Proj_weight_non_traveller_dv
+  if ("Proj_weight_non_traveller_dv" %in% names(df)) {
+    w <- df$Proj_weight_non_traveller_dv
+  }
   # Try Open Canada FB1 weight column
-  if (is.null(w) && "EXPWEIGHT_CMA2_dv" %in% names(df)) w <- df$EXPWEIGHT_CMA2_dv
+  if (is.null(w) && "EXPWEIGHT_CMA2_dv" %in% names(df)) {
+    w <- df$EXPWEIGHT_CMA2_dv
+  }
   # Try legacy OMD weight columns
-  if (is.null(w) && "EXPWEIGHT_CMA2" %in% names(df)) w <- df$EXPWEIGHT_CMA2
-  if (is.null(w) && "proj_weight_non_traveller" %in% names(df)) w <- df$proj_weight_non_traveller
+  if (is.null(w) && "EXPWEIGHT_CMA2" %in% names(df)) {
+    w <- df$EXPWEIGHT_CMA2
+  }
+  if (is.null(w) && "proj_weight_non_traveller" %in% names(df)) {
+    w <- df$proj_weight_non_traveller
+  }
   # Generic weight column
-  if (is.null(w) && "weight" %in% names(df)) w <- df$weight
+  if (is.null(w) && "weight" %in% names(df)) {
+    w <- df$weight
+  }
   # Default to 1 if no weight found
   if (is.null(w)) {
     df$weight <- 1
@@ -354,15 +423,21 @@ fb_load_microdata <- function(
   ren <- fb_parse_renames(do_renames_path)
   dfs <- list()
   for (p in dta_paths) {
-    if (!file.exists(p)) next
+    if (!file.exists(p)) {
+      next
+    }
     df <- tryCatch(haven::read_dta(p), error = function(e) NULL)
-    if (is.null(df)) next
+    if (is.null(df)) {
+      next
+    }
     df <- as.data.frame(df)
     df <- fb_apply_renames(df, ren)
     df <- fb_normalise_weight(df)
     dfs[[length(dfs) + 1]] <- df
   }
-  if (!length(dfs)) return(NULL)
+  if (!length(dfs)) {
+    return(NULL)
+  }
   suppressWarnings(dplyr::bind_rows(dfs))
 }
 
@@ -390,34 +465,60 @@ fb_pt_map <- function() {
 #' @param pt_names Character vector of PT names (any format)
 #' @return Integer vector of PT codes (1-13)
 fb_normalize_pt_names <- function(pt_names) {
-  if (is.null(pt_names) || length(pt_names) == 0) return(integer())
-  
+  if (is.null(pt_names) || length(pt_names) == 0) {
+    return(integer())
+  }
+
   # Mapping from all accepted formats to numeric codes
   all_pt_map <- c(
     # English names
-    "British Columbia" = 1L, "Alberta" = 2L, "Saskatchewan" = 3L,
-    "Manitoba" = 4L, "Ontario" = 5L, "Quebec" = 6L,
-    "New Brunswick" = 7L, "Nova Scotia" = 8L, "Prince Edward Island" = 9L,
-    "Newfoundland and Labrador" = 10L, "Yukon" = 11L,
-    "Northwest Territories" = 12L, "Nunavut" = 13L,
+    "British Columbia" = 1L,
+    "Alberta" = 2L,
+    "Saskatchewan" = 3L,
+    "Manitoba" = 4L,
+    "Ontario" = 5L,
+    "Quebec" = 6L,
+    "New Brunswick" = 7L,
+    "Nova Scotia" = 8L,
+    "Prince Edward Island" = 9L,
+    "Newfoundland and Labrador" = 10L,
+    "Yukon" = 11L,
+    "Northwest Territories" = 12L,
+    "Nunavut" = 13L,
     # French names
-    "Colombie-Britannique" = 1L, "Québec" = 6L,
-    "Nouveau-Brunswick" = 7L, "Nouvelle-Écosse" = 8L,
-    "Île-du-Prince-Édouard" = 9L, "Terre-Neuve-et-Labrador" = 10L,
+    "Colombie-Britannique" = 1L,
+    "Québec" = 6L,
+    "Nouveau-Brunswick" = 7L,
+    "Nouvelle-Écosse" = 8L,
+    "Île-du-Prince-Édouard" = 9L,
+    "Terre-Neuve-et-Labrador" = 10L,
     "Territoires du Nord-Ouest" = 12L,
     # Abbreviations
-    "BC" = 1L, "AB" = 2L, "SK" = 3L, "MB" = 4L, "ON" = 5L, "QC" = 6L,
-    "NB" = 7L, "NS" = 8L, "PE" = 9L, "PEI" = 9L, "NL" = 10L,
-    "YT" = 11L, "NT" = 12L, "NU" = 13L
+    "BC" = 1L,
+    "AB" = 2L,
+    "SK" = 3L,
+    "MB" = 4L,
+    "ON" = 5L,
+    "QC" = 6L,
+    "NB" = 7L,
+    "NS" = 8L,
+    "PE" = 9L,
+    "PEI" = 9L,
+    "NL" = 10L,
+    "YT" = 11L,
+    "NT" = 12L,
+    "NU" = 13L
   )
-  
+
   codes <- unname(all_pt_map[pt_names])
   codes[!is.na(codes)]
 }
 
 # Initialise and cache everything we need
 fb_init <- function(lang = "en") {
-  if (!is.null(fb_env$initialised) && isTRUE(fb_env$initialised)) return(invisible(TRUE))
+  if (!is.null(fb_env$initialised) && isTRUE(fb_env$initialised)) {
+    return(invisible(TRUE))
+  }
 
   # =============================================================================
   # PRIORITY 1: Try Open Canada FB2 (newest, largest, 21K respondents)
@@ -426,7 +527,11 @@ fb_init <- function(lang = "en") {
   fb1_data <- NULL
 
   if (!is.null(fb2_data)) {
-    message("Loaded Foodbook 2 microdata from Open Canada (", nrow(fb2_data), " respondents)")
+    message(
+      "Loaded Foodbook 2 microdata from Open Canada (",
+      nrow(fb2_data),
+      " respondents)"
+    )
   } else {
     message("Foodbook 2 data not found, trying Foodbook 1...")
   }
@@ -437,7 +542,11 @@ fb_init <- function(lang = "en") {
   fb1_data <- fb_load_fb1_csv(lang = lang)
 
   if (!is.null(fb1_data)) {
-    message("Loaded Foodbook 1 microdata from Open Canada (", nrow(fb1_data), " respondents)")
+    message(
+      "Loaded Foodbook 1 microdata from Open Canada (",
+      nrow(fb1_data),
+      " respondents)"
+    )
   }
 
   # =============================================================================
@@ -448,7 +557,11 @@ fb_init <- function(lang = "en") {
     message("Open Canada data not found, trying legacy microdata...")
     legacy_data <- fb_load_microdata()
     if (!is.null(legacy_data)) {
-      message("Loaded legacy microdata from upgrade-context/ (", nrow(legacy_data), " respondents)")
+      message(
+        "Loaded legacy microdata from upgrade-context/ (",
+        nrow(legacy_data),
+        " respondents)"
+      )
       legacy_data$fb_source <- "Legacy"
     }
   }
@@ -484,7 +597,7 @@ fb_init <- function(lang = "en") {
       age_map <- c(`1` = "0-9", `2` = "10-19", `3` = "20-64", `4` = "65+")
       fb1_data$AgeBand <- unname(age_map[as.character(fb1_data$age_grp_dv)])
     }
-    
+
     fb_env$micro_fb1 <- fb1_data
   } else {
     fb_env$micro_fb1 <- NULL
@@ -493,24 +606,48 @@ fb_init <- function(lang = "en") {
   # =============================================================================
   # Load bilingual label maps from Open Canada Stata label files
   # =============================================================================
-  fb2_label_en <- fb_get_base_path("data/open-canada/foodbook-2/foodbook-2.0-stata-label-code.txt")
-  fb2_label_fr <- fb_get_base_path("data/open-canada/foodbook-2/latlas-alimentaire-2.0-stata-code-des-etiquettes.txt")
-  fb1_label_en <- fb_get_base_path("data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-en.do")
-  fb1_label_fr <- fb_get_base_path("data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-fr.do")
-  legacy_label <- fb_get_base_path("upgrade-context/foodbook variable labeling.do")
+  fb2_label_en <- fb_get_base_path(
+    "data/open-canada/foodbook-2/foodbook-2.0-stata-label-code.txt"
+  )
+  fb2_label_fr <- fb_get_base_path(
+    "data/open-canada/foodbook-2/latlas-alimentaire-2.0-stata-code-des-etiquettes.txt"
+  )
+  fb1_label_en <- fb_get_base_path(
+    "data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-en.do"
+  )
+  fb1_label_fr <- fb_get_base_path(
+    "data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-fr.do"
+  )
+  legacy_label <- fb_get_base_path(
+    "upgrade-context/foodbook variable labeling.do"
+  )
 
   # Load FB2 labels (bilingual)
   if (file.exists(fb2_label_en)) {
-    fb_env$label_map_fb2 <- fb_parse_label_map_bilingual(fb2_label_en, fb2_label_fr)
+    fb_env$label_map_fb2 <- fb_parse_label_map_bilingual(
+      fb2_label_en,
+      fb2_label_fr
+    )
   } else {
-    fb_env$label_map_fb2 <- tibble::tibble(code = character(), label_en = character(), label_fr = character())
+    fb_env$label_map_fb2 <- tibble::tibble(
+      code = character(),
+      label_en = character(),
+      label_fr = character()
+    )
   }
 
   # Load FB1 labels (bilingual)
   if (file.exists(fb1_label_en)) {
-    fb_env$label_map_fb1 <- fb_parse_label_map_bilingual(fb1_label_en, fb1_label_fr)
+    fb_env$label_map_fb1 <- fb_parse_label_map_bilingual(
+      fb1_label_en,
+      fb1_label_fr
+    )
   } else {
-    fb_env$label_map_fb1 <- tibble::tibble(code = character(), label_en = character(), label_fr = character())
+    fb_env$label_map_fb1 <- tibble::tibble(
+      code = character(),
+      label_en = character(),
+      label_fr = character()
+    )
   }
 
   # Load legacy labels (English only)
@@ -518,42 +655,49 @@ fb_init <- function(lang = "en") {
     fb_env$label_map_legacy <- fb_parse_label_map(legacy_label) |>
       dplyr::mutate(
         label_en = as.character(label),
-        label_fr = as.character(label)  # Fallback to English, explicit character type
+        label_fr = as.character(label) # Fallback to English, explicit character type
       )
   } else {
-    fb_env$label_map_legacy <- tibble::tibble(code = character(), label_en = character(), label_fr = character())
+    fb_env$label_map_legacy <- tibble::tibble(
+      code = character(),
+      label_en = character(),
+      label_fr = character()
+    )
   }
 
   # =============================================================================
   # Create unified label map: FB2 priority, FB1 supplementary, legacy fallback
   # =============================================================================
-  
+
   # Handle collisions: If FB1 has a code that is also in FB2 but with a different label,
   # rename the FB1 code to code_FB1 to preserve it.
-  if (!is.null(fb_env$label_map_fb2) && nrow(fb_env$label_map_fb2) > 0 &&
-      !is.null(fb_env$label_map_fb1) && nrow(fb_env$label_map_fb1) > 0) {
-      
+  if (
+    !is.null(fb_env$label_map_fb2) &&
+      nrow(fb_env$label_map_fb2) > 0 &&
+      !is.null(fb_env$label_map_fb1) &&
+      nrow(fb_env$label_map_fb1) > 0
+  ) {
     fb2_codes <- fb_env$label_map_fb2$code
-    
+
     # Identify collisions
     collisions <- fb_env$label_map_fb1 |>
       dplyr::filter(code %in% fb2_codes)
-      
+
     if (nrow(collisions) > 0) {
       # For each collision, check if labels are significantly different
       # (Simple check: if not identical)
       # Actually, we should just rename all collisions to be safe and let user decide,
       # or only if they are different.
       # Let's rename all collisions to _FB1 to allow access to the old variable.
-      
+
       colliding_codes <- collisions$code
-      
+
       # Rename in label map (keep labels unchanged, * will indicate FB1)
       fb_env$label_map_fb1 <- fb_env$label_map_fb1 |>
         dplyr::mutate(
           code = ifelse(code %in% colliding_codes, paste0(code, "_FB1"), code)
         )
-        
+
       # Rename in microdata
       if (!is.null(fb_env$micro_fb1)) {
         # Check which colliding codes are actually in the microdata
@@ -588,7 +732,7 @@ fb_init <- function(lang = "en") {
     if (!"DQ2_dv" %in% names(fb_env$micro_fb1)) {
       v20 <- get_val_fb1("Q20")
       v21 <- get_val_fb1("Q21")
-      fb_env$micro_fb1$DQ2_dv <- ifelse(v20==1 | v21==1, 1, 2)
+      fb_env$micro_fb1$DQ2_dv <- ifelse(v20 == 1 | v21 == 1, 1, 2)
     }
 
     # DQ6_dv: Any berries (Q_58 + Q_59 + Q_60 + Q_61 + QN1_A)
@@ -598,7 +742,11 @@ fb_init <- function(lang = "en") {
       v60 <- get_val_fb1("Q_60")
       v61 <- get_val_fb1("Q_61")
       vn1a <- get_val_fb1("QN1_A")
-      fb_env$micro_fb1$DQ6_dv <- ifelse(v58==1 | v59==1 | v60==1 | v61==1 | vn1a==1, 1, 2)
+      fb_env$micro_fb1$DQ6_dv <- ifelse(
+        v58 == 1 | v59 == 1 | v60 == 1 | v61 == 1 | vn1a == 1,
+        1,
+        2
+      )
     }
   }
 
@@ -607,7 +755,7 @@ fb_init <- function(lang = "en") {
     fb_env$label_map_fb1,
     fb_env$label_map_legacy
   ) |>
-    dplyr::distinct(code, .keep_all = TRUE)  # Remove duplicates (should be none now for collisions)
+    dplyr::distinct(code, .keep_all = TRUE) # Remove duplicates (should be none now for collisions)
 
   # For backward compatibility with existing code that expects single "label" column
   if (lang == "fr") {
@@ -621,17 +769,21 @@ fb_init <- function(lang = "en") {
   # =============================================================================
   if (!is.null(fb_env$micro)) {
     # Get codes from primary microdata (FB2)
-    primary_codes <- fb_env$label_map$code[fb_env$label_map$code %in% names(fb_env$micro)]
-    
+    primary_codes <- fb_env$label_map$code[
+      fb_env$label_map$code %in% names(fb_env$micro)
+    ]
+
     # Get codes from supplementary microdata (FB1) if available
     supp_codes <- character()
     if (!is.null(fb_env$micro_fb1)) {
-      supp_codes <- fb_env$label_map$code[fb_env$label_map$code %in% names(fb_env$micro_fb1)]
+      supp_codes <- fb_env$label_map$code[
+        fb_env$label_map$code %in% names(fb_env$micro_fb1)
+      ]
     }
-    
+
     # Combine unique codes
     fb_env$exposure_codes <- unique(c(primary_codes, supp_codes))
-    
+
     # Filter label map to only exposures available in ANY microdata
     fb_env$label_map <- fb_env$label_map |>
       dplyr::filter(code %in% fb_env$exposure_codes)
@@ -649,31 +801,48 @@ fb_init <- function(lang = "en") {
     }
 
     # Normalize Month column (various names)
-    if ("month_dv" %in% names(fb_env$micro) && !"Month" %in% names(fb_env$micro)) {
+    if (
+      "month_dv" %in% names(fb_env$micro) && !"Month" %in% names(fb_env$micro)
+    ) {
       fb_env$micro$Month <- fb_env$micro$month_dv
     }
 
     # Normalize Age_group column (FB1 uses age_grp_dv, FB2 uses Age_grp_dv)
-    if ("age_grp_dv" %in% names(fb_env$micro) && !"Age_group" %in% names(fb_env$micro)) {
+    if (
+      "age_grp_dv" %in%
+        names(fb_env$micro) &&
+        !"Age_group" %in% names(fb_env$micro)
+    ) {
       fb_env$micro$Age_group <- fb_env$micro$age_grp_dv
     }
-    if ("Age_grp_dv" %in% names(fb_env$micro) && !"Age_group" %in% names(fb_env$micro)) {
+    if (
+      "Age_grp_dv" %in%
+        names(fb_env$micro) &&
+        !"Age_group" %in% names(fb_env$micro)
+    ) {
       fb_env$micro$Age_group <- fb_env$micro$Age_grp_dv
     }
 
     # Keep only the useful columns for filtering
     keep_cols <- unique(c(
-      "PT", "Month", "Age_group", "Gender", "age", "sex",
-      "weight", "fb_source", fb_env$exposure_codes
+      "PT",
+      "Month",
+      "Age_group",
+      "Gender",
+      "age",
+      "sex",
+      "weight",
+      "fb_source",
+      fb_env$exposure_codes
     ))
-    
+
     # Ensure berries_dv is kept if it exists in FB2
     if ("berries_dv" %in% names(fb_env$micro)) {
       keep_cols <- c(keep_cols, "berries_dv")
       if (!"berries_dv" %in% fb_env$exposure_codes) {
         fb_env$exposure_codes <- c(fb_env$exposure_codes, "berries_dv")
       }
-      
+
       # Add to label map if missing
       if (!"berries_dv" %in% fb_env$label_map$code) {
         new_row <- tibble::tibble(
@@ -686,7 +855,10 @@ fb_init <- function(lang = "en") {
       }
     }
 
-    fb_env$micro <- fb_env$micro[, intersect(keep_cols, names(fb_env$micro)), drop = FALSE]
+    fb_env$micro <- fb_env$micro[,
+      intersect(keep_cols, names(fb_env$micro)),
+      drop = FALSE
+    ]
   }
 
   # =============================================================================
@@ -697,10 +869,16 @@ fb_init <- function(lang = "en") {
     # Open Canada age groups: 1-10 map to our 4 bands
     # 1-2 (0-9), 3-4 (10-19), 5-8 (20-64), 9-10 (65+)
     age_map <- c(
-      `1` = "0-9", `2` = "0-9",
-      `3` = "10-19", `4` = "10-19",
-      `5` = "20-64", `6` = "20-64", `7` = "20-64", `8` = "20-64",
-      `9` = "65+", `10` = "65+"
+      `1` = "0-9",
+      `2` = "0-9",
+      `3` = "10-19",
+      `4` = "10-19",
+      `5` = "20-64",
+      `6` = "20-64",
+      `7` = "20-64",
+      `8` = "20-64",
+      `9` = "65+",
+      `10` = "65+"
     )
     fb_env$micro$AgeBand <- unname(age_map[as.character(ag)])
   } else if (!is.null(fb_env$micro) && "age" %in% names(fb_env$micro)) {
@@ -710,7 +888,8 @@ fb_init <- function(lang = "en") {
       breaks = c(-Inf, 9, 19, 64, Inf),
       labels = c("0-9", "10-19", "20-64", "65+"),
       right = TRUE
-    ) |> as.character()
+    ) |>
+      as.character()
   }
 
   fb_env$pt_map <- fb_pt_map()
@@ -739,7 +918,67 @@ fb_update_language <- function(lang = "en") {
   invisible(TRUE)
 }
 
-fb_exposure_choices <- function(lang = "en") {
+# Normalize English labels for display (e.g., remove accents)
+fb_normalize_en_label <- function(labels) {
+  # Handle double-encoded UTF-8 mojibake (e.g., "PÃ¢tÃ©" = UTF-8 decoded as Latin-1)
+  labels <- gsub("PÃ¢tÃ©/meat spread", "Pate/meat spread", labels, fixed = TRUE)
+  labels <- gsub("PÃ¢tÃ©", "Pate", labels, fixed = TRUE)
+  # Also handle correctly-encoded accented forms
+  labels <- gsub("Pâté/meat spread", "Pate/meat spread", labels, fixed = TRUE)
+  labels <- gsub("Pâté", "Pate", labels, fixed = TRUE)
+  labels
+}
+
+# Normalize labels for matching against exclusion lists
+fb_normalize_label_for_match <- function(labels) {
+  labels |>
+    (function(x) {
+      x <- gsub("\\*$", "", x, perl = TRUE)
+      x <- trimws(x)
+      # Handle both mojibake and correct encodings
+      x <- gsub("PÃ¢tÃ©", "Pate", x, fixed = TRUE)
+      x <- gsub("Pâté", "Pate", x, fixed = TRUE)
+      x
+    })()
+}
+
+# Public app exclusion list (label-based)
+fb_public_exposure_exclusions <- function() {
+  if (!is.null(fb_env$public_exclusions)) {
+    return(fb_env$public_exclusions)
+  }
+
+  path <- fb_get_base_path(file.path(
+    "config",
+    "public_exposure_exclusions.csv"
+  ))
+  if (!file.exists(path)) {
+    fb_env$public_exclusions <- character()
+    return(fb_env$public_exclusions)
+  }
+
+  df <- tryCatch(read.csv(path, stringsAsFactors = FALSE), error = function(e) {
+    NULL
+  })
+  if (is.null(df) || !"Variable" %in% names(df)) {
+    fb_env$public_exclusions <- character()
+    return(fb_env$public_exclusions)
+  }
+
+  fb_env$public_exclusions <- df$Variable[
+    !is.na(df$Variable) & nzchar(df$Variable)
+  ] |>
+    trimws()
+  fb_env$public_exclusions
+}
+
+# Public exclusion codes (use codes to avoid ambiguous label matching)
+fb_public_exposure_exclusion_codes <- function() {
+  # Explicitly drop FB1 pate: Q89_D and any renamed collision variant
+  c("Q89_D", "Q89_D_FB1")
+}
+
+fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
   fb_init(lang = lang)
   # If microdata + labels available, return label->code; else fall back to CSV Exposure labels
   if (!is.null(fb_env$micro) && nrow(fb_env$label_map)) {
@@ -760,35 +999,35 @@ fb_exposure_choices <- function(lang = "en") {
     # - FB1 non-food: BQ*, AQ*, QINTRO*, uniqueid, weight
     # - FB1 food safety: Q141-Q146
     # - FB1 general Q140_FS (but keep Q140_FSA etc. as they are food)
-    
+
     # - FB1 non-food: BQ*, AQ*, QINTRO*, uniqueid, weight
     # - FB1 food safety: Q141-Q146
     # - FB1 general Q140_FS (but keep Q140_FSA etc. as they are food)
     # - Q21_FB1 (Mini carrots) is redundant with FB2 Q10 (Mini/baby carrots)
-    
+
     unwanted_pattern <- "^(Q6[0-6]|BQ|AQ|QINTRO|uniqueid|weight|Q14[1-6]|Q140_FS$|Q21_FB1$)"
     keep_mask <- !grepl(unwanted_pattern, lm$code)
-    
+
     lm <- lm[keep_mask, ]
     label_col <- label_col[keep_mask]
-    
-    # Deduplicate by label: If an FB1 exposure has the same label 
+
+    # Deduplicate by label: If an FB1 exposure has the same label
     # as an FB2 exposure, remove the FB1 version (prefer FB2).
-    
+
     if (!is.null(fb_env$micro) && !is.null(fb_env$micro_fb1)) {
       fb2_codes <- names(fb_env$micro)
-      
+
       # Get labels for FB2 vars (before adding any asterisks)
       fb2_mask <- lm$code %in% fb2_codes
       fb2_labels <- unique(label_col[fb2_mask])
-      
+
       # Identify FB1 vars that are NOT in FB2 (candidates for *)
       fb1_only_mask <- !lm$code %in% fb2_codes
-      
+
       # Among these FB1-only vars, check if their label exists in FB2_labels
       # If so, it's a "cross-version duplicate" (same name, different code) -> Hide it
       duplicate_label_mask <- fb1_only_mask & (label_col %in% fb2_labels)
-      
+
       # Remove these duplicates from the list
       if (any(duplicate_label_mask)) {
         lm <- lm[!duplicate_label_mask, ]
@@ -796,20 +1035,54 @@ fb_exposure_choices <- function(lang = "en") {
         # Re-calculate mask after dropping rows
         fb1_only_mask <- !lm$code %in% fb2_codes
       }
-      
+
       # Now add * to the remaining FB1-only vars
       if (any(fb1_only_mask)) {
         label_col[fb1_only_mask] <- paste0(label_col[fb1_only_mask], "*")
       }
     }
-    
+
+    # Normalize English labels for display
+    if (lang != "fr") {
+      label_col <- fb_normalize_en_label(label_col)
+    }
+
+    # Apply public app exclusions (label based)
+    if (isTRUE(apply_public_exclusions)) {
+      # First drop by code (safer for dup labels across FB1/FB2)
+      code_exclusions <- fb_public_exposure_exclusion_codes()
+      if (length(code_exclusions)) {
+        keep_mask <- !lm$code %in% code_exclusions
+        lm <- lm[keep_mask, ]
+        label_col <- label_col[keep_mask]
+      }
+
+      # Then drop by label (for legacy exclusions)
+      exclusions <- fb_public_exposure_exclusions()
+      # Only apply label-based exclusions that do NOT end with "*"; starred items are handled by code exclusions
+      exclusions <- exclusions[!grepl("\\*$", exclusions)]
+      if (length(exclusions)) {
+        norm_labels <- fb_normalize_label_for_match(label_col)
+        norm_exclusions <- fb_normalize_label_for_match(exclusions)
+        keep_mask <- !norm_labels %in% norm_exclusions
+        lm <- lm[keep_mask, ]
+        label_col <- label_col[keep_mask]
+      }
+    }
+
     return(stats::setNames(lm$code, label_col))
   }
   # Fallback: read from legacy CSV
   if (file.exists("data/foodbook_data.csv")) {
-    df <- tryCatch(read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE), error = function(e) NULL)
-    if (!is.null(df) && all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))) {
-      exps <- sort(unique(df$Exposure))
+    df <- tryCatch(
+      read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE),
+      error = function(e) NULL
+    )
+    if (
+      !is.null(df) &&
+        all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))
+    ) {
+      exps <- sort(unique(fb_normalize_en_label(df$Exposure)))
       return(stats::setNames(exps, exps))
     }
   }
@@ -822,23 +1095,31 @@ fb_exposure_labels_bilingual <- function() {
   if (nrow(fb_env$label_map)) {
     return(fb_env$label_map[, c("code", "label_en", "label_fr")])
   }
-  tibble::tibble(code = character(), label_en = character(), label_fr = character())
+  tibble::tibble(
+    code = character(),
+    label_en = character(),
+    label_fr = character()
+  )
 }
 
 # Get exposure label by code and language
 fb_exposure_label <- function(code, lang = "en") {
   fb_init(lang = lang)
-  if (nrow(fb_env$label_map) == 0) return(code)
+  if (nrow(fb_env$label_map) == 0) {
+    return(code)
+  }
 
   row <- fb_env$label_map[fb_env$label_map$code == code, ]
-  if (nrow(row) == 0) return(code)
+  if (nrow(row) == 0) {
+    return(code)
+  }
 
   if (lang == "fr" && "label_fr" %in% names(row)) {
     return(row$label_fr[1])
   } else if ("label_en" %in% names(row)) {
-    return(row$label_en[1])
+    return(fb_normalize_en_label(row$label_en[1]))
   } else {
-    return(row$label[1])
+    return(fb_normalize_en_label(row$label[1]))
   }
 }
 
@@ -849,13 +1130,27 @@ fb_exposure_choices_all <- function(lang = "en") {
 
   # Get the full combined label map (FB2 + FB1 + legacy) without filtering by microdata
   lm <- dplyr::bind_rows(
-    if (!is.null(fb_env$label_map_fb2)) fb_env$label_map_fb2 else tibble::tibble(),
-    if (!is.null(fb_env$label_map_fb1)) fb_env$label_map_fb1 else tibble::tibble(),
-    if (!is.null(fb_env$label_map_legacy)) fb_env$label_map_legacy else tibble::tibble()
+    if (!is.null(fb_env$label_map_fb2)) {
+      fb_env$label_map_fb2
+    } else {
+      tibble::tibble()
+    },
+    if (!is.null(fb_env$label_map_fb1)) {
+      fb_env$label_map_fb1
+    } else {
+      tibble::tibble()
+    },
+    if (!is.null(fb_env$label_map_legacy)) {
+      fb_env$label_map_legacy
+    } else {
+      tibble::tibble()
+    }
   ) |>
     dplyr::distinct(code, .keep_all = TRUE)
 
-  if (nrow(lm) == 0) return(stats::setNames(character(), character()))
+  if (nrow(lm) == 0) {
+    return(stats::setNames(character(), character()))
+  }
 
   # Select label column based on language
   if (lang == "fr" && "label_fr" %in% names(lm)) {
@@ -870,7 +1165,12 @@ fb_exposure_choices_all <- function(lang = "en") {
 
   # Handle duplicate labels
   duplicated_labels <- duplicated(label_col)
-  label_col[duplicated_labels] <- paste0(label_col[duplicated_labels], " (", lm$code[duplicated_labels], ")")
+  label_col[duplicated_labels] <- paste0(
+    label_col[duplicated_labels],
+    " (",
+    lm$code[duplicated_labels],
+    ")"
+  )
 
   # Filter out unwanted variables (hunting/game questions)
   exclude_codes <- c("Q60", "Q61", "Q62", "Q63", "Q64", "Q65", "Q66")
@@ -887,7 +1187,9 @@ fb_age_groups <- function() {
 
 fb_months <- function() {
   fb_init()
-  if (is.null(fb_env$micro) || !"Month" %in% names(fb_env$micro)) return(integer())
+  if (is.null(fb_env$micro) || !"Month" %in% names(fb_env$micro)) {
+    return(integer())
+  }
   m <- sort(unique(na.omit(as.integer(fb_env$micro$Month))))
   m <- m[m >= 1 & m <= 12]
   stats::setNames(as.character(m), month.name[m])
@@ -925,25 +1227,49 @@ fb_pt_names_bilingual <- function() {
 # Get month names by language
 fb_month_names <- function(lang = "en") {
   if (lang == "fr") {
-    return(c("Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
-             "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"))
+    return(c(
+      "Janvier",
+      "Février",
+      "Mars",
+      "Avril",
+      "Mai",
+      "Juin",
+      "Juillet",
+      "Août",
+      "Septembre",
+      "Octobre",
+      "Novembre",
+      "Décembre"
+    ))
   } else {
     return(month.name)
   }
 }
 
 # Internal: Filter a single dataset
-fb_filter_dataset <- function(d, pt_names = NULL, months = NULL, age_groups = NULL) {
-  if (is.null(d)) return(NULL)
-  
+fb_filter_dataset <- function(
+  d,
+  pt_names = NULL,
+  months = NULL,
+  age_groups = NULL
+) {
+  if (is.null(d)) {
+    return(NULL)
+  }
+
   # PT filtering: accept English, French, or abbreviations
-  if (!is.null(pt_names) && length(pt_names) && !("Canada" %in% pt_names) && "PT" %in% names(d)) {
+  if (
+    !is.null(pt_names) &&
+      length(pt_names) &&
+      !("Canada" %in% pt_names) &&
+      "PT" %in% names(d)
+  ) {
     codes <- fb_normalize_pt_names(pt_names)
     if (length(codes) > 0) {
       d <- d |> dplyr::filter(PT %in% codes)
     }
   }
-  
+
   if (!is.null(months) && length(months) && "Month" %in% names(d)) {
     d <- d |> dplyr::filter(Month %in% months)
   }
@@ -956,13 +1282,13 @@ fb_filter_dataset <- function(d, pt_names = NULL, months = NULL, age_groups = NU
 # Internal: filter microdata given reference selections
 fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
   fb_init()
-  
+
   # Filter primary dataset (FB2)
   d_main <- fb_filter_dataset(fb_env$micro, pt_names, months, age_groups)
-  
+
   # Filter supplementary dataset (FB1)
   d_supp <- fb_filter_dataset(fb_env$micro_fb1, pt_names, months, age_groups)
-  
+
   # Combine if both exist
   if (!is.null(d_main) && !is.null(d_supp)) {
     # Bind rows (keeping all columns, filling missing with NA)
@@ -974,20 +1300,24 @@ fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
   } else {
     d <- data.frame()
   }
-  
+
   d
 }
 
 # Compute a weighted percentage (0-100) for a single exposure code
 fb_weighted_percent <- function(code, d) {
-  if (!code %in% names(d)) return(NA_real_)
+  if (!code %in% names(d)) {
+    return(NA_real_)
+  }
   x <- suppressWarnings(as.numeric(d[[code]]))
   w <- suppressWarnings(as.numeric(d$weight))
   ok <- !is.na(x) & (x %in% c(0, 1, 2))
   # Many FB dv vars are 1 = yes, 2 = no; treat 0 as missing/not asked
   yy <- ok & (x == 1)
   denom <- sum(w[ok], na.rm = TRUE)
-  if (!is.finite(denom) || denom <= 0) return(NA_real_)
+  if (!is.finite(denom) || denom <= 0) {
+    return(NA_real_)
+  }
   100 * sum(w[yy], na.rm = TRUE) / denom
 }
 
@@ -1014,81 +1344,111 @@ fb_pt_abbrev_map <- function() {
 fb_reference_percents_csv <- function(codes, pt_names = NULL) {
   # NOTE: This fallback uses pre-computed CSV data and calculates simple (unweighted)
   # average when multiple PTs are selected. Results may differ from microdata calculations.
-  df <- tryCatch(read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE), error = function(e) NULL)
-  if (is.null(df) || !all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))) {
+  df <- tryCatch(
+    read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE),
+    error = function(e) NULL
+  )
+  if (
+    is.null(df) ||
+      !all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))
+  ) {
     return(stats::setNames(rep(NA_real_, length(codes)), codes))
   }
   # If Canada is selected or no PTs, use Canada rows
   if (is.null(pt_names) || length(pt_names) == 0 || any(pt_names == "Canada")) {
-    res <- vapply(codes, function(x) {
-      v <- df$Proportion[df$Exposure == x & df$Province.Territory == "Canada"]
-      v <- suppressWarnings(as.numeric(v[1]))
-      ifelse(length(v) == 0, NA_real_, v)
-    }, numeric(1))
+    res <- vapply(
+      codes,
+      function(x) {
+        v <- df$Proportion[df$Exposure == x & df$Province.Territory == "Canada"]
+        v <- suppressWarnings(as.numeric(v[1]))
+        ifelse(length(v) == 0, NA_real_, v)
+      },
+      numeric(1)
+    )
     return(res)
   }
   # Otherwise, average across selected PTs (simple mean; survey weights unavailable in CSV)
   ab <- fb_pt_abbrev_map()
   sel_ab <- unname(ab[pt_names])
-  res <- vapply(codes, function(x) {
-    v <- df$Proportion[df$Exposure == x & df$Province.Territory %in% sel_ab]
-    v <- suppressWarnings(as.numeric(v))
-    if (!length(v)) return(NA_real_)
-    mean(v, na.rm = TRUE)
-  }, numeric(1))
+  res <- vapply(
+    codes,
+    function(x) {
+      v <- df$Proportion[df$Exposure == x & df$Province.Territory %in% sel_ab]
+      v <- suppressWarnings(as.numeric(v))
+      if (!length(v)) {
+        return(NA_real_)
+      }
+      mean(v, na.rm = TRUE)
+    },
+    numeric(1)
+  )
   res
 }
 
-fb_reference_percents <- function(codes, pt_names = NULL, months = NULL, age_groups = NULL) {
+fb_reference_percents <- function(
+  codes,
+  pt_names = NULL,
+  months = NULL,
+  age_groups = NULL
+) {
   if (!is.null(fb_env$micro)) {
     cedars_map <- fb_cedars_to_foodbook_map()
 
-    fb_codes <- vapply(codes, function(code) {
-      if (code %in% names(cedars_map)) {
-        cedars_map[[code]]
-      } else {
-        code
-      }
-    }, character(1), USE.NAMES = FALSE)
+    fb_codes <- vapply(
+      codes,
+      function(code) {
+        if (code %in% names(cedars_map)) {
+          cedars_map[[code]]
+        } else {
+          code
+        }
+      },
+      character(1),
+      USE.NAMES = FALSE
+    )
 
     # Filter datasets separately
     d_main <- fb_filter_dataset(fb_env$micro, pt_names, months, age_groups)
     d_supp <- fb_filter_dataset(fb_env$micro_fb1, pt_names, months, age_groups)
-    
-    # Calculate reference percentages for each code
-    results <- vapply(fb_codes, function(fb_col) {
-      # 1. Try Primary Dataset (FB2)
-      if (!is.null(d_main)) {
-        if (fb_col %in% names(d_main)) {
-          return(fb_weighted_percent(fb_col, d_main))
-        }
-        # Try with _dv suffix
-        fb_col_dv <- paste0(fb_col, "_dv")
-        if (fb_col_dv %in% names(d_main)) {
-          return(fb_weighted_percent(fb_col_dv, d_main))
-        }
-      }
-      
-      # 2. Fallback to Supplementary Dataset (FB1)
-      if (!is.null(d_supp)) {
-        # Try direct match
-        if (fb_col %in% names(d_supp)) {
-          return(fb_weighted_percent(fb_col, d_supp))
-        }
-        # Try with _dv suffix
-        fb_col_dv <- paste0(fb_col, "_dv")
-        if (fb_col_dv %in% names(d_supp)) {
-          return(fb_weighted_percent(fb_col_dv, d_supp))
-        }
-        # Try with _FB1 suffix (for collision-renamed FB1 columns)
-        fb_col_fb1 <- paste0(fb_col, "_FB1")
-        if (fb_col_fb1 %in% names(d_supp)) {
-          return(fb_weighted_percent(fb_col_fb1, d_supp))
-        }
-      }
 
-      NA_real_
-    }, numeric(1))
+    # Calculate reference percentages for each code
+    results <- vapply(
+      fb_codes,
+      function(fb_col) {
+        # 1. Try Primary Dataset (FB2)
+        if (!is.null(d_main)) {
+          if (fb_col %in% names(d_main)) {
+            return(fb_weighted_percent(fb_col, d_main))
+          }
+          # Try with _dv suffix
+          fb_col_dv <- paste0(fb_col, "_dv")
+          if (fb_col_dv %in% names(d_main)) {
+            return(fb_weighted_percent(fb_col_dv, d_main))
+          }
+        }
+
+        # 2. Fallback to Supplementary Dataset (FB1)
+        if (!is.null(d_supp)) {
+          # Try direct match
+          if (fb_col %in% names(d_supp)) {
+            return(fb_weighted_percent(fb_col, d_supp))
+          }
+          # Try with _dv suffix
+          fb_col_dv <- paste0(fb_col, "_dv")
+          if (fb_col_dv %in% names(d_supp)) {
+            return(fb_weighted_percent(fb_col_dv, d_supp))
+          }
+          # Try with _FB1 suffix (for collision-renamed FB1 columns)
+          fb_col_fb1 <- paste0(fb_col, "_FB1")
+          if (fb_col_fb1 %in% names(d_supp)) {
+            return(fb_weighted_percent(fb_col_fb1, d_supp))
+          }
+        }
+
+        NA_real_
+      },
+      numeric(1)
+    )
 
     names(results) <- codes
     return(results)
