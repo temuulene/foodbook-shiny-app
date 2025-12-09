@@ -1057,10 +1057,9 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
         label_col <- label_col[keep_mask]
       }
 
-      # Then drop by label (for legacy exclusions)
+      # Then drop by label (for legacy exclusions). Allow starred entries except pate/meat spread* which is handled by code.
       exclusions <- fb_public_exposure_exclusions()
-      # Only apply label-based exclusions that do NOT end with "*"; starred items are handled by code exclusions
-      exclusions <- exclusions[!grepl("\\*$", exclusions)]
+      exclusions <- setdiff(exclusions, "Pate/meat spread*")
       if (length(exclusions)) {
         norm_labels <- fb_normalize_label_for_match(label_col)
         norm_exclusions <- fb_normalize_label_for_match(exclusions)
