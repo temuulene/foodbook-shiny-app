@@ -214,9 +214,13 @@ testthat::test_file("tests/testthat/test-backend-calculations.R")  # Specific
 ```
 
 **Terminal R Commands (Windows Corporate):**
-First set PATH to R binary:
+R is not in the default PATH. Use full path to Rscript:
 ```powershell
-$env:PATH = "C:\Program Files\R\R-4.4.1\bin\x64;$env:PATH"
+& "C:\Program Files\R\R-4.5.1\bin\x64\Rscript.exe" -e "your_command_here"
+```
+Alternatively, set PATH first:
+```powershell
+$env:PATH = "C:\Program Files\R\R-4.5.1\bin\x64;$env:PATH"
 ```
 Then use `Rscript` commands normally.
 
@@ -257,17 +261,15 @@ rsconnect::writeManifest(appDir = "app-internal", appPrimaryDoc = "app.R")
 
 **Running Tests:**
 ```powershell
-# Set PATH first (Windows corporate)
-$env:PATH = "C:\Program Files\R\R-4.4.1\bin\x64;$env:PATH"
-
-# Run all tests
-Rscript -e "testthat::test_dir('tests/testthat')"
+# Run all tests (using test runner which sources backend)
+& "C:\Program Files\R\R-4.5.1\bin\x64\Rscript.exe" "tests/testthat.R"
 
 # Run specific file
-Rscript -e "testthat::test_file('tests/testthat/test-backend-calculations.R')"
+& "C:\Program Files\R\R-4.5.1\bin\x64\Rscript.exe" -e "source('src/foodbook_backend.R'); testthat::test_file('tests/testthat/test-backend-calculations.R')"
 
-# Run specific test
-Rscript -e "testthat::test_that('description', { expect_equal(...) })"
+# Alternative: Set PATH first
+$env:PATH = "C:\Program Files\R\R-4.5.1\bin\x64;$env:PATH"
+Rscript tests/testthat.R
 ```
 
 **Test Patterns:**

@@ -96,3 +96,7 @@ Water only*,delete,
 Water supplied to main residence,delete,
 Whole chicken*,delete,
 "Wrap meat, poultry or seafood in a second plastic bag*",delete,
+"Any type of ground meat or meat mixtures (i.e. meatballs, sausages, hamburgers)*",delete,FB1 Q140_FSA - redundant category
+"Chicken or turkey pieces (i.e. breast, legs or wings)*",delete,FB1 Q140_FSD - redundant category
+Fast food restaurant meal*,delete,FB1 Q110_dv - use Q110_Q111_dv instead
+"Fast food restaurant meal (e.g. burgers, pizza, hot dogs)*",delete,FB1 Q111_dv - use Q110_Q111_dv instead

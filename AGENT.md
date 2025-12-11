@@ -117,14 +117,15 @@ README.md               # User documentation
 
 ## 8.1 Running R from Terminal (Corporate Workstation)
 
-R is not in the system PATH on this workstation. **Before running any R/Rscript commands in a terminal session**, run this PowerShell command first:
+R is not in the system PATH on this workstation. Use the full path to Rscript:
 
 ```powershell
-$env:PATH = "C:\Program Files\R\R-4.4.1\bin\x64;$env:PATH"
+& "C:\Program Files\R\R-4.5.1\bin\x64\Rscript.exe" -e "your_command_here"
 ```
 
-Then you can use commands like:
+Or set PATH first, then use Rscript commands normally:
 ```powershell
+$env:PATH = "C:\Program Files\R\R-4.5.1\bin\x64;$env:PATH"
 Rscript -e "rsconnect::writeManifest()"
 ```
 

@@ -1,4 +1,13 @@
 # Backend helpers to use OMD Foodbook microdata and labels
+# =============================================================================
+# This backend is designed to work with PHAC OMD's authoritative data files:
+#   - upgrade-context/foodbook.dta (Foodbook 1)
+#   - upgrade-context/foodbook2v2.dta (Foodbook 2)
+#   - upgrade-context/foodbook data.do (rename mappings)
+#   - upgrade-context/foodbook variable labeling.do (exposure labels)
+#
+# When legacy .dta files are not available, falls back to Open Canada CSVs.
+# =============================================================================
 suppressPackageStartupMessages({
   library(dplyr)
   library(stringr)
@@ -279,7 +288,8 @@ fb_parse_label_map_bilingual <- function(en_path, fr_path = NULL) {
 }
 
 # Parse Stata rename directives from a .do file
-# Returns tibble with old (Foodbook column) and new (CEDARS code) names
+# Returns tibble with old (original column) and new (renamed column) names
+# Based on the authoritative upgrade-context/foodbook data.do
 fb_parse_renames <- function(path) {
   lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) {
     character()
@@ -287,42 +297,133 @@ fb_parse_renames <- function(path) {
   if (!length(lines)) {
     return(tibble::tibble(old = character(), new = character()))
   }
-  m <- stringr::str_match(lines, "^\\s*rename\\s+([^\\s]+)\\s+([^\\s]+)")
+
+  # Match rename statements, handling optional whitespace and comments
+  # Pattern: rename OLD NEW (ignore commented lines starting with *)
+  m <- stringr::str_match(lines, "^\\s*rename\\s+([^\\s]+)\\s+([^\\s/*]+)")
   m <- m[!is.na(m[, 1]), , drop = FALSE]
+
+  # Also skip lines that are fully commented (starting with *)
+  commented <- grepl(
+    "^\\s*\\*",
+    lines[!is.na(stringr::str_match(lines, "^\\s*rename")[, 1])]
+  )
+  if (nrow(m) > 0 && length(commented) == nrow(m)) {
+    m <- m[!commented, , drop = FALSE]
+  }
+
   tibble::tibble(old = m[, 2], new = m[, 3])
 }
 
-# Get reverse mapping: CEDARS code -> Foodbook column name
-# This allows us to calculate references for CEDARS codes
+# Parse FB1-specific renames (before the "drop Q*" line in foodbook data.do)
+# These are the Foodbook 1 variables kept before appending FB2
+fb_parse_fb1_renames <- function(path) {
+  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) {
+    character()
+  })
+  if (!length(lines)) {
+    return(tibble::tibble(old = character(), new = character()))
+  }
+
+  # Find the "drop Q*" line - everything before it is FB1-specific
+  drop_line <- which(grepl("^\\s*drop\\s+Q\\*", lines))
+  if (length(drop_line) == 0) {
+    # No drop line found, return all renames
+    return(fb_parse_renames(path))
+  }
+
+  # Get only lines before the drop Q*
+  fb1_lines <- lines[1:(drop_line[1] - 1)]
+
+  m <- stringr::str_match(fb1_lines, "^\\s*rename\\s+([^\\s]+)\\s+([^\\s/*]+)")
+  m <- m[!is.na(m[, 1]), , drop = FALSE]
+
+  tibble::tibble(old = m[, 2], new = m[, 3])
+}
+
+# Parse FB2-specific renames (after the "append using" line in foodbook data.do)
+fb_parse_fb2_renames <- function(path) {
+  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) {
+    character()
+  })
+  if (!length(lines)) {
+    return(tibble::tibble(old = character(), new = character()))
+  }
+
+  # Find the "append using" line - everything after it is FB2-specific
+  append_line <- which(grepl("^\\s*append\\s+using", lines))
+  if (length(append_line) == 0) {
+    return(tibble::tibble(old = character(), new = character()))
+  }
+
+  # Get only lines after the append
+  fb2_lines <- lines[(append_line[1] + 1):length(lines)]
+
+  m <- stringr::str_match(fb2_lines, "^\\s*rename\\s+([^\\s]+)\\s+([^\\s/*]+)")
+  m <- m[!is.na(m[, 1]), , drop = FALSE]
+
+  # Skip commented lines
+  commented <- grepl(
+    "^\\s*\\*",
+    fb2_lines[!is.na(stringr::str_match(fb2_lines, "^\\s*rename")[, 1])]
+  )
+  if (nrow(m) > 0 && length(commented) == nrow(m)) {
+    m <- m[!commented, , drop = FALSE]
+  }
+
+  tibble::tibble(old = m[, 2], new = m[, 3])
+}
+
+# Get mapping: CEDARS exposure code (P-codes) -> Foodbook column name
+# This allows us to calculate references for CEDARS P-codes like P01001
+# Note: This should ONLY be used for actual CEDARS P-codes, not renamed Foodbook columns
 fb_cedars_to_foodbook_map <- function() {
   fb_init()
 
-  # Check if renames are loaded
+  # Check if CEDARS map is loaded
   if (is.null(fb_env$cedars_to_fb_map)) {
-    # Try to load from foodbook data.do
-    rename_path <- fb_get_base_path("upgrade-context/foodbook data.do")
-    if (file.exists(rename_path)) {
-      renames <- fb_parse_renames(rename_path)
-      # Create reverse map: new (CEDARS code) -> old (Foodbook column)
-      fb_env$cedars_to_fb_map <- stats::setNames(renames$old, renames$new)
-    } else {
-      fb_env$cedars_to_fb_map <- stats::setNames(character(), character())
-    }
+    # The CEDARS P-codes need to be manually mapped to Foodbook columns
+    # This mapping is based on CEDARS exposure code -> Foodbook renamed column
+    # For now, return empty - CEDARS integration would require a separate mapping file
+    fb_env$cedars_to_fb_map <- stats::setNames(character(), character())
   }
 
   fb_env$cedars_to_fb_map
 }
 
 # Parse exposure code -> human label mapping from the variable labeling .do file
+# Based on the authoritative upgrade-context/foodbook variable labeling.do
 fb_parse_label_map <- function(path) {
-  lines <- tryCatch(readLines(path, warn = FALSE), error = function(e) {
-    character()
-  })
+  lines <- tryCatch(
+    readLines(path, warn = FALSE, encoding = "UTF-8"),
+    error = function(e) {
+      character()
+    }
+  )
   if (!length(lines)) {
     return(tibble::tibble(code = character(), label = character()))
   }
 
-  # Try Open Canada format first: label var CODE "Label"
+  # Try authoritative OMD format first: gen/replace label = "Label" if exposure == "code"
+  # This is the format used in upgrade-context/foodbook variable labeling.do
+  m_omd <- stringr::str_match(
+    lines,
+    '^\\s*(?:gen|replace)\\s+label\\s*=\\s*"([^"]+)"\\s+if\\s+exposure\\s*==\\s*"([^"]+)"'
+  )
+  m_omd <- m_omd[!is.na(m_omd[, 1]), , drop = FALSE]
+
+  if (nrow(m_omd) > 0) {
+    # OMD format found - this is the authoritative source
+    out <- tibble::tibble(
+      label = stringr::str_squish(m_omd[, 2]),
+      code = m_omd[, 3]
+    ) |>
+      dplyr::filter(label != "") |>
+      dplyr::distinct(code, .keep_all = TRUE)
+    return(out)
+  }
+
+  # Try Open Canada format: label var CODE "Label"
   m_open <- stringr::str_match(
     lines,
     '^\\s*label\\s+var\\s+([^\\s]+)\\s+"([^"]+)"'
@@ -346,17 +447,7 @@ fb_parse_label_map <- function(path) {
     return(out)
   }
 
-  # Fall back to legacy format: gen label = "..." if exposure == "code"
-  m <- stringr::str_match(
-    lines,
-    '^\\s*(?:gen|replace)\\s+label\\s*=\\s*"([^"]+)"\\s+if\\s+exposure\\s*==\\s*"([^"]+)"'
-  )
-  m <- m[!is.na(m[, 1]), , drop = FALSE]
-  # Some labels contain stray control chars; trim and normalise spaces
-  out <- tibble::tibble(label = stringr::str_squish(m[, 2]), code = m[, 3]) |>
-    dplyr::filter(label != "") |>
-    dplyr::distinct(code, .keep_all = TRUE)
-  out
+  tibble::tibble(code = character(), label = character())
 }
 
 # Apply a rename mapping to a data.frame (only where cols exist)
@@ -374,37 +465,57 @@ fb_apply_renames <- function(df, renames) {
 }
 
 # Discover weight column and normalise to `weight`
+# Based on authoritative logic from upgrade-context/foodbook data.do:
+#   gen weight = EXPWEIGHT_CMA2
+#   replace weight = proj_weight_non_traveller if weight == .
 fb_normalise_weight <- function(df) {
   w <- NULL
-  # Try Open Canada FB2 weight column first
-  if ("Proj_weight_non_traveller_dv" %in% names(df)) {
-    w <- df$Proj_weight_non_traveller_dv
+
+  # Priority 1: FB1 weight (EXPWEIGHT_CMA2)
+  if ("EXPWEIGHT_CMA2" %in% names(df)) {
+    w <- suppressWarnings(as.numeric(df$EXPWEIGHT_CMA2))
   }
-  # Try Open Canada FB1 weight column
+
+  # Priority 2: FB2 weight (proj_weight_non_traveller) - fills in where FB1 weight is NA
+  if ("proj_weight_non_traveller" %in% names(df)) {
+    fb2_w <- suppressWarnings(as.numeric(df$proj_weight_non_traveller))
+    if (is.null(w)) {
+      w <- fb2_w
+    } else {
+      # Replace NA values with FB2 weight (matches Stata: replace weight = X if weight == .)
+      w <- ifelse(is.na(w), fb2_w, w)
+    }
+  }
+
+  # Fallback: Try Open Canada variant column names
   if (is.null(w) && "EXPWEIGHT_CMA2_dv" %in% names(df)) {
-    w <- df$EXPWEIGHT_CMA2_dv
+    w <- suppressWarnings(as.numeric(df$EXPWEIGHT_CMA2_dv))
   }
-  # Try legacy OMD weight columns
-  if (is.null(w) && "EXPWEIGHT_CMA2" %in% names(df)) {
-    w <- df$EXPWEIGHT_CMA2
+  if (is.null(w) && "Proj_weight_non_traveller_dv" %in% names(df)) {
+    w <- suppressWarnings(as.numeric(df$Proj_weight_non_traveller_dv))
   }
-  if (is.null(w) && "proj_weight_non_traveller" %in% names(df)) {
-    w <- df$proj_weight_non_traveller
-  }
-  # Generic weight column
+
+  # Fallback: Generic weight column
   if (is.null(w) && "weight" %in% names(df)) {
-    w <- df$weight
+    w <- suppressWarnings(as.numeric(df$weight))
   }
+
   # Default to 1 if no weight found
   if (is.null(w)) {
     df$weight <- 1
   } else {
-    df$weight <- suppressWarnings(as.numeric(w))
+    df$weight <- w
   }
   df
 }
 
 # Load, rename, and combine Foodbook microdata
+# Based on authoritative workflow from upgrade-context/foodbook data.do:
+#   1. Load foodbook.dta (FB1)
+#   2. Apply FB1-specific renames (before "drop Q*")
+#   3. Append foodbook2v2.dta (FB2)
+#   4. Apply FB2-specific renames (after "append using")
+#   5. Merge weights
 fb_load_microdata <- function(
   do_renames_path = NULL,
   dta_paths = NULL
@@ -420,25 +531,53 @@ fb_load_microdata <- function(
     )
   }
 
-  ren <- fb_parse_renames(do_renames_path)
-  dfs <- list()
-  for (p in dta_paths) {
-    if (!file.exists(p)) {
-      next
-    }
-    df <- tryCatch(haven::read_dta(p), error = function(e) NULL)
-    if (is.null(df)) {
-      next
-    }
-    df <- as.data.frame(df)
-    df <- fb_apply_renames(df, ren)
-    df <- fb_normalise_weight(df)
-    dfs[[length(dfs) + 1]] <- df
+  # Check if haven is available
+  if (!requireNamespace("haven", quietly = TRUE)) {
+    message("Package 'haven' not available - cannot load .dta files")
+    return(NULL)
   }
+
+  # Parse renames from authoritative file
+  fb1_renames <- fb_parse_fb1_renames(do_renames_path)
+  fb2_renames <- fb_parse_fb2_renames(do_renames_path)
+
+  dfs <- list()
+
+  # Load FB1 (foodbook.dta)
+  if (length(dta_paths) >= 1 && file.exists(dta_paths[1])) {
+    fb1 <- tryCatch(haven::read_dta(dta_paths[1]), error = function(e) NULL)
+    if (!is.null(fb1)) {
+      fb1 <- as.data.frame(fb1)
+      # Apply FB1-specific renames
+      fb1 <- fb_apply_renames(fb1, fb1_renames)
+      fb1$fb_source <- "FB1"
+      dfs[[length(dfs) + 1]] <- fb1
+    }
+  }
+
+  # Load FB2 (foodbook2v2.dta)
+  if (length(dta_paths) >= 2 && file.exists(dta_paths[2])) {
+    fb2 <- tryCatch(haven::read_dta(dta_paths[2]), error = function(e) NULL)
+    if (!is.null(fb2)) {
+      fb2 <- as.data.frame(fb2)
+      # Apply FB2-specific renames
+      fb2 <- fb_apply_renames(fb2, fb2_renames)
+      fb2$fb_source <- "FB2"
+      dfs[[length(dfs) + 1]] <- fb2
+    }
+  }
+
   if (!length(dfs)) {
     return(NULL)
   }
-  suppressWarnings(dplyr::bind_rows(dfs))
+
+  # Combine datasets (append FB2 to FB1, as per authoritative workflow)
+  combined <- suppressWarnings(dplyr::bind_rows(dfs))
+
+  # Apply weight normalization (merges FB1 and FB2 weights)
+  combined <- fb_normalise_weight(combined)
+
+  combined
 }
 
 # PT code mapping used by OMD (Foodbook)
@@ -515,75 +654,88 @@ fb_normalize_pt_names <- function(pt_names) {
 }
 
 # Initialise and cache everything we need
+# Priority order (based on authoritative PHAC OMD workflow):
+#   1. Legacy .dta files from upgrade-context/ (most accurate, internal use)
+#   2. Open Canada FB2 CSV (public, newest)
+#   3. Open Canada FB1 CSV (public, fallback)
 fb_init <- function(lang = "en") {
   if (!is.null(fb_env$initialised) && isTRUE(fb_env$initialised)) {
     return(invisible(TRUE))
   }
 
   # =============================================================================
-  # PRIORITY 1: Try Open Canada FB2 (newest, largest, 21K respondents)
-  # =============================================================================
-  fb2_data <- fb_load_fb2_csv(lang = lang)
-  fb1_data <- NULL
-
-  if (!is.null(fb2_data)) {
-    message(
-      "Loaded Foodbook 2 microdata from Open Canada (",
-      nrow(fb2_data),
-      " respondents)"
-    )
-  } else {
-    message("Foodbook 2 data not found, trying Foodbook 1...")
-  }
-
-  # =============================================================================
-  # PRIORITY 2: Try Open Canada FB1 (fallback for FB1-only exposures)
-  # =============================================================================
-  fb1_data <- fb_load_fb1_csv(lang = lang)
-
-  if (!is.null(fb1_data)) {
-    message(
-      "Loaded Foodbook 1 microdata from Open Canada (",
-      nrow(fb1_data),
-      " respondents)"
-    )
-  }
-
-  # =============================================================================
-  # PRIORITY 3: Try legacy OMD microdata from upgrade-context/ (for internal use)
+  # PRIORITY 1: Try legacy OMD microdata from upgrade-context/ (authoritative)
+  # This is the data PHAC OMD uses for official analyses
   # =============================================================================
   legacy_data <- NULL
-  if (is.null(fb2_data) && is.null(fb1_data)) {
-    message("Open Canada data not found, trying legacy microdata...")
+  legacy_dta_path <- fb_get_base_path("upgrade-context/foodbook.dta")
+  legacy_dta2_path <- fb_get_base_path("upgrade-context/foodbook2v2.dta")
+
+  if (file.exists(legacy_dta_path) || file.exists(legacy_dta2_path)) {
+    message("Found legacy microdata in upgrade-context/, loading...")
     legacy_data <- fb_load_microdata()
     if (!is.null(legacy_data)) {
       message(
-        "Loaded legacy microdata from upgrade-context/ (",
+        "Loaded authoritative microdata from upgrade-context/ (",
         nrow(legacy_data),
         " respondents)"
       )
-      legacy_data$fb_source <- "Legacy"
     }
   }
 
   # =============================================================================
-  # Combine microdata: FB2 primary, FB1 supplementary (for unique exposures)
+  # PRIORITY 2: Try Open Canada FB2 (public, newest, 21K respondents)
   # =============================================================================
-  if (!is.null(fb2_data)) {
+  fb2_data <- NULL
+  fb1_data <- NULL
+
+  if (is.null(legacy_data)) {
+    message("Legacy microdata not found, trying Open Canada data...")
+    fb2_data <- fb_load_fb2_csv(lang = lang)
+
+    if (!is.null(fb2_data)) {
+      message(
+        "Loaded Foodbook 2 microdata from Open Canada (",
+        nrow(fb2_data),
+        " respondents)"
+      )
+    } else {
+      message("Foodbook 2 data not found, trying Foodbook 1...")
+    }
+
+    # =============================================================================
+    # PRIORITY 3: Try Open Canada FB1 (fallback for FB1-only exposures)
+    # =============================================================================
+    fb1_data <- fb_load_fb1_csv(lang = lang)
+
+    if (!is.null(fb1_data)) {
+      message(
+        "Loaded Foodbook 1 microdata from Open Canada (",
+        nrow(fb1_data),
+        " respondents)"
+      )
+    }
+  }
+
+  # =============================================================================
+  # Set primary microdata source
+  # =============================================================================
+  if (!is.null(legacy_data)) {
+    fb_env$micro <- legacy_data
+    fb_env$data_source <- "Legacy"
+    fb_env$micro_fb1 <- NULL # Legacy data already combines FB1+FB2
+  } else if (!is.null(fb2_data)) {
     fb_env$micro <- fb2_data
     fb_env$data_source <- "FB2"
   } else if (!is.null(fb1_data)) {
     fb_env$micro <- fb1_data
     fb_env$data_source <- "FB1"
-  } else if (!is.null(legacy_data)) {
-    fb_env$micro <- legacy_data
-    fb_env$data_source <- "Legacy"
   } else {
     fb_env$micro <- NULL
     fb_env$data_source <- NULL
   }
 
-  # Store supplementary FB1 data if FB2 is primary
+  # Store supplementary FB1 data if FB2 is primary (Open Canada mode only)
   if (!is.null(fb2_data) && !is.null(fb1_data)) {
     # Normalize FB1 column names for filtering compatibility
     if ("QINTRO3" %in% names(fb1_data) && !"PT" %in% names(fb1_data)) {
@@ -599,13 +751,16 @@ fb_init <- function(lang = "en") {
     }
 
     fb_env$micro_fb1 <- fb1_data
-  } else {
+  } else if (is.null(fb_env$micro_fb1)) {
     fb_env$micro_fb1 <- NULL
   }
 
   # =============================================================================
-  # Load bilingual label maps from Open Canada Stata label files
+  # Load label maps - PRIORITIZE authoritative legacy file
   # =============================================================================
+  legacy_label <- fb_get_base_path(
+    "upgrade-context/foodbook variable labeling.do"
+  )
   fb2_label_en <- fb_get_base_path(
     "data/open-canada/foodbook-2/foodbook-2.0-stata-label-code.txt"
   )
@@ -618,11 +773,27 @@ fb_init <- function(lang = "en") {
   fb1_label_fr <- fb_get_base_path(
     "data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-fr.do"
   )
-  legacy_label <- fb_get_base_path(
-    "upgrade-context/foodbook variable labeling.do"
-  )
 
-  # Load FB2 labels (bilingual)
+  # Load legacy labels FIRST (authoritative source from PHAC OMD)
+  # This file uses the renamed column names (celery, carrot, etc.)
+  if (file.exists(legacy_label)) {
+    fb_env$label_map_legacy <- fb_parse_label_map(legacy_label) |>
+      dplyr::mutate(
+        label_en = as.character(label),
+        label_fr = as.character(label) # English only in legacy file
+      )
+    message(
+      "Loaded authoritative labels from upgrade-context/foodbook variable labeling.do"
+    )
+  } else {
+    fb_env$label_map_legacy <- tibble::tibble(
+      code = character(),
+      label_en = character(),
+      label_fr = character()
+    )
+  }
+
+  # Load FB2 labels (bilingual) - fallback/supplement
   if (file.exists(fb2_label_en)) {
     fb_env$label_map_fb2 <- fb_parse_label_map_bilingual(
       fb2_label_en,
@@ -636,7 +807,7 @@ fb_init <- function(lang = "en") {
     )
   }
 
-  # Load FB1 labels (bilingual)
+  # Load FB1 labels (bilingual) - fallback/supplement
   if (file.exists(fb1_label_en)) {
     fb_env$label_map_fb1 <- fb_parse_label_map_bilingual(
       fb1_label_en,
@@ -650,23 +821,8 @@ fb_init <- function(lang = "en") {
     )
   }
 
-  # Load legacy labels (English only)
-  if (file.exists(legacy_label)) {
-    fb_env$label_map_legacy <- fb_parse_label_map(legacy_label) |>
-      dplyr::mutate(
-        label_en = as.character(label),
-        label_fr = as.character(label) # Fallback to English, explicit character type
-      )
-  } else {
-    fb_env$label_map_legacy <- tibble::tibble(
-      code = character(),
-      label_en = character(),
-      label_fr = character()
-    )
-  }
-
   # =============================================================================
-  # Create unified label map: FB2 priority, FB1 supplementary, legacy fallback
+  # Create unified label map: Legacy FIRST (authoritative), then FB2, then FB1
   # =============================================================================
 
   # Handle collisions: If FB1 has a code that is also in FB2 but with a different label,
@@ -751,11 +907,38 @@ fb_init <- function(lang = "en") {
   }
 
   fb_env$label_map <- dplyr::bind_rows(
-    fb_env$label_map_fb2,
-    fb_env$label_map_fb1,
-    fb_env$label_map_legacy
+    fb_env$label_map_legacy, # PRIORITY 1: Authoritative OMD labels
+    fb_env$label_map_fb2, # PRIORITY 2: Open Canada FB2 labels
+    fb_env$label_map_fb1 # PRIORITY 3: Open Canada FB1 labels
   ) |>
-    dplyr::distinct(code, .keep_all = TRUE) # Remove duplicates (should be none now for collisions)
+    dplyr::distinct(code, .keep_all = TRUE) # First occurrence wins (legacy takes priority)
+
+  # =============================================================================
+  # In LEGACY mode, remove duplicate labels from Open Canada maps
+  # Legacy labels use renamed codes (e.g., "anycheese"), Open Canada uses Q-codes
+  # Both refer to the same exposure, so we keep only the legacy version
+  # =============================================================================
+  if (fb_env$data_source == "Legacy" && nrow(fb_env$label_map_legacy) > 0) {
+    legacy_labels <- unique(trimws(fb_env$label_map_legacy$label_en))
+    # Remove Open Canada entries that have the same label as a legacy entry
+    fb_env$label_map <- fb_env$label_map |>
+      dplyr::filter(
+        # Keep if: label is from legacy (code in legacy codes) OR label is NOT a duplicate
+        code %in%
+          fb_env$label_map_legacy$code |
+          !trimws(label_en) %in% legacy_labels
+      )
+  }
+
+  # =============================================================================
+  # Apply label overrides for clarity
+  # =============================================================================
+  # "Carrots*" -> "Carrots (not mini)*" to distinguish from mini carrots
+  carrot_idx <- which(fb_env$label_map$code == "carrot")
+  if (length(carrot_idx) > 0) {
+    fb_env$label_map$label_en[carrot_idx] <- "Carrots (not mini)*"
+    fb_env$label_map$label_fr[carrot_idx] <- "Carottes (pas mini)*"
+  }
 
   # For backward compatibility with existing code that expects single "label" column
   if (lang == "fr") {
@@ -1067,6 +1250,14 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
         lm <- lm[keep_mask, ]
         label_col <- label_col[keep_mask]
       }
+    }
+
+    # Final deduplication: if same label appears for multiple codes, keep the first one.
+    # Since FB2 codes are listed before FB1 codes in the label_map, this prefers FB2.
+    dup_label_mask <- duplicated(label_col)
+    if (any(dup_label_mask)) {
+      lm <- lm[!dup_label_mask, ]
+      label_col <- label_col[!dup_label_mask]
     }
 
     return(stats::setNames(lm$code, label_col))
@@ -1410,11 +1601,73 @@ fb_reference_percents <- function(
     d_main <- fb_filter_dataset(fb_env$micro, pt_names, months, age_groups)
     d_supp <- fb_filter_dataset(fb_env$micro_fb1, pt_names, months, age_groups)
 
+    # Check if we're using legacy combined data (FB1+FB2 already merged with renames)
+    is_legacy_mode <- fb_env$data_source == "Legacy"
+
+    # Helper to check if code is FB1-only (not in FB2 microdata)
+    # Only relevant when NOT in legacy mode
+    fb2_cols <- if (!is.null(fb_env$micro)) names(fb_env$micro) else character()
+    fb1_codes <- if (!is.null(fb_env$label_map_fb1) && !is_legacy_mode) {
+      fb_env$label_map_fb1$code
+    } else {
+      character()
+    }
+    is_fb1_only <- function(fb_col) {
+      # In legacy mode, all data is in one dataset - no FB1-only logic needed
+      if (is_legacy_mode) {
+        return(FALSE)
+      }
+
+      # Check if column exists only in FB1 (not in FB2)
+      in_fb2 <- fb_col %in% fb2_cols || paste0(fb_col, "_dv") %in% fb2_cols
+      in_fb1 <- !is.null(d_supp) &&
+        (fb_col %in%
+          names(d_supp) ||
+          paste0(fb_col, "_dv") %in% names(d_supp) ||
+          paste0(fb_col, "_FB1") %in% names(d_supp))
+      return(!in_fb2 && in_fb1)
+    }
+
     # Calculate reference percentages for each code
     results <- vapply(
       fb_codes,
       function(fb_col) {
-        # 1. Try Primary Dataset (FB2)
+        # For FB1 exposures (Open Canada mode only), prefer CSV values (official published values)
+        # Skip this logic in legacy mode - calculate directly from microdata
+        if (!is_legacy_mode && (is_fb1_only(fb_col) || fb_col %in% fb1_codes)) {
+          # Map code -> English label (CSV uses English exposure names)
+          label_row <- fb_env$label_map[
+            fb_env$label_map$code == fb_col,
+            ,
+            drop = FALSE
+          ]
+          label_en <- if (nrow(label_row) && "label_en" %in% names(label_row)) {
+            label_row$label_en[[1]]
+          } else {
+            fb_col
+          }
+
+          # Append * for FB1-only exposures to align with CSV naming
+          if (is_fb1_only(fb_col)) {
+            label_en <- paste0(label_en, "*")
+          }
+
+          # Try CSV lookup with star, then without as a fallback
+          csv_result <- fb_reference_percents_csv(label_en, pt_names)
+          val <- csv_result[[1]]
+          if (is.na(val) && is_fb1_only(fb_col)) {
+            csv_result <- fb_reference_percents_csv(
+              label_row$label_en[[1]],
+              pt_names
+            )
+            val <- csv_result[[1]]
+          }
+          if (!is.na(val)) {
+            return(val)
+          }
+        }
+
+        # 1. Try Primary Dataset (FB2 or Legacy combined)
         if (!is.null(d_main)) {
           if (fb_col %in% names(d_main)) {
             return(fb_weighted_percent(fb_col, d_main))
