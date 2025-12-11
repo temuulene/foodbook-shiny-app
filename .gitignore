@@ -28,5 +28,8 @@ Rplots.pdf
 upgrade-context/*.dta
 upgrade-context/*.do
 
+# Archived data (no longer used)
+archive/open-canada/
+
 # Keep upgrade-context text files for reference
 !upgrade-context/*.txt

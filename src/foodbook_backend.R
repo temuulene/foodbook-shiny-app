@@ -654,288 +654,68 @@ fb_normalize_pt_names <- function(pt_names) {
 }
 
 # Initialise and cache everything we need
-# Priority order (based on authoritative PHAC OMD workflow):
-#   1. Legacy .dta files from upgrade-context/ (most accurate, internal use)
-#   2. Open Canada FB2 CSV (public, newest)
-#   3. Open Canada FB1 CSV (public, fallback)
+# ONLY uses authoritative PHAC OMD data from upgrade-context/
+# Open Canada data has been archived and removed from workflow
 fb_init <- function(lang = "en") {
   if (!is.null(fb_env$initialised) && isTRUE(fb_env$initialised)) {
     return(invisible(TRUE))
   }
 
   # =============================================================================
-  # PRIORITY 1: Try legacy OMD microdata from upgrade-context/ (authoritative)
-  # This is the data PHAC OMD uses for official analyses
+  # Load authoritative PHAC OMD microdata from upgrade-context/
   # =============================================================================
-  legacy_data <- NULL
   legacy_dta_path <- fb_get_base_path("upgrade-context/foodbook.dta")
   legacy_dta2_path <- fb_get_base_path("upgrade-context/foodbook2v2.dta")
 
-  if (file.exists(legacy_dta_path) || file.exists(legacy_dta2_path)) {
-    message("Found legacy microdata in upgrade-context/, loading...")
-    legacy_data <- fb_load_microdata()
-    if (!is.null(legacy_data)) {
-      message(
-        "Loaded authoritative microdata from upgrade-context/ (",
-        nrow(legacy_data),
-        " respondents)"
-      )
-    }
+  if (!file.exists(legacy_dta_path) && !file.exists(legacy_dta2_path)) {
+    stop(
+      "Authoritative microdata not found in upgrade-context/. ",
+      "Please ensure foodbook.dta and/or foodbook2v2.dta are present."
+    )
   }
 
-  # =============================================================================
-  # PRIORITY 2: Try Open Canada FB2 (public, newest, 21K respondents)
-  # =============================================================================
-  fb2_data <- NULL
-  fb1_data <- NULL
-
-  if (is.null(legacy_data)) {
-    message("Legacy microdata not found, trying Open Canada data...")
-    fb2_data <- fb_load_fb2_csv(lang = lang)
-
-    if (!is.null(fb2_data)) {
-      message(
-        "Loaded Foodbook 2 microdata from Open Canada (",
-        nrow(fb2_data),
-        " respondents)"
-      )
-    } else {
-      message("Foodbook 2 data not found, trying Foodbook 1...")
-    }
-
-    # =============================================================================
-    # PRIORITY 3: Try Open Canada FB1 (fallback for FB1-only exposures)
-    # =============================================================================
-    fb1_data <- fb_load_fb1_csv(lang = lang)
-
-    if (!is.null(fb1_data)) {
-      message(
-        "Loaded Foodbook 1 microdata from Open Canada (",
-        nrow(fb1_data),
-        " respondents)"
-      )
-    }
+  message("Loading authoritative microdata from upgrade-context/...")
+  fb_env$micro <- fb_load_microdata()
+  
+  if (is.null(fb_env$micro)) {
+    stop("Failed to load microdata from upgrade-context/")
   }
-
-  # =============================================================================
-  # Set primary microdata source
-  # =============================================================================
-  if (!is.null(legacy_data)) {
-    fb_env$micro <- legacy_data
-    fb_env$data_source <- "Legacy"
-    fb_env$micro_fb1 <- NULL # Legacy data already combines FB1+FB2
-  } else if (!is.null(fb2_data)) {
-    fb_env$micro <- fb2_data
-    fb_env$data_source <- "FB2"
-  } else if (!is.null(fb1_data)) {
-    fb_env$micro <- fb1_data
-    fb_env$data_source <- "FB1"
-  } else {
-    fb_env$micro <- NULL
-    fb_env$data_source <- NULL
-  }
-
-  # Store supplementary FB1 data if FB2 is primary (Open Canada mode only)
-  if (!is.null(fb2_data) && !is.null(fb1_data)) {
-    # Normalize FB1 column names for filtering compatibility
-    if ("QINTRO3" %in% names(fb1_data) && !"PT" %in% names(fb1_data)) {
-      fb1_data$PT <- fb1_data$QINTRO3
-    }
-    if ("month_dv" %in% names(fb1_data) && !"Month" %in% names(fb1_data)) {
-      fb1_data$Month <- fb1_data$month_dv
-    }
-    # Convert age_grp_dv (1-4) to AgeBand ("0-9", "10-19", "20-64", "65+")
-    if ("age_grp_dv" %in% names(fb1_data) && !"AgeBand" %in% names(fb1_data)) {
-      age_map <- c(`1` = "0-9", `2` = "10-19", `3` = "20-64", `4` = "65+")
-      fb1_data$AgeBand <- unname(age_map[as.character(fb1_data$age_grp_dv)])
-    }
-
-    fb_env$micro_fb1 <- fb1_data
-  } else if (is.null(fb_env$micro_fb1)) {
-    fb_env$micro_fb1 <- NULL
-  }
-
-  # =============================================================================
-  # Load label maps - PRIORITIZE authoritative legacy file
-  # =============================================================================
-  legacy_label <- fb_get_base_path(
-    "upgrade-context/foodbook variable labeling.do"
+  
+  message(
+    "Loaded authoritative microdata from upgrade-context/ (",
+    nrow(fb_env$micro),
+    " respondents)"
   )
-  fb2_label_en <- fb_get_base_path(
-    "data/open-canada/foodbook-2/foodbook-2.0-stata-label-code.txt"
-  )
-  fb2_label_fr <- fb_get_base_path(
-    "data/open-canada/foodbook-2/latlas-alimentaire-2.0-stata-code-des-etiquettes.txt"
-  )
-  fb1_label_en <- fb_get_base_path(
-    "data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-en.do"
-  )
-  fb1_label_fr <- fb_get_base_path(
-    "data/open-canada/foodbook-1/foodbook-stata-label-code-des-etiquettes-fr.do"
-  )
-
-  # Load legacy labels FIRST (authoritative source from PHAC OMD)
-  # This file uses the renamed column names (celery, carrot, etc.)
-  if (file.exists(legacy_label)) {
-    fb_env$label_map_legacy <- fb_parse_label_map(legacy_label) |>
-      dplyr::mutate(
-        label_en = as.character(label),
-        label_fr = as.character(label) # English only in legacy file
-      )
-    message(
-      "Loaded authoritative labels from upgrade-context/foodbook variable labeling.do"
-    )
-  } else {
-    fb_env$label_map_legacy <- tibble::tibble(
-      code = character(),
-      label_en = character(),
-      label_fr = character()
-    )
-  }
-
-  # Load FB2 labels (bilingual) - fallback/supplement
-  if (file.exists(fb2_label_en)) {
-    fb_env$label_map_fb2 <- fb_parse_label_map_bilingual(
-      fb2_label_en,
-      fb2_label_fr
-    )
-  } else {
-    fb_env$label_map_fb2 <- tibble::tibble(
-      code = character(),
-      label_en = character(),
-      label_fr = character()
-    )
-  }
-
-  # Load FB1 labels (bilingual) - fallback/supplement
-  if (file.exists(fb1_label_en)) {
-    fb_env$label_map_fb1 <- fb_parse_label_map_bilingual(
-      fb1_label_en,
-      fb1_label_fr
-    )
-  } else {
-    fb_env$label_map_fb1 <- tibble::tibble(
-      code = character(),
-      label_en = character(),
-      label_fr = character()
-    )
-  }
+  
+  fb_env$data_source <- "Legacy"
+  fb_env$micro_fb1 <- NULL  # Not used in legacy mode
 
   # =============================================================================
-  # Create unified label map: Legacy FIRST (authoritative), then FB2, then FB1
+  # Load authoritative labels from upgrade-context/
   # =============================================================================
+  legacy_label <- fb_get_base_path("upgrade-context/foodbook variable labeling.do")
 
-  # Handle collisions: If FB1 has a code that is also in FB2 but with a different label,
-  # rename the FB1 code to code_FB1 to preserve it.
-  if (
-    !is.null(fb_env$label_map_fb2) &&
-      nrow(fb_env$label_map_fb2) > 0 &&
-      !is.null(fb_env$label_map_fb1) &&
-      nrow(fb_env$label_map_fb1) > 0
-  ) {
-    fb2_codes <- fb_env$label_map_fb2$code
-
-    # Identify collisions
-    collisions <- fb_env$label_map_fb1 |>
-      dplyr::filter(code %in% fb2_codes)
-
-    if (nrow(collisions) > 0) {
-      # For each collision, check if labels are significantly different
-      # (Simple check: if not identical)
-      # Actually, we should just rename all collisions to be safe and let user decide,
-      # or only if they are different.
-      # Let's rename all collisions to _FB1 to allow access to the old variable.
-
-      colliding_codes <- collisions$code
-
-      # Rename in label map (keep labels unchanged, * will indicate FB1)
-      fb_env$label_map_fb1 <- fb_env$label_map_fb1 |>
-        dplyr::mutate(
-          code = ifelse(code %in% colliding_codes, paste0(code, "_FB1"), code)
-        )
-
-      # Rename in microdata
-      if (!is.null(fb_env$micro_fb1)) {
-        # Check which colliding codes are actually in the microdata
-        cols_to_rename <- intersect(names(fb_env$micro_fb1), colliding_codes)
-        if (length(cols_to_rename) > 0) {
-          # dplyr::rename takes new_name = old_name
-          new_names <- paste0(cols_to_rename, "_FB1")
-          rename_vec <- stats::setNames(cols_to_rename, new_names)
-          fb_env$micro_fb1 <- dplyr::rename(fb_env$micro_fb1, !!!rename_vec)
-        }
-      }
-    }
+  if (!file.exists(legacy_label)) {
+    stop(
+      "Authoritative label file not found: ",
+      "upgrade-context/foodbook variable labeling.do"
+    )
   }
 
-  # Construct missing FB1 derived variables (DQ2_dv, DQ6_dv)
-  if (!is.null(fb_env$micro_fb1)) {
-    # Helper for FB1 construction
-    get_val_fb1 <- function(col) {
-      # Handle potential _FB1 suffix if renamed
-      if (!col %in% names(fb_env$micro_fb1)) {
-        col_fb1 <- paste0(col, "_FB1")
-        if (col_fb1 %in% names(fb_env$micro_fb1)) col <- col_fb1
-      }
-      if (col %in% names(fb_env$micro_fb1)) {
-        v <- suppressWarnings(as.numeric(fb_env$micro_fb1[[col]]))
-        return(ifelse(is.na(v), 2, v)) # Treat NA as No
-      }
-      return(rep(2, nrow(fb_env$micro_fb1))) # Default to No if missing
-    }
-
-    # DQ2_dv: Any carrots (Q20 + Q21)
-    if (!"DQ2_dv" %in% names(fb_env$micro_fb1)) {
-      v20 <- get_val_fb1("Q20")
-      v21 <- get_val_fb1("Q21")
-      fb_env$micro_fb1$DQ2_dv <- ifelse(v20 == 1 | v21 == 1, 1, 2)
-    }
-
-    # DQ6_dv: Any berries (Q_58 + Q_59 + Q_60 + Q_61 + QN1_A)
-    if (!"DQ6_dv" %in% names(fb_env$micro_fb1)) {
-      v58 <- get_val_fb1("Q_58")
-      v59 <- get_val_fb1("Q_59")
-      v60 <- get_val_fb1("Q_60")
-      v61 <- get_val_fb1("Q_61")
-      vn1a <- get_val_fb1("QN1_A")
-      fb_env$micro_fb1$DQ6_dv <- ifelse(
-        v58 == 1 | v59 == 1 | v60 == 1 | v61 == 1 | vn1a == 1,
-        1,
-        2
-      )
-    }
-  }
-
-  fb_env$label_map <- dplyr::bind_rows(
-    fb_env$label_map_legacy, # PRIORITY 1: Authoritative OMD labels
-    fb_env$label_map_fb2, # PRIORITY 2: Open Canada FB2 labels
-    fb_env$label_map_fb1 # PRIORITY 3: Open Canada FB1 labels
-  ) |>
-    dplyr::distinct(code, .keep_all = TRUE) # First occurrence wins (legacy takes priority)
+  fb_env$label_map <- fb_parse_label_map(legacy_label) |>
+    dplyr::mutate(
+      label_en = as.character(label),
+      label_fr = as.character(label)  # English only in legacy file
+    )
+  message("Loaded authoritative labels from upgrade-context/foodbook variable labeling.do")
 
   # =============================================================================
-  # In LEGACY mode, remove duplicate labels from Open Canada maps
-  # Legacy labels use renamed codes (e.g., "anycheese"), Open Canada uses Q-codes
-  # Both refer to the same exposure, so we keep only the legacy version
-  # =============================================================================
-  if (fb_env$data_source == "Legacy" && nrow(fb_env$label_map_legacy) > 0) {
-    legacy_labels <- unique(trimws(fb_env$label_map_legacy$label_en))
-    # Remove Open Canada entries that have the same label as a legacy entry
-    fb_env$label_map <- fb_env$label_map |>
-      dplyr::filter(
-        # Keep if: label is from legacy (code in legacy codes) OR label is NOT a duplicate
-        code %in%
-          fb_env$label_map_legacy$code |
-          !trimws(label_en) %in% legacy_labels
-      )
-  }
-
-  # =============================================================================
-  # Apply label overrides for clarity
+  # Apply label overrides for clarity (preserve asterisk if present)
   # =============================================================================
   # "Carrots*" -> "Carrots (not mini)*" to distinguish from mini carrots
   carrot_idx <- which(fb_env$label_map$code == "carrot")
   if (length(carrot_idx) > 0) {
+    fb_env$label_map$label[carrot_idx] <- "Carrots (not mini)*"
     fb_env$label_map$label_en[carrot_idx] <- "Carrots (not mini)*"
     fb_env$label_map$label_fr[carrot_idx] <- "Carottes (pas mini)*"
   }
@@ -950,129 +730,57 @@ fb_init <- function(lang = "en") {
   # =============================================================================
   # Determine exposure columns present in microdata
   # =============================================================================
-  if (!is.null(fb_env$micro)) {
-    # Get codes from primary microdata (FB2)
-    primary_codes <- fb_env$label_map$code[
-      fb_env$label_map$code %in% names(fb_env$micro)
-    ]
+  fb_env$exposure_codes <- fb_env$label_map$code[
+    fb_env$label_map$code %in% names(fb_env$micro)
+  ]
 
-    # Get codes from supplementary microdata (FB1) if available
-    supp_codes <- character()
-    if (!is.null(fb_env$micro_fb1)) {
-      supp_codes <- fb_env$label_map$code[
-        fb_env$label_map$code %in% names(fb_env$micro_fb1)
-      ]
-    }
-
-    # Combine unique codes
-    fb_env$exposure_codes <- unique(c(primary_codes, supp_codes))
-
-    # Filter label map to only exposures available in ANY microdata
-    fb_env$label_map <- fb_env$label_map |>
-      dplyr::filter(code %in% fb_env$exposure_codes)
-  } else {
-    fb_env$exposure_codes <- character()
-  }
+  # Filter label map to only exposures available in microdata
+  fb_env$label_map <- fb_env$label_map |>
+    dplyr::filter(code %in% fb_env$exposure_codes)
 
   # =============================================================================
   # Normalize column names for consistency
   # =============================================================================
-  if (!is.null(fb_env$micro)) {
-    # Normalize PT column (FB1 uses QINTRO3, FB2 uses PT)
-    if ("QINTRO3" %in% names(fb_env$micro) && !"PT" %in% names(fb_env$micro)) {
-      fb_env$micro$PT <- fb_env$micro$QINTRO3
-    }
+  # Normalize PT column
+  if ("QINTRO3" %in% names(fb_env$micro) && !"PT" %in% names(fb_env$micro)) {
+    fb_env$micro$PT <- fb_env$micro$QINTRO3
+  }
 
-    # Normalize Month column (various names)
-    if (
-      "month_dv" %in% names(fb_env$micro) && !"Month" %in% names(fb_env$micro)
-    ) {
-      fb_env$micro$Month <- fb_env$micro$month_dv
-    }
+  # Normalize Month column
+  if ("month_dv" %in% names(fb_env$micro) && !"Month" %in% names(fb_env$micro)) {
+    fb_env$micro$Month <- fb_env$micro$month_dv
+  }
 
-    # Normalize Age_group column (FB1 uses age_grp_dv, FB2 uses Age_grp_dv)
-    if (
-      "age_grp_dv" %in%
-        names(fb_env$micro) &&
-        !"Age_group" %in% names(fb_env$micro)
-    ) {
-      fb_env$micro$Age_group <- fb_env$micro$age_grp_dv
-    }
-    if (
-      "Age_grp_dv" %in%
-        names(fb_env$micro) &&
-        !"Age_group" %in% names(fb_env$micro)
-    ) {
-      fb_env$micro$Age_group <- fb_env$micro$Age_grp_dv
-    }
-
-    # Keep only the useful columns for filtering
-    keep_cols <- unique(c(
-      "PT",
-      "Month",
-      "Age_group",
-      "Gender",
-      "age",
-      "sex",
-      "weight",
-      "fb_source",
-      fb_env$exposure_codes
-    ))
-
-    # Ensure berries_dv is kept if it exists in FB2
-    if ("berries_dv" %in% names(fb_env$micro)) {
-      keep_cols <- c(keep_cols, "berries_dv")
-      if (!"berries_dv" %in% fb_env$exposure_codes) {
-        fb_env$exposure_codes <- c(fb_env$exposure_codes, "berries_dv")
-      }
-
-      # Add to label map if missing
-      if (!"berries_dv" %in% fb_env$label_map$code) {
-        new_row <- tibble::tibble(
-          code = "berries_dv",
-          label_en = "Any berries",
-          label_fr = "Toutes les baies", # Approximate translation
-          label = if (lang == "fr") "Toutes les baies" else "Any berries"
-        )
-        fb_env$label_map <- dplyr::bind_rows(fb_env$label_map, new_row)
-      }
-    }
-
-    fb_env$micro <- fb_env$micro[,
-      intersect(keep_cols, names(fb_env$micro)),
-      drop = FALSE
-    ]
+  # Normalize Age_group column
+  if ("age_grp_dv" %in% names(fb_env$micro) && !"Age_group" %in% names(fb_env$micro)) {
+    fb_env$micro$Age_group <- fb_env$micro$age_grp_dv
+  }
+  if ("Age_grp_dv" %in% names(fb_env$micro) && !"Age_group" %in% names(fb_env$micro)) {
+    fb_env$micro$Age_group <- fb_env$micro$Age_grp_dv
   }
 
   # =============================================================================
   # Construct AgeBand for filtering
   # =============================================================================
-  if (!is.null(fb_env$micro) && "Age_group" %in% names(fb_env$micro)) {
+  if ("Age_group" %in% names(fb_env$micro)) {
     ag <- suppressWarnings(as.integer(fb_env$micro$Age_group))
-    # Open Canada age groups: 1-10 map to our 4 bands
+    # Age groups: 1-10 map to our 4 bands
     # 1-2 (0-9), 3-4 (10-19), 5-8 (20-64), 9-10 (65+)
     age_map <- c(
-      `1` = "0-9",
-      `2` = "0-9",
-      `3` = "10-19",
-      `4` = "10-19",
-      `5` = "20-64",
-      `6` = "20-64",
-      `7` = "20-64",
-      `8` = "20-64",
-      `9` = "65+",
-      `10` = "65+"
+      `1` = "0-9", `2` = "0-9",
+      `3` = "10-19", `4` = "10-19",
+      `5` = "20-64", `6` = "20-64", `7` = "20-64", `8` = "20-64",
+      `9` = "65+", `10` = "65+"
     )
     fb_env$micro$AgeBand <- unname(age_map[as.character(ag)])
-  } else if (!is.null(fb_env$micro) && "age" %in% names(fb_env$micro)) {
+  } else if ("age" %in% names(fb_env$micro)) {
     a <- suppressWarnings(as.numeric(fb_env$micro$age))
     fb_env$micro$AgeBand <- cut(
       a,
       breaks = c(-Inf, 9, 19, 64, Inf),
       labels = c("0-9", "10-19", "20-64", "65+"),
       right = TRUE
-    ) |>
-      as.character()
+    ) |> as.character()
   }
 
   fb_env$pt_map <- fb_pt_map()
@@ -1163,7 +871,8 @@ fb_public_exposure_exclusion_codes <- function() {
 
 fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
   fb_init(lang = lang)
-  # If microdata + labels available, return label->code; else fall back to CSV Exposure labels
+  
+  # If microdata + labels available, return label->code
   if (!is.null(fb_env$micro) && nrow(fb_env$label_map)) {
     lm <- fb_env$label_map
 
@@ -1176,55 +885,6 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
       label_col <- lm$label
     }
 
-    # Filter out unwanted variables (hunting/game questions and non-food FB1 vars)
-    # Exclude:
-    # - Hunting/game: Q60-Q66
-    # - FB1 non-food: BQ*, AQ*, QINTRO*, uniqueid, weight
-    # - FB1 food safety: Q141-Q146
-    # - FB1 general Q140_FS (but keep Q140_FSA etc. as they are food)
-
-    # - FB1 non-food: BQ*, AQ*, QINTRO*, uniqueid, weight
-    # - FB1 food safety: Q141-Q146
-    # - FB1 general Q140_FS (but keep Q140_FSA etc. as they are food)
-    # - Q21_FB1 (Mini carrots) is redundant with FB2 Q10 (Mini/baby carrots)
-
-    unwanted_pattern <- "^(Q6[0-6]|BQ|AQ|QINTRO|uniqueid|weight|Q14[1-6]|Q140_FS$|Q21_FB1$)"
-    keep_mask <- !grepl(unwanted_pattern, lm$code)
-
-    lm <- lm[keep_mask, ]
-    label_col <- label_col[keep_mask]
-
-    # Deduplicate by label: If an FB1 exposure has the same label
-    # as an FB2 exposure, remove the FB1 version (prefer FB2).
-
-    if (!is.null(fb_env$micro) && !is.null(fb_env$micro_fb1)) {
-      fb2_codes <- names(fb_env$micro)
-
-      # Get labels for FB2 vars (before adding any asterisks)
-      fb2_mask <- lm$code %in% fb2_codes
-      fb2_labels <- unique(label_col[fb2_mask])
-
-      # Identify FB1 vars that are NOT in FB2 (candidates for *)
-      fb1_only_mask <- !lm$code %in% fb2_codes
-
-      # Among these FB1-only vars, check if their label exists in FB2_labels
-      # If so, it's a "cross-version duplicate" (same name, different code) -> Hide it
-      duplicate_label_mask <- fb1_only_mask & (label_col %in% fb2_labels)
-
-      # Remove these duplicates from the list
-      if (any(duplicate_label_mask)) {
-        lm <- lm[!duplicate_label_mask, ]
-        label_col <- label_col[!duplicate_label_mask]
-        # Re-calculate mask after dropping rows
-        fb1_only_mask <- !lm$code %in% fb2_codes
-      }
-
-      # Now add * to the remaining FB1-only vars
-      if (any(fb1_only_mask)) {
-        label_col[fb1_only_mask] <- paste0(label_col[fb1_only_mask], "*")
-      }
-    }
-
     # Normalize English labels for display
     if (lang != "fr") {
       label_col <- fb_normalize_en_label(label_col)
@@ -1232,7 +892,7 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
 
     # Apply public app exclusions (label based)
     if (isTRUE(apply_public_exclusions)) {
-      # First drop by code (safer for dup labels across FB1/FB2)
+      # First drop by code
       code_exclusions <- fb_public_exposure_exclusion_codes()
       if (length(code_exclusions)) {
         keep_mask <- !lm$code %in% code_exclusions
@@ -1240,9 +900,8 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
         label_col <- label_col[keep_mask]
       }
 
-      # Then drop by label (for legacy exclusions). Allow starred entries except pate/meat spread* which is handled by code.
+      # Then drop by label
       exclusions <- fb_public_exposure_exclusions()
-      exclusions <- setdiff(exclusions, "Pate/meat spread*")
       if (length(exclusions)) {
         norm_labels <- fb_normalize_label_for_match(label_col)
         norm_exclusions <- fb_normalize_label_for_match(exclusions)
@@ -1252,8 +911,7 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
       }
     }
 
-    # Final deduplication: if same label appears for multiple codes, keep the first one.
-    # Since FB2 codes are listed before FB1 codes in the label_map, this prefers FB2.
+    # Final deduplication: if same label appears for multiple codes, keep the first one
     dup_label_mask <- duplicated(label_col)
     if (any(dup_label_mask)) {
       lm <- lm[!dup_label_mask, ]
@@ -1262,21 +920,9 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
 
     return(stats::setNames(lm$code, label_col))
   }
-  # Fallback: read from legacy CSV
-  if (file.exists("data/foodbook_data.csv")) {
-    df <- tryCatch(
-      read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE),
-      error = function(e) NULL
-    )
-    if (
-      !is.null(df) &&
-        all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))
-    ) {
-      exps <- sort(unique(fb_normalize_en_label(df$Exposure)))
-      return(stats::setNames(exps, exps))
-    }
-  }
-  character()
+  
+  # No fallback - require authoritative data
+  stop("Authoritative microdata required. Please ensure upgrade-context/ data is available.")
 }
 
 # Get bilingual exposure labels as data frame
