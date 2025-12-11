@@ -980,6 +980,11 @@ fb_exposure_choices_all <- function(lang = "en") {
       fb_env$label_map_legacy
     } else {
       tibble::tibble()
+    },
+    if (!is.null(fb_env$label_map)) {
+      fb_env$label_map
+    } else {
+      tibble::tibble()
     }
   ) |>
     dplyr::distinct(code, .keep_all = TRUE)
