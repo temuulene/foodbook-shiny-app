@@ -25,8 +25,7 @@ Rplots.pdf
 .claude/
 
 # Sensitive data - legacy microdata (internal use only)
-upgrade-context/*.dta
-upgrade-context/*.do
+upgrade-context/*
 
 # Archived data (no longer used)
 archive/open-canada/
