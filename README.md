@@ -2,29 +2,18 @@
 
 **Disponible en francais** | **Available in English**
 
-Interactive Shiny apps to compare observed case exposures against Foodbook reference percentages from the Canadian Foodbook survey.
+Interactive Shiny app to compare observed case exposures against Foodbook reference percentages from publicly available Foodbook 1 and Foodbook 2 data.
 
-## Apps
+## Run the app
 
--   `app-public`: Manual entry or CSV upload for partners outside PHAC.
--   `app-internal`: CEDARS Excel upload workflow for internal teams.
-
-Run from the repo root:
+From the repo root:
 ```r
 shiny::runApp("app-public")
-shiny::runApp("app-internal")
 ```
 
-## Data sources
+## Data
 
--   **Preferred (internal)**: Place Foodbook microdata and Stata label files in `upgrade-context/`:
-    -   `foodbook.dta` (FB1), `foodbook2v2.dta` (FB2), `foodbook data.do`, `foodbook variable labeling.do`
--   **Open Canada PUMF (fallback)**: Copy published CSVs into:
-    -   `data/open-canada/foodbook-1/foodbook-pumf-fmgd-part-partie-1-en.csv` (and part 2/3, use `-fr` variants for French)
-    -   `data/open-canada/foodbook-2/foodbook-2.0-public-use-microdata-file-2023.csv` (or the French file name)
--   **Legacy CSV (last resort)**: `data/foodbook_data.csv` ships in the repo and is used when no microdata are present.
-
-The backend automatically prefers internal microdata, then Open Canada CSVs, then the legacy CSV.
+Uses publicly available Foodbook 1 and Foodbook 2 data, with the backend preferring richer microdata when present and falling back to bundled reference data as needed.
 
 ## Testing
 
