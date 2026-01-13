@@ -61,6 +61,8 @@ replace label = "Fresh garlic*" if exposure == "garlic"
 replace label = "Zucchini*" if exposure == "zucchini"
 replace label = "Vegetable juice*" if exposure == "vegjuice"
 replace label = "Frozen vegetables*" if exposure == "vegez"
+replace label = "Hothouse tomatoes*" if exposure == "tomhot"
+replace label = "Tomatoes on a sandwich, burger or taco at restaurant or fast food establishment*" if exposure == "fb1_tomatoesonasandwichburgerortacoatrestaurantorfastfoodestablishment"
 
 *Fruits in FB 2
 replace label = "Mangos" if exposure == "mango"
@@ -394,7 +396,7 @@ replace label =  "Petting zoo*" if exposure == "pettingzoo"
 replace label =  "Contact with any amphibian (e.g. frogs, newts or salamanders)*" if exposure == "amphi"
 replace label =  "Contact with any fish or aquarium*" if exposure == "aquari"
 replace label =  "Contact with any horse*" if exposure == "horse"
-replace label =  "Handle any canned/wet pet food*" if exposure == "animfdwet"
+replace label =  "Handle any canned/wet pet food*" if exposure == "animfdcan"
 replace label =  "Handle any farm animal/livestock feed*" if exposure == "livestockfd"
 
 *Water questions FB 2

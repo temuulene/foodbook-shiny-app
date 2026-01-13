@@ -526,6 +526,8 @@ ui <- function(request) {
               "Filter the reference population by month(s) to account for seasonal variation."
             )
           ),
+          # Over-analysis warning
+          uiOutput("overanalysis_warning_ui"),
           hr(),
           accordion(
             accordion_panel(
@@ -552,6 +554,7 @@ ui <- function(request) {
         card(
           card_header(translator$t("Exposure Data Input")),
           card_body(
+            uiOutput("category_filter_ui"),
             helpText(translator$t(
               "Enter case counts for each exposure in each selected location."
             )),
@@ -585,6 +588,26 @@ ui <- function(request) {
               uiOutput("download_plot_button_ui")
             ),
             uiOutput("plot_container")
+          )
+        )
+      )
+    ),
+
+    # Reference Data Tab
+    nav_panel(
+      translator$t("Reference Data"),
+      icon = icon("table"),
+      card(
+        card_header(translator$t("Reference Values")),
+        card_body(
+          withSpinner(
+            DTOutput("sys_ref_table"),
+            type = 4,
+            color = "#0f4c81"
+          ),
+          helpText(
+            translator$t("* Exposures from Foodbook 1 only"),
+            style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;"
           )
         )
       )
@@ -662,6 +685,21 @@ server <- function(input, output, session) {
   # Flag for CSV population (defined early to avoid reference before definition)
   csv_needs_population <- reactiveVal(FALSE)
 
+  # Load toolkit data on startup
+  fb_load_toolkit_data()
+
+  # Render Category Filter
+  output$category_filter_ui <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
+    tr$set_translation_language(lang)
+    
+    cats <- c(tr$t("All Categories"), fb_exposure_categories(lang))
+    selectInput("category_filter", tr$t("Filter Category"), choices = cats)
+  })
+
   # Render sidebar title with current language
   output$sidebar_analysis_title <- renderUI({
     lang <- current_lang()
@@ -671,6 +709,24 @@ server <- function(input, output, session) {
     )
     tr$set_translation_language(lang)
     tags$div(class = "title", tr$t("Analysis Parameters"))
+  })
+
+  # Render over-analysis warning
+  output$overanalysis_warning_ui <- renderUI({
+    lang <- current_lang()
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
+    tr$set_translation_language(lang)
+    div(
+      class = "alert alert-warning",
+      style = "font-size: 0.85rem; padding: 0.75rem; margin-top: 0.5rem;",
+      icon("exclamation-triangle"),
+      " ",
+      tags$strong(tr$t("Data Quality Warning")),
+      tags$br(),
+      tr$t("Please be careful not to overanalyse the data. Limiting the data to a small subset of respondents (for example, respondents ages 0-9 from PEI in March) can result in small sample sizes and make the data less reliable. This is especially important for exposures that are rare within the population.")
+    )
   })
 
   # Render XLSX file input
@@ -731,8 +787,12 @@ server <- function(input, output, session) {
     )
     tr$set_translation_language(lang)
 
+    # Get category filter
+    cat_filter <- input$category_filter
+    real_cat <- if (!is.null(cat_filter) && cat_filter != tr$t("All Categories")) cat_filter else NULL
+
     all_exposures <- tryCatch(
-      as.list(fb_exposure_choices(lang, apply_public_exclusions = TRUE)),
+      fb_toolkit_exposure_choices(lang, category = real_cat),
       error = function(e) {
         warning("Unable to load exposure choices: ", e$message)
         showNotification(
@@ -1152,12 +1212,107 @@ server <- function(input, output, session) {
     }
 
     exposure_codes <- input$exposure_select
-    fb_reference_percents(
-      exposure_codes,
-      pt_names = pts,
-      months = months,
-      age_groups = ages
+    
+    # Hybrid Approach:
+    # 1. Try to get weighted values from microdata (supports Age/Month filtering)
+    # 2. Fill in gaps (NAs) with static Toolkit values (Table 6 match)
+    
+    # Step 1: Microdata
+    res <- tryCatch(
+      fb_reference_percents(
+        exposure_codes,
+        pt_names = pts,
+        months = months,
+        age_groups = ages
+      ),
+      error = function(e) {
+        structure(rep(NA_real_, length(exposure_codes)), names = exposure_codes)
+      }
     )
+    
+    # Step 2: Fallback to Toolkit (if simple filters)
+    # Only fallback if NO Age/Month filters are active (Toolkit is static Total Population)
+    if (is.null(ages) && is.null(months)) {
+      
+      # Determine PT to use for Toolkit lookup
+      # Toolkit supports Single PT or Canada.
+      # If multiple PTs selected, we can't use static Toolkit table easily (would need weighted average)
+      # So only fallback if "Canada" or Single PT selected.
+      
+      pt_to_use <- NULL
+      if ("Canada" %in% pts || length(pts) > 1) {
+         # If Canada is in list, or multiple PTs selected -> default to Canada level fallback?
+         # Actually, Toolkit behaviour: Select 1 PT.
+         # App behaviour: Select multiple.
+         # If user selects multiple PTs and a var is missing from microdata, we probably can't give a good ref value.
+         # But if user selects "Canada" (default), we definitely can.
+         if ("Canada" %in% pts) pt_to_use <- "Canada"
+      } else if (length(pts) == 1) {
+         pt_to_use <- pts
+      }
+      
+      if (!is.null(pt_to_use)) {
+        # Check for missing values
+        for (code in exposure_codes) {
+          # If missing in microdata result or NA
+          val <- if (code %in% names(res)) res[[code]] else NA_real_
+          
+          if (is.na(val)) {
+            # Try Toolkit
+            tk_val <- fb_toolkit_reference_percent(code, pt_to_use)
+            if (!is.na(tk_val)) {
+              if (code %in% names(res)) {
+                 res[[code]] <- tk_val
+              } else {
+                 # Should replace in vector, but res might be named vector
+                 # Reconstruct res to ensure all codes present
+                 # Actually fb_reference_percents returns vector with names matching input? 
+                 # Usually yes. But let's be safe.
+                 # If code was not returned by microdata function, it's problematic for current UI which iterates input$exposure_select
+                 # But UI uses input$exposure_select to index the result?
+                 # No, exposure_module uses numeric index or name?
+                 # Let's assign to res by name.
+                 res[code] <- tk_val
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    res
+  })
+
+  # Cache reference sample size for small sample suppression
+  cached_ref_sample_size <- reactive({
+    pts <- input$province
+    if (translator$t("Canada") %in% pts) {
+      pts <- "Canada"
+    }
+
+    # Map French PT names back to English for backend
+    lang <- current_lang()
+    if (lang == "fr" && !translator$t("Canada") %in% pts) {
+      en_pt_names <- fb_pt_names("en")
+      fr_pt_names <- fb_pt_names("fr")
+      pt_map <- stats::setNames(en_pt_names, fr_pt_names)
+      pts <- sapply(pts, function(pt) {
+        if (pt %in% names(pt_map)) pt_map[pt] else pt
+      })
+    }
+
+    ages <- if (translator$t("All Ages") %in% input$age_group) {
+      NULL
+    } else {
+      input$age_group
+    }
+    months <- if (translator$t("All Months") %in% input$month) {
+      NULL
+    } else {
+      as.integer(input$month)
+    }
+
+    fb_reference_sample_size(pt_names = pts, months = months, age_groups = ages)
   })
 
   # Generate exposure module UIs and instantiate servers
@@ -1433,8 +1588,24 @@ server <- function(input, output, session) {
       ))
     }
 
-    # Otherwise, render the table
-    DTOutput("results_table", width = "100%")
+    # Check if reference sample size is very small (≤5)
+    ref_sample_size <- cached_ref_sample_size()
+    small_sample_warning <- NULL
+    if (!is.null(ref_sample_size) && ref_sample_size <= 5) {
+      small_sample_warning <- div(
+        class = "alert alert-danger",
+        style = "margin-bottom: 1rem;",
+        icon("exclamation-circle"),
+        " ",
+        tr$t("* A reliable estimate cannot be displayed due to small sample size.")
+      )
+    }
+
+    # Otherwise, render the table with optional warning
+    tagList(
+      small_sample_warning,
+      DTOutput("results_table", width = "100%")
+    )
   })
 
   # Render results table
@@ -2110,6 +2281,57 @@ server <- function(input, output, session) {
         axis.text = element_text(size = 13),
         axis.text.x = element_text(angle = 45, hjust = 1)
       )
+  })
+  output$sys_ref_table <- renderDT({
+    lang <- current_lang()
+    tr <- Translator$new(
+      translation_json_path = "../translations/translation.json"
+    )
+    tr$set_translation_language(lang)
+    
+    if (is.null(fb_env$toolkit_proportions) || is.null(fb_env$toolkit_exposures)) {
+      fb_load_toolkit_data()
+    }
+    
+    df <- fb_env$toolkit_proportions
+    exposures <- fb_env$toolkit_exposures
+    
+    if (is.null(df) || is.null(exposures)) return(NULL)
+    
+    # Merge label and category based on language
+    label_col <- if (lang == "fr") "exposure_fr" else "exposure_en"
+    cat_col <- if (lang == "fr") "category_fr" else "category_en"
+    
+    # Create display table
+    # Join proportions with exposure info
+    display_df <- df |>
+      dplyr::left_join(exposures, by = "exposure_number", suffix = c("", "_meta")) |>
+      dplyr::select(
+        !!cat_col, 
+        !!label_col,
+        variable_name,
+        Canada, BC, AB, SK, MB, ON, QC, NB, NS, PE, NL, YT, NT, NU
+      )
+      
+    # Rename columns for display
+    colnames(display_df)[1:3] <- c(
+      tr$t("Category"), 
+      tr$t("Exposure"), 
+      "Variable ID"
+    )
+    
+    datatable(
+      display_df,
+      rownames = FALSE,
+      options = list(
+        pageLength = 25,
+        scrollX = TRUE,
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel')
+      ),
+      filter = 'top'
+    ) |>
+      formatRound(columns = 4:17, digits = 1) 
   })
 }
 

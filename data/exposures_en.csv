@@ -1,0 +1,359 @@
+"variable_name","exposure_number","category","exposure","is_foodbook1_only"
+"anytom",3,"VEGETABLES","Any tomatoes",FALSE
+"tomcherry",4,"VEGETABLES","Cherry or grape tomatoes",FALSE
+"fb1_tomatoesonasandwichburgerortacoatrestaurantorfastfoodestablishment",5,"VEGETABLES","Tomatoes on a sandwich, burger or taco at restaurant or fast food establishment*",TRUE
+"tomroma",6,"VEGETABLES","Roma/plum tomatoes*",TRUE
+"tomhot",7,"VEGETABLES","Hothouse tomatoes*",TRUE
+"tombeef",8,"VEGETABLES","Beefsteak tomatoes*",TRUE
+"anylg",9,"VEGETABLES","Any lettuce or leafy greens",FALSE
+"iceberg",10,"VEGETABLES","Iceberg lettuce",FALSE
+"romaine",11,"VEGETABLES","Romaine lettuce",FALSE
+"spinach",12,"VEGETABLES","Spinach",FALSE
+"mesclun",13,"VEGETABLES","Mesclun greens",FALSE
+"kale",14,"VEGETABLES","Kale",FALSE
+"arugula",15,"VEGETABLES","Arugula",FALSE
+"otherlg",16,"VEGETABLES","Other leafy greens",FALSE
+"fb1_lettuceorleafygreensonasandwichburgerortacoatrestaurantorfastfoodestablishment",17,"VEGETABLES","Lettuce or leafy greens on a sandwich, burger or taco at restaurant or fast  food establishment*",TRUE
+"prepacklg",18,"VEGETABLES","Pre-packaged lettuce or leafy greens",FALSE
+"prepacksalad",19,"VEGETABLES","Commercially pre-packaged salad kits",FALSE
+"rtegreensal",20,"VEGETABLES","Any store-bought or ready to eat green salad",FALSE
+"cabbage",21,"VEGETABLES","Cabbage (includes coleslaw)",FALSE
+"coleslaw",22,"VEGETABLES","Any coleslaw",FALSE
+"sprout",23,"VEGETABLES","Any microgreens or sprouts",FALSE
+"alfalfa",24,"VEGETABLES","Microgreens",FALSE
+"beansprouts",25,"VEGETABLES","Alfalfa sprouts",FALSE
+"microgreen",26,"VEGETABLES","Bean sprouts",FALSE
+"osprout",27,"VEGETABLES","Other sprouts",FALSE
+"cucumber",28,"VEGETABLES","Cucumbers",FALSE
+"bpeppers",29,"VEGETABLES","Bell peppers",FALSE
+"hotpep",30,"VEGETABLES","Hot peppers",FALSE
+"pea",31,"VEGETABLES","Peas (shelled or in pods)*",TRUE
+"snappea",32,"VEGETABLES","Sugar snap peas",FALSE
+"gybeans",33,"VEGETABLES","Green or yellow beans*",TRUE
+"carrot",34,"VEGETABLES","Any carrots*",TRUE
+"fb1_carrotsnotmini",35,"VEGETABLES","Carrots (not mini)*",TRUE
+"minicar",36,"VEGETABLES","Mini/baby carrots",FALSE
+"mushroom",37,"VEGETABLES","Mushrooms",FALSE
+"onion",38,"VEGETABLES","Any onions",FALSE
+"grnonion",39,"VEGETABLES","Green onions",FALSE
+"redonion",40,"VEGETABLES","Red onions",FALSE
+"oonion",41,"VEGETABLES","Other onions",FALSE
+"yelonion",42,"VEGETABLES","White/yellow onions*",TRUE
+"celery",43,"VEGETABLES","Celery*",TRUE
+"broccoli",44,"VEGETABLES","Broccoli*",TRUE
+"cauliflo",45,"VEGETABLES","Cauliflower*",TRUE
+"leek",46,"VEGETABLES","Leeks*",TRUE
+"garlic",47,"VEGETABLES","Fresh garlic*",TRUE
+"zucchini",48,"VEGETABLES","Zucchini*",TRUE
+"vegjuice",49,"VEGETABLES","Any vegetable juices*",TRUE
+"vegez",50,"VEGETABLES","Frozen vegetables*",TRUE
+"anyfreshherbs",52,"VEGETABLES","Any fresh herbs",FALSE
+"basil",53,"VEGETABLES","Fresh basil",FALSE
+"tbasil",54,"VEGETABLES","Fresh Thai basil*",TRUE
+"cilantro",55,"VEGETABLES","Fresh cilantro/coriander",FALSE
+"parsley",56,"VEGETABLES","Fresh parsley",FALSE
+"ofherb",57,"VEGETABLES","Other fresh herbs",FALSE
+"tarragon",58,"VEGETABLES","Fresh tarragon*",TRUE
+"fb1_anyspices",59,"VEGETABLES","Any spices*",TRUE
+"Q34_A",60,"VEGETABLES","Pepper (whole/ground, white, black, blended)*",TRUE
+"Q34_B",61,"VEGETABLES","Curry powder*",TRUE
+"Q34_C",62,"VEGETABLES","Paprika*",TRUE
+"Q34_D",63,"VEGETABLES","Turmeric*",TRUE
+"Q34_E",64,"VEGETABLES","Other spices*",TRUE
+"csalad",66,"VEGETABLES","Any store-bought prepared salads?*",TRUE
+"psaladstor",67,"VEGETABLES","Potato salad (store-bought prepared)*",TRUE
+"pastasal",68,"VEGETABLES","Pasta salad (store-bought prepared)*",TRUE
+"fruitsal",69,"VEGETABLES","Fruit salad/pre-cut fruit/fruit platter (store-bought prepared)*",TRUE
+"salsa",70,"VEGETABLES","Store-bought salsa*",TRUE
+"mango",72,"FRUITS","Mangoes",FALSE
+"mangof",73,"FRUITS","Fresh mango",FALSE
+"mangoz",74,"FRUITS","Frozen mango",FALSE
+"mangod",75,"FRUITS","Dried mango",FALSE
+"papaya",76,"FRUITS","Papayas",FALSE
+"papayaf",77,"FRUITS","Fresh papaya",FALSE
+"papayaz",78,"FRUITS","Frozen papaya",FALSE
+"papayad",79,"FRUITS","Dried papaya",FALSE
+"pomegra",80,"FRUITS","Pomegranate",FALSE
+"pomegraf",81,"FRUITS","Fresh pomegranate (including seeds)",FALSE
+"pomegraz",82,"FRUITS","Frozen pomegranate",FALSE
+"avocado",83,"FRUITS","Avocado (including guacamole)",FALSE
+"avocadof",84,"FRUITS","Fresh avocado",FALSE
+"avocadoz",85,"FRUITS","Frozen avocado",FALSE
+"melon",86,"FRUITS","Any melon",FALSE
+"cantaloup",87,"FRUITS","Cantaloupe",FALSE
+"cantaloupf",88,"FRUITS","Fresh cantaloupe",FALSE
+"cantaloupz",89,"FRUITS","Frozen cantaloupe",FALSE
+"honeydew",90,"FRUITS","Honeydew melon",FALSE
+"honeydewf",91,"FRUITS","Fresh honeydew melon",FALSE
+"honeydewz",92,"FRUITS","Frozen honeydew melon",FALSE
+"watermel",93,"FRUITS","Watermelon",FALSE
+"watermelf",94,"FRUITS","Fresh watermelon",FALSE
+"watermelz",95,"FRUITS","Frozen watermelon",FALSE
+"peach",96,"FRUITS","Peaches",FALSE
+"peachf",97,"FRUITS","Fresh peaches",FALSE
+"peachz",98,"FRUITS","Frozen peaches",FALSE
+"nectarine",99,"FRUITS","Nectarines",FALSE
+"nectarinef",100,"FRUITS","Fresh nectarines",FALSE
+"nectarinez",101,"FRUITS","Frozen nectarines",FALSE
+"anyberry",102,"FRUITS","Any berries",FALSE
+"strawb",103,"FRUITS","Strawberries",FALSE
+"strawbf",104,"FRUITS","Fresh strawberries",FALSE
+"strawbz",105,"FRUITS","Frozen strawberries",FALSE
+"strawbd",106,"FRUITS","Dried strawberries",FALSE
+"raspb",107,"FRUITS","Raspberries",FALSE
+"raspbf",108,"FRUITS","Fresh raspberries",FALSE
+"raspbz",109,"FRUITS","Frozen raspberries",FALSE
+"raspbd",110,"FRUITS","Dried raspberries",FALSE
+"blueb",111,"FRUITS","Blueberries",FALSE
+"bluebf",112,"FRUITS","Fresh blueberries",FALSE
+"bluebz",113,"FRUITS","Frozen blueberries",FALSE
+"bluebd",114,"FRUITS","Dried blueberries",FALSE
+"blackb",115,"FRUITS","Blackberries",FALSE
+"blackbf",116,"FRUITS","Fresh blackberries",FALSE
+"blackbz",117,"FRUITS","Frozen blackberries",FALSE
+"blackbd",118,"FRUITS","Dried blackberries",FALSE
+"coconut",119,"FRUITS","Coconut",FALSE
+"coconutf",120,"FRUITS","Fresh coconut",FALSE
+"coconutz",121,"FRUITS","Frozen coconut",FALSE
+"coconutd",122,"FRUITS","Dried/shredded coconut",FALSE
+"apple",123,"FRUITS","Apples*",TRUE
+"pear",124,"FRUITS","Pears*",TRUE
+"apricot",125,"FRUITS","Apricots*",TRUE
+"plum",126,"FRUITS","Plums*",TRUE
+"citrus",127,"FRUITS","Citrus fruits*",TRUE
+"cherry",128,"FRUITS","Cherries*",TRUE
+"grape",129,"FRUITS","Grapes*",TRUE
+"banana",130,"FRUITS","Bananas*",TRUE
+"pineapple",131,"FRUITS","Pineapple*",TRUE
+"olive",132,"FRUITS","Olives*",TRUE
+"kiwi",133,"FRUITS","Kiwi*",TRUE
+"fruitbz",134,"FRUITS","Bag of mixed frozen fruit or berries",FALSE
+"anyfruitz",135,"FRUITS","Any frozen fruit*",TRUE
+"berriesz",136,"FRUITS","Frozen berries*",TRUE
+"fruitz",137,"FRUITS","Frozen fruit (not including berries)*",TRUE
+"dryfruit",138,"FRUITS","Dried fruit*",TRUE
+"fruitsm",139,"FRUITS","Fruit smoothies (at home or store-bought)",FALSE
+"unpjorc",140,"FRUITS","Unpasteurized apple cider or fruit juice",FALSE
+"unpjuice",141,"FRUITS","Unpasteurized fruit juice*",TRUE
+"anynut",143,"FRUITS","Any nuts",FALSE
+"peanut",144,"FRUITS","Peanuts (not including peanut butter)",FALSE
+"pnbutter",145,"FRUITS","Peanut butter",FALSE
+"almond",146,"FRUITS","Almonds (excluding almond butter)",FALSE
+"abutter",147,"FRUITS","Almond butter/spread",FALSE
+"walnut",148,"FRUITS","Walnuts",FALSE
+"hazelnut",149,"FRUITS","Hazelnuts (Filberts)",FALSE
+"hspread",150,"FRUITS","Butter/spread containing hazelnuts",FALSE
+"cashew",151,"FRUITS","Cashews",FALSE
+"cbutter",152,"FRUITS","Cashew butter/spread",FALSE
+"pecan",153,"FRUITS","Pecans",FALSE
+"onut",154,"FRUITS","Other nuts",FALSE
+"nutpaste",155,"FRUITS","Other nut paste, butter or spread*",TRUE
+"anyseed",156,"FRUITS","Any seeds",FALSE
+"sunflwsd",157,"FRUITS","Sunflower seeds",FALSE
+"ssbutter",158,"FRUITS","Butter or paste containing sunflower seeds",FALSE
+"sesamesd",159,"FRUITS","Sesame seeds",FALSE
+"tahini",160,"FRUITS","Tahini, including home made hummus",FALSE
+"tahinifb1",161,"FRUITS","Tahini, halva or other products made from sesame seeds*",TRUE
+"chia",162,"FRUITS","Chia seeds/chia seed powder",FALSE
+"flax",163,"FRUITS","Flax seeds/flax seed powder",FALSE
+"oseed",164,"FRUITS","Other seeds",FALSE
+"anybeef",166,"BEEF","Any beef (not including deli-meat)",FALSE
+"anygroundbeef",167,"BEEF","Any ground beef",FALSE
+"bgroundraw",168,"BEEF","Ground beef consumed raw or undercooked",FALSE
+"bground",169,"BEEF","Any other ground beef*",TRUE
+"hamb",170,"BEEF","Any hamburgers",FALSE
+"zbeefpatties",171,"BEEF","Store-bought frozen beef patties",FALSE
+"hambhome",172,"BEEF","Home-made hamburgers*",TRUE
+"hambrest",173,"BEEF","Hamburgers from a restaurant or fast food establishment*",TRUE
+"rawbeef",174,"BEEF","Raw beef",FALSE
+"steak",175,"BEEF","Steak",FALSE
+"stewingb",176,"BEEF","Stewing beef",FALSE
+"veal",177,"BEEF","Veal",FALSE
+"sausage_beef",178,"BEEF","Beef sausage (excluding dried)",FALSE
+"bwhole",179,"BEEF","Other whole-cut beef products",FALSE
+"anypork",181,"PORK","Any pork (not including deli-meat)",FALSE
+"pground",182,"PORK","Ground pork",FALSE
+"sausage_pork",183,"PORK","Pork sausage",FALSE
+"porkparts",184,"PORK","Pork pieces or parts",FALSE
+"rpork",185,"PORK","Pork eaten raw or with pink still showing",FALSE
+"ham",186,"PORK","Ham (not including deli-meat)*",TRUE
+"bacon",187,"PORK","Bacon*",TRUE
+"anychick",189,"POULTRY","Any chicken (not including deli-meat)",FALSE
+"cbreaded",190,"POULTRY","Store-bought breaded chicken",FALSE
+"zcbreaded",191,"POULTRY","Store-bought breaded chicken purchased frozen",FALSE
+"cstuffed",192,"POULTRY","Store-bought stuffed chicken products",FALSE
+"zcstuffed",193,"POULTRY","Store-bought stuffed chicken products purchased frozen",FALSE
+"cground",194,"POULTRY","Ground chicken",FALSE
+"wholec",195,"POULTRY","Roasted whole chicken purchased from a store",FALSE
+"rawwholec",196,"POULTRY","Whole chicken purchased raw and cooked at home",FALSE
+"chickparts",197,"POULTRY","Chicken pieces or parts",FALSE
+"sausage_chick",198,"POULTRY","Chicken sausage (excluding dried sauage)",FALSE
+"fb1_chickenfromarestaurantorfastfoodestablishment",199,"POULTRY","Chicken from a restaurant or fast food establishment*",TRUE
+"anyturk",200,"POULTRY","Any turkey (not including deli-meat)",FALSE
+"sausage_turk",201,"POULTRY","Ground turkey",FALSE
+"tground",202,"POULTRY","Turkey sausage",FALSE
+"turkparts",203,"POULTRY","Whole turkey",FALSE
+"wholet",204,"POULTRY","Turkey pieces and parts",FALSE
+"tbacon",205,"POULTRY","Turkey bacon*",TRUE
+"poultryo",206,"POULTRY","Other poultry (not including deli-meat)",FALSE
+"deliany",208,"DELI-MEAT","Any deli-meat/cold cuts",FALSE
+"chickdeli",209,"DELI-MEAT","Chicken deli-meat",FALSE
+"turkdeli",210,"DELI-MEAT","Turkey deli-meat",FALSE
+"hamdeli",211,"DELI-MEAT","Ham deli-meat",FALSE
+"beefdeli",212,"DELI-MEAT","Beef deli-meat",FALSE
+"odeli",213,"DELI-MEAT","Other deli-meat",FALSE
+"hotdog",215,"OTHER MEAT / ANIMAL PRODUCTS","Hot dogs",FALSE
+"pate",216,"OTHER MEAT / ANIMAL PRODUCTS","Pâté/meat spread",FALSE
+"organ",217,"OTHER MEAT / ANIMAL PRODUCTS","Any organ meats",FALSE
+"vliver",218,"OTHER MEAT / ANIMAL PRODUCTS","Veal or calf liver",FALSE
+"rawliver",219,"OTHER MEAT / ANIMAL PRODUCTS","Veal or calf liver consumed raw or undercooked",FALSE
+"oorgan",220,"OTHER MEAT / ANIMAL PRODUCTS","Other organ meat",FALSE
+"goat",221,"OTHER MEAT / ANIMAL PRODUCTS","Goat",FALSE
+"lamb",222,"OTHER MEAT / ANIMAL PRODUCTS","Lamb",FALSE
+"horse",223,"OTHER MEAT / ANIMAL PRODUCTS","Horse",FALSE
+"driedmeat",224,"OTHER MEAT / ANIMAL PRODUCTS","Any dried/cured meat products",FALSE
+"deer",225,"OTHER MEAT / ANIMAL PRODUCTS","Hunted or farmed deer1",FALSE
+"huntedmeats",226,"OTHER MEAT / ANIMAL PRODUCTS","Other hunted meats1",FALSE
+"bologna",227,"OTHER MEAT / ANIMAL PRODUCTS","Bologna*",TRUE
+"salami",228,"OTHER MEAT / ANIMAL PRODUCTS","Salami*",TRUE
+"pepperoni",229,"OTHER MEAT / ANIMAL PRODUCTS","Pepperoni*",TRUE
+"kielbasa",230,"OTHER MEAT / ANIMAL PRODUCTS","Kielbasa*",TRUE
+"sausage",231,"OTHER MEAT / ANIMAL PRODUCTS","Sausage*",TRUE
+"Q90",232,"OTHER MEAT / ANIMAL PRODUCTS","Shawarma or donair",FALSE
+"seafood",234,"FISH & SEAFOOD","Any seafood",FALSE
+"anyfish",235,"FISH & SEAFOOD","Any fish",FALSE
+"fishsmoke",236,"FISH & SEAFOOD","Smoked fish",FALSE
+"fishraw",237,"FISH & SEAFOOD","Raw fish",FALSE
+"shellfish",238,"FISH & SEAFOOD","Any shellfish",FALSE
+"mussels",239,"FISH & SEAFOOD","Mussels",FALSE
+"clams",240,"FISH & SEAFOOD","Clams",FALSE
+"shrimp",241,"FISH & SEAFOOD","Shrimp/prawns",FALSE
+"oysters",242,"FISH & SEAFOOD","Any oysters",FALSE
+"oysters_r",243,"FISH & SEAFOOD","Raw oysters",FALSE
+"scallops",244,"FISH & SEAFOOD","Scallops*",TRUE
+"crab",245,"FISH & SEAFOOD","Crab*",TRUE
+"lobster",246,"FISH & SEAFOOD","Lobster*",TRUE
+"egg",248,"EGGS","Any eggs",FALSE
+"eggraw",249,"EGGS","Raw or undercooked eggs",FALSE
+"icecream",251,"DAIRY / DAIRY SUBSTITUTES","Ice cream",FALSE
+"milkdess",252,"DAIRY / DAIRY SUBSTITUTES","Desserts containing milk or cream",FALSE
+"milkunpas",253,"DAIRY / DAIRY SUBSTITUTES","Unpasteurized dairy milk (not including cheese)",FALSE
+"yogurt",254,"DAIRY / DAIRY SUBSTITUTES","Yogurt",FALSE
+"milkpas",255,"DAIRY / DAIRY SUBSTITUTES","Pasteurized dairy milk*",TRUE
+"pwdmilk",256,"DAIRY / DAIRY SUBSTITUTES","Powdered milk product*",TRUE
+"whipcream",257,"DAIRY / DAIRY SUBSTITUTES","Whipped/whipping cream*",TRUE
+"sourcream",258,"DAIRY / DAIRY SUBSTITUTES","Sour cream*",TRUE
+"anycheese",260,"CHEESE","Any cheese",FALSE
+"gouda",261,"CHEESE","Gouda",FALSE
+"feta",262,"CHEESE","Feta",FALSE
+"scheese",263,"CHEESE","Brie, camembert or other soft cheese",FALSE
+"gcheese",264,"CHEESE","Cheese made from goats milk",FALSE
+"cheeseunp",265,"CHEESE","Any cheese made with unpasteurized milk",FALSE
+"cheddar",266,"CHEESE","Cheddar*",TRUE
+"mozz",267,"CHEESE","Mozzarella*",TRUE
+"parm",268,"CHEESE","Parmesan*",TRUE
+"hrdcheese",269,"CHEESE","Other cheeses sold as blocks/wheels*",TRUE
+"procheese",270,"CHEESE","Processed cheese*",TRUE
+"bvcheese",271,"CHEESE","Blue-veined cheese*",TRUE
+"fcheese",272,"CHEESE","Cottage, ricotta or other fresh cheese*",TRUE
+"gscheese",273,"CHEESE","Goat/sheep milk cheese*",TRUE
+"nondairymilk",275,"DAIRY / DAIRY SUBSTITUTES","Non-dairy milk",FALSE
+"nondairyprod",276,"DAIRY / DAIRY SUBSTITUTES","Other non-dairy products/substitutes",FALSE
+"flour",278,"DRIED/PROCESSED/OTHER","Any wheat flour",FALSE
+"dough",279,"DRIED/PROCESSED/OTHER","Eat, taste or lick any uncooked or unbaked dough made with wheat flour",FALSE
+"oflour",280,"DRIED/PROCESSED/OTHER","Other flours",FALSE
+"pbmeat",281,"DRIED/PROCESSED/OTHER","Any plant-based meat substitutes",FALSE
+"tofu",282,"DRIED/PROCESSED/OTHER","Tofu",FALSE
+"othermeatsub",283,"DRIED/PROCESSED/OTHER","Other plant based meat substitutes",FALSE
+"hummus",284,"DRIED/PROCESSED/OTHER","Hummus (excluding home-made)",FALSE
+"dietsup",285,"DRIED/PROCESSED/OTHER","Dietary or nutritional supplement",FALSE
+"mealrepbev",286,"DRIED/PROCESSED/OTHER","Meal replacement beverages",FALSE
+"protpowder",287,"DRIED/PROCESSED/OTHER","Protein powder",FALSE
+"probiotics",288,"DRIED/PROCESSED/OTHER","Probiotics",FALSE
+"cannabis",289,"DRIED/PROCESSED/OTHER","Food or drinks containing cannabis",FALSE
+"pizza",290,"DRIED/PROCESSED/OTHER","Frozen pizza*",TRUE
+"potpie",291,"DRIED/PROCESSED/OTHER","Frozen pot pies*",TRUE
+"frozenm",292,"DRIED/PROCESSED/OTHER","Frozen meals in a bag or box*",TRUE
+"frozens",293,"DRIED/PROCESSED/OTHER","Frozen snack foods/appetizers*",TRUE
+"granola",294,"DRIED/PROCESSED/OTHER","Granola bars, power bars, or other protein bars*",TRUE
+"chips",295,"DRIED/PROCESSED/OTHER","Chips or pretzels*",TRUE
+"choc",296,"DRIED/PROCESSED/OTHER","Chocolate or chocolate-containing candy*",TRUE
+"coldbc",297,"DRIED/PROCESSED/OTHER","Cold breakfast cereal*",TRUE
+"hotbc",298,"DRIED/PROCESSED/OTHER","Hot breakfast cereal*",TRUE
+"Q109_A",299,"DRIED/PROCESSED/OTHER","Asian style foods*",TRUE
+"Q109_B",300,"DRIED/PROCESSED/OTHER","Indian style foods*",TRUE
+"Q109_C",301,"DRIED/PROCESSED/OTHER","Mexican style foods*",TRUE
+"Q110_Q111_dv",302,"DRIED/PROCESSED/OTHER","Meal from a fast food restaurant*",TRUE
+"babyfoods",303,"DRIED/PROCESSED/OTHER","BABY FOODS",FALSE
+"fb1_anybabyformula",304,"DRIED/PROCESSED/OTHER","Any baby formula*",TRUE
+"Q1",305,"DRIED/PROCESSED/OTHER","Liquid*",TRUE
+"Q2",306,"DRIED/PROCESSED/OTHER","Powder*",TRUE
+"Q3",307,"DRIED/PROCESSED/OTHER","Store-bought pureed baby food*",TRUE
+"Q4",308,"DRIED/PROCESSED/OTHER","Infant/toddler cereal*",TRUE
+"butcher",310,"DRIED/PROCESSED/OTHER","Meat from a butcher shop",FALSE
+"foodfarm",311,"DRIED/PROCESSED/OTHER","Food from farmer's market or farm",FALSE
+"producefarm",312,"DRIED/PROCESSED/OTHER","Produce from a farmer's market or farm",FALSE
+"eggfarm",313,"DRIED/PROCESSED/OTHER","Eggs from a farmer's market or farm",FALSE
+"meatfarm",314,"DRIED/PROCESSED/OTHER","Meat from a farmer's market or farm",FALSE
+"dairyfarm",315,"DRIED/PROCESSED/OTHER","Cheese or dairy products from a farmer's market or farm",FALSE
+"mealkit",316,"DRIED/PROCESSED/OTHER","Food from a meal kit",FALSE
+"organic",318,"DIETS","Always or sometimes eats organic produce",FALSE
+"kosher",319,"DIETS","Vegan diet",FALSE
+"vegan",320,"DIETS","Vegetarian diet",FALSE
+"vegetarian",321,"DIETS","Kosher diet",FALSE
+"halal",322,"DIETS","Halal diet",FALSE
+"drankhomew",324,"WATER","Drank water supplied to residence",FALSE
+"cmunicipal",326,"WATER","Municipal water",FALSE
+"cwell",327,"WATER","Private well",FALSE
+"ctruckedin",328,"WATER","Trucked-in water",FALSE
+"cbottled",329,"WATER","Store-bought bottled water",FALSE
+"ccistern",330,"WATER","Cistern",FALSE
+"cnottreated",331,"WATER","Untreated lake, spring or river water",FALSE
+"cotherw",332,"WATER","Other water source",FALSE
+"swaminwadeorenteredlakeriverpondorstream",333,"WATER","Swam in, wade or entered lake, river, pond or stream",FALSE
+"Q118",334,"WATER","Raw water consumption*",TRUE
+"Q119",335,"WATER","Swim or go into any water*",TRUE
+"naturalw",336,"WATER","Swim or go into any natural water*",TRUE
+"Q120_A",337,"WATER","Ocean*",TRUE
+"Q120_B",338,"WATER","Lake*",TRUE
+"Q120_C",339,"WATER","River*",TRUE
+"Q120_D",340,"WATER","Natural hot spring*",TRUE
+"pool",341,"WATER","Pool*",TRUE
+"hottub",342,"WATER","Hot tub*",TRUE
+"waterpark",343,"WATER","Recreational waterpark*",TRUE
+"swim",344,"WATER","Swim or go into a swimming facility in the last 4 weeks*",TRUE
+"animalcont",346,"ANIMAL CONTACT","Any contact with animals, animal waste, habitat or food*",TRUE
+"animalh",347,"ANIMAL CONTACT","Companion animals present in the home",FALSE
+"domanim",348,"ANIMAL CONTACT","Any contact with companion animals",FALSE
+"cat",349,"ANIMAL CONTACT","Dog",FALSE
+"dog",350,"ANIMAL CONTACT","Cat",FALSE
+"reptileoramphi",351,"ANIMAL CONTACT","Reptile or amphibian",FALSE
+"rept",352,"ANIMAL CONTACT","Reptile*",TRUE
+"amphi",353,"ANIMAL CONTACT","Amphibian*",TRUE
+"rodent",354,"ANIMAL CONTACT","Rodent",FALSE
+"rabbit",355,"ANIMAL CONTACT","Rabbit",FALSE
+"hedgehog",356,"ANIMAL CONTACT","Hedgehog",FALSE
+"bird",357,"ANIMAL CONTACT","Bird",FALSE
+"aquari",358,"ANIMAL CONTACT","Fish or aquarium*",TRUE
+"petwaste",359,"ANIMAL CONTACT","Handle pet waste or clean litter box/pet enclosure",FALSE
+"petdiarr",360,"ANIMAL CONTACT","Contact with pet with diarrhea",FALSE
+"petfood",361,"ANIMAL CONTACT","Handled any pet food or treats",FALSE
+"animfddry",362,"ANIMAL CONTACT","Handled any dry pet food",FALSE
+"animfdcan",363,"ANIMAL CONTACT","Handled any canned/wet pet food*",TRUE
+"animfdraw",364,"ANIMAL CONTACT","Handled any raw pet food (store-bought or home-made)",FALSE
+"animfdtreat",365,"ANIMAL CONTACT","Handled any raw treats derived from animal parts",FALSE
+"animfdpr",366,"ANIMAL CONTACT","Handled any processed animal treats",FALSE
+"animfdrod",367,"ANIMAL CONTACT","Handled any rodents for reptiles",FALSE
+"rodentsinsect",368,"ANIMAL CONTACT","Handled any rodents or insects for reptiles*",TRUE
+"farman",369,"ANIMAL CONTACT","Handled any farm animals/livestock or their waste",FALSE
+"cattle",370,"ANIMAL CONTACT","Cattle",FALSE
+"poultry",371,"ANIMAL CONTACT","Poultry",FALSE
+"pig",372,"ANIMAL CONTACT","Pig",FALSE
+"sheepgoat",373,"ANIMAL CONTACT","Sheep or goat",FALSE
+"horsecontact",374,"ANIMAL CONTACT","Horse (contact with)*",TRUE
+"livefarm",375,"ANIMAL CONTACT","Live on farm or country property",FALSE
+"visitfarm",376,"ANIMAL CONTACT","Visit or work on a farm, petting zoo or fair",FALSE
+"pettingzoo",377,"ANIMAL CONTACT","Visited any petting zoo*",TRUE
+"farmvisit",378,"ANIMAL CONTACT","Visited any farm or barn*",TRUE
+"fairvisit",379,"ANIMAL CONTACT","Visited any agricultural fair*",TRUE
+"petstorevisit",380,"ANIMAL CONTACT","Visited any pet store*",TRUE

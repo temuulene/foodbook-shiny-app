@@ -67,6 +67,11 @@ fb_get_base_path <- function(rel_path) {
   if (file.exists(parent_path) || dir.exists(parent_path)) {
     return(parent_path)
   }
+  # Try two levels up (for tests nested in tests/testthat)
+  grandparent_path <- file.path("../..", rel_path)
+  if (file.exists(grandparent_path) || dir.exists(grandparent_path)) {
+    return(grandparent_path)
+  }
   # Return original path (will fail downstream with clear error)
   return(rel_path)
 }
@@ -455,12 +460,31 @@ fb_apply_renames <- function(df, renames) {
   if (!nrow(renames)) {
     return(df)
   }
+  
+  # Only rename if 'old' exists in df
   present <- renames$old %in% names(df)
   if (!any(present)) {
     return(df)
   }
-  map <- renames$new[present]
-  names(map) <- renames$old[present]
+  
+  # Filter to relevant renames
+  relevant_renames <- renames[present, ]
+  
+  # Avoid collisions: Do not rename if 'new' name ALREADY exists in df
+  # (This prevents errors like "Names must be unique" if target col exists)
+  collision <- relevant_renames$new %in% names(df)
+  if (any(collision)) {
+    # If the target already exists, we assume the existing column is the correct one 
+    # and skip renaming the legacy/source column to avoid overwriting/duplication errors.
+    relevant_renames <- relevant_renames[!collision, ]
+  }
+  
+  if (nrow(relevant_renames) == 0) {
+    return(df)
+  }
+
+  map <- relevant_renames$new
+  names(map) <- relevant_renames$old
   dplyr::rename(df, !!!rlang::set_names(names(map), map))
 }
 
@@ -541,6 +565,24 @@ fb_load_microdata <- function(
   fb1_renames <- fb_parse_fb1_renames(do_renames_path)
   fb2_renames <- fb_parse_fb2_renames(do_renames_path)
 
+  # [LOOSE MERGE] Load FB1 extra variable map to recover legacy vars
+  # This map handles variables that were dropped by the Stata script (drop Q*)
+  fb1_map_path <- fb_get_base_path("data/fb1_variable_map.csv")
+  if (file.exists(fb1_map_path)) {
+    fb1_map <- utils::read.csv(fb1_map_path, stringsAsFactors = FALSE)
+    # Convert to rename format: old=fb1_var, new=toolkit_var
+    # Use fb1_var as 'old' and toolkit_var as 'new'
+    if (all(c("fb1_var", "toolkit_var") %in% names(fb1_map))) {
+      extra_renames <- tibble::tibble(
+        old = fb1_map$fb1_var,
+        new = fb1_map$toolkit_var
+      )
+      # Append to authoritative renames (toolkit map takes precedence)
+      fb1_renames <- dplyr::bind_rows(extra_renames, fb1_renames) |>
+        dplyr::distinct(old, .keep_all = TRUE) 
+    }
+  }
+
   dfs <- list()
 
   # Load FB1 (foodbook.dta)
@@ -560,6 +602,22 @@ fb_load_microdata <- function(
     fb2 <- tryCatch(haven::read_dta(dta_paths[2]), error = function(e) NULL)
     if (!is.null(fb2)) {
       fb2 <- as.data.frame(fb2)
+      
+      # [LOOSE MERGE] Load FB2 extra variable map to recover vars not renamed in .do
+      fb2_map_path <- fb_get_base_path("data/fb2_variable_map.csv")
+      if (file.exists(fb2_map_path)) {
+        fb2_map <- utils::read.csv(fb2_map_path, stringsAsFactors = FALSE)
+        if (all(c("fb_var", "toolkit_var") %in% names(fb2_map))) {
+          extra_fb2_renames <- tibble::tibble(
+            old = fb2_map$fb_var,
+            new = fb2_map$toolkit_var
+          )
+          # Append to authoritative renames, prioritize toolkit maps
+          fb2_renames <- dplyr::bind_rows(extra_fb2_renames, fb2_renames) |>
+            dplyr::distinct(old, .keep_all = TRUE)
+        }
+      }
+
       # Apply FB2-specific renames
       fb2 <- fb_apply_renames(fb2, fb2_renames)
       fb2$fb_source <- "FB2"
@@ -569,6 +627,30 @@ fb_load_microdata <- function(
 
   if (!length(dfs)) {
     return(NULL)
+  }
+
+  # Apply precedence: If a variable exists in both FB1 and FB2, 
+  # null out the FB1 version so FB2 values take precedence in the combined dataset.
+  if (length(dfs) >= 2) {
+    fb1 <- dfs[[1]]
+    fb2 <- dfs[[2]]
+    
+    # Identify shared columns that are actual data (not indexing/structural)
+    structural <- c(
+      "uniqueid", "PT", "Month", "Age_group", "weight", "Weight", 
+      "fb_source", "AgeBand", "month_dv", "age_grp_dv", "QINTRO3"
+    )
+    shared <- intersect(names(fb1), names(fb2))
+    targets <- setdiff(shared, structural)
+    
+    if (length(targets) > 0) {
+      # For shared variables, set FB1 to NA so that weighted means 
+      # correctly prioritize the most recent (FB2) data.
+      fb1[targets] <- lapply(fb1[targets], function(x) {
+        if (is.numeric(x)) NA_real_ else NA_character_
+      })
+      dfs[[1]] <- fb1
+    }
   }
 
   # Combine datasets (append FB2 to FB1, as per authoritative workflow)
@@ -709,6 +791,29 @@ fb_init <- function(lang = "en") {
     )
   message("Loaded authoritative labels from upgrade-context/foodbook variable labeling.do")
 
+  # [LOOSE MERGE] Load extra labels from exposures_bilingual.csv
+  # This ensures the restored FB1 variables have labels suitable for the UI
+  extra_labels_path <- fb_get_base_path("data/exposures_bilingual.csv")
+  if (file.exists(extra_labels_path)) {
+    extra_labels <- utils::read.csv(extra_labels_path, stringsAsFactors = FALSE)
+    # Expected cols: variable_name, exposure_en, exposure_fr
+    if (all(c("variable_name", "exposure_en", "exposure_fr") %in% names(extra_labels))) {
+      # Prepare as same structure as label_map
+      extra_map <- tibble::tibble(
+        code = extra_labels$variable_name,
+        label = extra_labels$exposure_en,
+        label_en = extra_labels$exposure_en,
+        label_fr = extra_labels$exposure_fr
+      )
+      
+      # Merge: start with toolkit map (more user friendly), then add others from OMD
+      fb_env$label_map <- dplyr::bind_rows(
+        extra_map,
+        fb_env$label_map |> dplyr::filter(!code %in% extra_map$code)
+      )
+    }
+  }
+
   # =============================================================================
   # Apply label overrides for clarity (preserve asterisk if present)
   # =============================================================================
@@ -720,6 +825,54 @@ fb_init <- function(lang = "en") {
     fb_env$label_map$label_fr[carrot_idx] <- "Carottes (pas mini)*"
   }
 
+  # =============================================================================
+  # Label renames from Megan (Jan 7, 2026) for consistency with Toolkit
+  # =============================================================================
+  # Helper function to apply label rename by matching old label pattern
+  apply_label_rename <- function(old_pattern, new_en, new_fr) {
+    idx <- which(grepl(old_pattern, fb_env$label_map$label_en, ignore.case = TRUE))
+    if (length(idx) > 0) {
+      fb_env$label_map$label[idx] <- new_en
+      fb_env$label_map$label_en[idx] <- new_en
+      fb_env$label_map$label_fr[idx] <- new_fr
+    }
+  }
+
+  # "Any nuts- on their own..." -> "Any nuts"
+  apply_label_rename(
+    "Any nuts.*on their own",
+    "Any nuts",
+    "Noix de tout genre"
+  )
+
+  # "Chips*" -> "Chips or pretzels*"
+  apply_label_rename(
+    "^Chips\\*?$",
+    "Chips or pretzels*",
+    "Croustilles ou bretzels*"
+  )
+
+  # "Municipal water" -> "Consumed municipal water"
+  apply_label_rename(
+    "^Municipal water$",
+    "Consumed municipal water",
+    "Eau municipale consommée"
+  )
+
+  # "Bottled water" -> "Consumed store-bought bottled water"
+  apply_label_rename(
+    "^Bottled water$",
+    "Consumed store-bought bottled water",
+    "Eau embouteillée achetée en magasin consommée"
+  )
+
+  # "Granola" -> "Granola bars, power bars, or other protein bars*"
+  apply_label_rename(
+    "^Granola$",
+    "Granola bars, power bars, or other protein bars*",
+    "Barres granola, barres énergétiques ou autres barres protéinées*"
+  )
+
   # For backward compatibility with existing code that expects single "label" column
   if (lang == "fr") {
     fb_env$label_map$label <- fb_env$label_map$label_fr
@@ -728,15 +881,16 @@ fb_init <- function(lang = "en") {
   }
 
   # =============================================================================
-  # Determine exposure columns present in microdata
+  # Determine exposure columns (skip aggressive filtering to preserve labels)
   # =============================================================================
-  fb_env$exposure_codes <- fb_env$label_map$code[
-    fb_env$label_map$code %in% names(fb_env$micro)
-  ]
-
-  # Filter label map to only exposures available in microdata
-  fb_env$label_map <- fb_env$label_map |>
-    dplyr::filter(code %in% fb_env$exposure_codes)
+  # Harmonize common code renames in label_map to match toolkit names
+  # This avoids duplicate labels causing one to be dropped
+  fb_env$label_map$code[fb_env$label_map$code == "water_municipal"] <- "cmunicipal"
+  fb_env$label_map$code[fb_env$label_map$code == "water_bottled"] <- "cbottled"
+  fb_env$label_map$code[fb_env$label_map$code == "water_well"] <- "cwell"
+  
+  # Ensure exposure_codes is still updated for other logic
+  fb_env$exposure_codes <- unique(fb_env$label_map$code)
 
   # =============================================================================
   # Normalize column names for consistency
@@ -1146,8 +1300,12 @@ fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
 }
 
 # Compute a weighted percentage (0-100) for a single exposure code
-fb_weighted_percent <- function(code, d) {
+# Returns a named list with 'percent' and 'sample_size'
+fb_weighted_percent <- function(code, d, return_sample_size = FALSE) {
   if (!code %in% names(d)) {
+    if (return_sample_size) {
+      return(list(percent = NA_real_, sample_size = 0L))
+    }
     return(NA_real_)
   }
   x <- suppressWarnings(as.numeric(d[[code]]))
@@ -1156,10 +1314,26 @@ fb_weighted_percent <- function(code, d) {
   # Many FB dv vars are 1 = yes, 2 = no; treat 0 as missing/not asked
   yy <- ok & (x == 1)
   denom <- sum(w[ok], na.rm = TRUE)
+  sample_n <- sum(ok)
   if (!is.finite(denom) || denom <= 0) {
+    if (return_sample_size) {
+      return(list(percent = NA_real_, sample_size = sample_n))
+    }
     return(NA_real_)
   }
-  100 * sum(w[yy], na.rm = TRUE) / denom
+  pct <- 100 * sum(w[yy], na.rm = TRUE) / denom
+  if (return_sample_size) {
+    return(list(percent = pct, sample_size = sample_n))
+  }
+  pct
+}
+
+# Get reference sample size for a given filter configuration
+fb_reference_sample_size <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
+  fb_init()
+  d <- fb_filter_micro(pt_names, months, age_groups)
+  if (is.null(d)) return(0L)
+  nrow(d)
 }
 
 # Public: compute reference percentages for a vector of exposure codes
@@ -1283,8 +1457,17 @@ fb_reference_percents <- function(
     results <- vapply(
       fb_codes,
       function(fb_col) {
-        # For FB1 exposures (Open Canada mode only), prefer CSV values (official published values)
-        # Skip this logic in legacy mode - calculate directly from microdata
+        # High Priority: For Total Population (no Age/Month filters), 
+        # use official published values from Toolkit if available.
+        if (is.null(months) && is.null(age_groups)) {
+          pt_to_use <- if (is.null(pt_names) || "Canada" %in% pt_names) "Canada" else pt_names[1]
+          tk_val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
+          if (!is.na(tk_val)) {
+            return(tk_val)
+          }
+        }
+
+        # Legacy fallback for FB1 only variables (primarily Open Canada mode)
         if (!is_legacy_mode && (is_fb1_only(fb_col) || fb_col %in% fb1_codes)) {
           # Map code -> English label (CSV uses English exposure names)
           label_row <- fb_env$label_map[
@@ -1348,6 +1531,12 @@ fb_reference_percents <- function(
           }
         }
 
+    # 3. Fallback to Toolkit Proportions (systematized CSV)
+        # This handles FB2 variables that might be missing from microdata filters or just missing in general
+        # but present in the official toolkit data.
+        val <- fb_toolkit_reference_percent(fb_col, if(is.null(pt_names) || "Canada" %in% pt_names) "Canada" else pt_names[1])
+        if (!is.na(val)) return(val)
+
         NA_real_
       },
       numeric(1)
@@ -1356,10 +1545,147 @@ fb_reference_percents <- function(
     names(results) <- codes
     return(results)
   }
-  fb_reference_percents_csv(codes, pt_names)
+  
+  # If microdata is NULL, try Toolkit data first, then legacy CSV
+  # Try Toolkit first as it's more comprehensive and uses codes
+  res_toolkit <- vapply(codes, function(x) {
+    val <- fb_toolkit_reference_percent(x, if(is.null(pt_names) || "Canada" %in% pt_names) "Canada" else pt_names[1])
+    if (is.na(val)) {
+       # Fallback to legacy CSV logic
+       # This requires mapping code to label if possible, but fb_reference_percents_csv takes "label"
+       # We only have code here. The legacy function might need checking.
+       return(NA_real_) 
+    }
+    val
+  }, numeric(1))
+  
+  if (all(is.na(res_toolkit))) {
+    return(fb_reference_percents_csv(codes, pt_names))
+  }
+  
+  # Fill NAs in toolkit results with legacy results
+  na_idx <- is.na(res_toolkit)
+  if (any(na_idx)) {
+    legacy_res <- fb_reference_percents_csv(codes[na_idx], pt_names)
+    res_toolkit[na_idx] <- legacy_res
+  }
+  res_toolkit
 }
 
 fb_is_available <- function() {
   fb_init()
   !is.null(fb_env$micro)
+}
+
+# =============================================================================
+# Toolkit Integration Functions (Added Jan 2026)
+# =============================================================================
+
+#' Load systematized Excel toolkit data (bilingual list + proportions)
+fb_load_toolkit_data <- function() {
+  # Load Bilingual Exposure List
+  bilingual_path <- fb_get_base_path("data/exposures_bilingual.csv")
+  if (file.exists(bilingual_path)) {
+    fb_env$toolkit_exposures <- utils::read.csv(bilingual_path, encoding = "UTF-8", stringsAsFactors = FALSE)
+  }
+
+  # Load Proportions
+  props_path <- fb_get_base_path("data/exposure_proportions_by_pt.csv")
+  if (file.exists(props_path)) {
+    fb_env$toolkit_proportions <- utils::read.csv(props_path, encoding = "UTF-8", stringsAsFactors = FALSE)
+  }
+  
+  invisible(list(exposures = fb_env$toolkit_exposures, proportions = fb_env$toolkit_proportions))
+}
+
+#' Get list of categories in specified language
+fb_exposure_categories <- function(lang = "en") {
+  if (is.null(fb_env$toolkit_exposures)) {
+    fb_load_toolkit_data()
+  }
+  
+  if (is.null(fb_env$toolkit_exposures)) return(character(0))
+  
+  col <- if (lang == "fr") "category_fr" else "category_en"
+  # Clean up categories (remove empty or NA)
+  cats <- unique(fb_env$toolkit_exposures[[col]])
+  cats <- cats[!is.na(cats) & cats != ""]
+  
+  # Convert to Title Case if English
+  if (lang != "fr") {
+    cats <- tools::toTitleCase(tolower(cats))
+  }
+  sort(cats)
+}
+
+#' Get exposures filtered by category for Toolkit mode
+fb_toolkit_exposure_choices <- function(lang = "en", category = NULL) {
+  if (is.null(fb_env$toolkit_exposures)) {
+    fb_load_toolkit_data()
+  }
+  
+  if (is.null(fb_env$toolkit_exposures)) return(list())
+  
+  df <- fb_env$toolkit_exposures
+  
+  # Filter by category if specified
+  if (!is.null(category) && category != "" && category != "All" && category != "Toutes" && category != "Tous") {
+    cat_col <- if (lang == "fr") "category_fr" else "category_en"
+    df <- df[df[[cat_col]] == category, ]
+  }
+  
+  # Prepare choices list: Label -> Variable Name (or Number if var name missing)
+  label_col <- if (lang == "fr") "exposure_fr" else "exposure_en"
+  
+  values <- ifelse(df$variable_name != "", df$variable_name, as.character(df$number))
+  names(values) <- df[[label_col]]
+  
+  # Sort alphabetically by label
+  values <- values[order(names(values))]
+  
+  as.list(values)
+}
+
+#' Get reference percent from Toolkit (Table 6)
+#' @param exposure_id Variable name or exposure number
+#' @param pt_name Full PT name (e.g. "British Columbia") or "Canada" or abbreviation
+fb_toolkit_reference_percent <- function(exposure_id, pt_name = "Canada") {
+  if (is.null(fb_env$toolkit_proportions)) {
+    fb_load_toolkit_data()
+  }
+  
+  if (is.null(fb_env$toolkit_proportions)) return(NA_real_)
+  
+  # Map PT name to Abbreviation used in CSV
+  pt_abbr <- "Canada"
+  if (pt_name != "Canada") {
+    # Try normalizing to code first
+    code <- fb_normalize_pt_names(pt_name)
+    if (length(code) > 0) {
+      abbr_map <- c("BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU")
+      # Note: codes are 1-13
+      if (code >= 1 && code <= 13) {
+        pt_abbr <- abbr_map[code]
+      }
+    } else {
+      # Maybe it's already an abbr?
+      if (pt_name %in% c("BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU")) {
+        pt_abbr <- pt_name
+      }
+    }
+  }
+  
+  # Find row by variable_name or exposure_number
+  row_idx <- which(fb_env$toolkit_proportions$variable_name == exposure_id)
+  
+  if (length(row_idx) == 0) {
+     # Try matching as number
+     row_idx <- which(fb_env$toolkit_proportions$exposure_number == exposure_id)
+  }
+  
+  if (length(row_idx) == 0) return(NA_real_)
+  
+  val <- fb_env$toolkit_proportions[row_idx[1], pt_abbr]
+  if (is.null(val)) return(NA_real_)
+  as.numeric(val)
 }

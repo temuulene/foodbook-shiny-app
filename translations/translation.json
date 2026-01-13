@@ -86,6 +86,30 @@
       "fr": "Toutes les expositions"
     },
     {
+      "en": "All Categories",
+      "fr": "Toutes les catégories"
+    },
+    {
+      "en": "Reference Data",
+      "fr": "Données de référence"
+    },
+    {
+      "en": "Foodbook 1 only",
+      "fr": "Foodbook 1 seulement"
+    },
+    {
+      "en": "Sample Sizes by Province/Territory",
+      "fr": "Tailles d'échantillon par province/territoire"
+    },
+    {
+      "en": "Region",
+      "fr": "Région"
+    },
+    {
+      "en": "Sample Size (n)",
+      "fr": "Taille de l'échantillon (n)"
+    },
+    {
       "en": "Select Exposures",
       "fr": "Sélectionner les expositions"
     },
@@ -1080,6 +1104,18 @@
     {
       "en": "[Contact email placeholder]",
       "fr": "[Courriel de contact - espace réservé]"
+    },
+    {
+      "en": "Please be careful not to overanalyse the data. Limiting the data to a small subset of respondents (for example, respondents ages 0-9 from PEI in March) can result in small sample sizes and make the data less reliable. This is especially important for exposures that are rare within the population.",
+      "fr": "Veillez à ne pas sur analyser les données. Limiter les données à un petit sous-ensemble de répondants (par exemple, les répondants âgés de 0 à 9 ans de l'Î.-P.-É. en mars) peut entraîner une réduction de la taille de l'échantillon et rendre les données moins fiables. Cela est particulièrement important pour les expositions qui sont rares au sein de la population."
+    },
+    {
+      "en": "* A reliable estimate cannot be displayed due to small sample size.",
+      "fr": "* Une estimation fiable ne peut être affichée en raison de la petite taille de l'échantillon."
+    },
+    {
+      "en": "Data Quality Warning",
+      "fr": "Avertissement sur la qualité des données"
     }
   ],
   "cultural_date_format": {

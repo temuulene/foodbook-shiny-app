@@ -5,7 +5,7 @@ use foodbook.dta
 /*keep variables that are not in Foodbook 2*/
 
 keep QINTRO3 AGE gender month_dv EXPWEIGHT_CMA2 ///
-Q81_A_dv Q36_E_dv Q81_B_dv Q90 Q102_A Q102_C_dv Q102_D_dv Q102_E_dv Q102_F_dv Q105_A_dv Q105_B_dv Q105_C_dv Q105_H_dv Q105_I_dv  ///
+Q7_dv Q8_B_dv Q81_A_dv Q36_E_dv Q81_B_dv Q90 Q102_A Q102_C_dv Q102_D_dv Q102_E_dv Q102_F_dv Q105_A_dv Q105_B_dv Q105_C_dv Q105_H_dv Q105_I_dv  ///
 Q105_F_dv Q105_K_dv Q36_C_dv Q36_D_dv Q19 Q20 Q22 Q23 Q24 Q25 Q26 Q27 Q29 Q106_A Q32 Q36_E_dv Q_38 Q_39 Q_42 Q_43 Q_44 Q_45 Q_46 Q_47 Q_50  ///
 Q_52 Q_54 Q37A Q71 Q73 Q106_D Q106_E Q106_F Q106_G Q107_A Q107_B Q107_C Q107_D Q107_E Q107_F Q133_B_dv Q89_B
 
@@ -68,7 +68,9 @@ rename Q107_C chips
 rename Q107_D choc
 rename Q107_E coldbc
 rename Q107_F hotbc
-rename Q133_B_dv animfdwet
+rename Q133_B_dv animfdcan
+rename Q7_dv fb1_tomatoesonasandwichburgerortacoatrestaurantorfastfoodestablishment
+rename Q8_B_dv tomhot
 
 drop Q*
 
