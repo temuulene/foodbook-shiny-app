@@ -59,6 +59,50 @@ test_that("fb_pt_abbrev_map returns correct abbreviations", {
   expect_equal(abbrev_map["Canada"], c("Canada" = "Canada"))
 })
 
+test_that("fb_normalize_pt_names handles French variants", {
+  expect_equal(fb_normalize_pt_names(c("Qu\u00e9bec")), 6L)
+  expect_equal(fb_normalize_pt_names(c("Nouvelle-\u00c9cosse")), 8L)
+  expect_equal(fb_normalize_pt_names(c("Nouvelle-Ecosse")), 8L)
+  expect_equal(
+    fb_normalize_pt_names(c("\u00cele-du-Prince-\u00c9douard")),
+    9L
+  )
+  expect_equal(
+    fb_normalize_pt_names(c("Ile-du-Prince-Edouard")),
+    9L
+  )
+})
+
+test_that("fb_reference_percents skips toolkit fallback for multi-PT", {
+  old_micro <- fb_env$micro
+  old_micro_fb1 <- fb_env$micro_fb1
+  old_data_source <- fb_env$data_source
+  old_toolkit_proportions <- fb_env$toolkit_proportions
+
+  fb_env$micro <- data.frame(weight = c(1, 1))
+  fb_env$micro_fb1 <- NULL
+  fb_env$data_source <- "Legacy"
+  fb_env$toolkit_proportions <- data.frame(
+    variable_name = "fake_code",
+    exposure_number = "1",
+    Canada = 12.3,
+    ON = 9.9,
+    QC = 10.1,
+    stringsAsFactors = FALSE
+  )
+
+  res <- fb_reference_percents(
+    codes = c("fake_code"),
+    pt_names = c("Ontario", "Quebec")
+  )
+  expect_true(is.na(res[["fake_code"]]))
+
+  fb_env$micro <- old_micro
+  fb_env$micro_fb1 <- old_micro_fb1
+  fb_env$data_source <- old_data_source
+  fb_env$toolkit_proportions <- old_toolkit_proportions
+})
+
 test_that("fb_filter_micro filters by PT correctly", {
   # Create mock microdata
   mock_micro <- data.frame(

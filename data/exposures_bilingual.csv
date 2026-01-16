@@ -47,7 +47,7 @@
 "zucchini",48,"VEGETABLES","LÉGUMES","Zucchini*","Courgettes*",TRUE
 "vegjuice",49,"VEGETABLES","LÉGUMES","Any vegetable juices*","Jus de légumes*",TRUE
 "vegez",50,"VEGETABLES","LÉGUMES","Frozen vegetables*","Légumes congelés*",TRUE
-"anyfreshherbs",52,"VEGETABLES","LÉGUMES","Any fresh herbs","",FALSE
+"anyfreshherbs",52,"VEGETABLES","LÉGUMES","Any fresh herbs","Herbes fraiches",FALSE
 "basil",53,"VEGETABLES","LÉGUMES","Fresh basil","Basilic frais",FALSE
 "tbasil",54,"VEGETABLES","LÉGUMES","Fresh Thai basil*","Basilic thaï frais*",TRUE
 "cilantro",55,"VEGETABLES","LÉGUMES","Fresh cilantro/coriander","Coriandre fraîche",FALSE
@@ -148,7 +148,7 @@
 "pecan",153,"FRUITS","FRUITS","Pecans","Pacanes",FALSE
 "onut",154,"FRUITS","FRUITS","Other nuts","Autres noix",FALSE
 "nutpaste",155,"FRUITS","FRUITS","Other nut paste, butter or spread*","Autres pâtes, beurres ou tartinades de noix*",TRUE
-"anyseed",156,"FRUITS","FRUITS","Any seeds","",FALSE
+"anyseed",156,"FRUITS","FRUITS","Any seeds","Toutes les graines",FALSE
 "sunflwsd",157,"FRUITS","FRUITS","Sunflower seeds","Graines de tournesol",FALSE
 "ssbutter",158,"FRUITS","FRUITS","Butter or paste containing sunflower seeds","Beurre ou pâte contenant des graines de tournesol",FALSE
 "sesamesd",159,"FRUITS","FRUITS","Sesame seeds","Graines de sésame",FALSE
@@ -284,14 +284,14 @@
 "Q109_B",300,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Indian style foods*","Aliments de style indien*",TRUE
 "Q109_C",301,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Mexican style foods*","Aliments de style mexicain*",TRUE
 "Q110_Q111_dv",302,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Meal from a fast food restaurant*","Repas dans un restaurant-minute*",TRUE
-"babyfoods",303,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","BABY FOODS","",FALSE
+"babyfoods",303,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","BABY FOODS","Aliments pour nourrissons",FALSE
 "fb1_anybabyformula",304,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Any baby formula*","Tout type de préparations pour nourrissons*",TRUE
 "Q1",305,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Liquid*","Préparations pour nourrissons liquide/en conserve*",TRUE
 "Q2",306,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Powder*","Préparations pour nourrissons en poudre*",TRUE
 "Q3",307,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Store-bought pureed baby food*","Aliments en purées pour nourrissons du commerce*",TRUE
 "Q4",308,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Infant/toddler cereal*","Céréales pour nourrissons et tout-petits*",TRUE
 "butcher",310,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Meat from a butcher shop","Viande d’une boucherie",FALSE
-"foodfarm",311,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Food from farmer's market or farm","",FALSE
+"foodfarm",311,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Food from farmer's market or farm","Aliments du marche fermier ou de la ferme",FALSE
 "producefarm",312,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Produce from a farmer's market or farm","Fruits et légumes du marché ou de la ferme d'un fermier",FALSE
 "eggfarm",313,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Eggs from a farmer's market or farm","Œufs du marché ou de la ferme d'un fermier",FALSE
 "meatfarm",314,"DRIED/PROCESSED/OTHER","DRIED/PROCESSED/OTHER","Meat from a farmer's market or farm","Viandes du marché ou de la ferme d'un fermier",FALSE
@@ -308,7 +308,7 @@
 "ctruckedin",328,"WATER","EAU","Trucked-in water","Eau approvisionnée par des camions-citernes",FALSE
 "cbottled",329,"WATER","EAU","Store-bought bottled water","Eau embouteillée du commerce",FALSE
 "ccistern",330,"WATER","EAU","Cistern","Citerne",FALSE
-"cnottreated",331,"WATER","EAU","Untreated lake, spring or river water","",FALSE
+"cnottreated",331,"WATER","EAU","Untreated lake, spring or river water","Eau de lac, de source ou de riviere non traitee",FALSE
 "cotherw",332,"WATER","EAU","Other water source","Autres sources d’eau",FALSE
 "swaminwadeorenteredlakeriverpondorstream",333,"WATER","EAU","Swam in, wade or entered lake, river, pond or stream","A nagé, pataugé ou est entré dans un lac, une rivière, un étang ou un ruisseau*",FALSE
 "Q118",334,"WATER","EAU","Raw water consumption*","Avoir bu de l'eau non traitée*",TRUE

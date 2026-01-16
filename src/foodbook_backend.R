@@ -920,6 +920,14 @@ fb_init <- function(lang = "en") {
   # =============================================================================
   if ("Age_group" %in% names(fb_env$micro)) {
     ag <- suppressWarnings(as.integer(fb_env$micro$Age_group))
+    
+    # [FB1 FIX] Coalesce with age_grp4_dv if present (legacy FB1 variable)
+    # Both variables use 1-4 coding mapping to same bands
+    if ("age_grp4_dv" %in% names(fb_env$micro)) {
+      ag_fb1 <- suppressWarnings(as.integer(fb_env$micro$age_grp4_dv))
+      ag <- ifelse(is.na(ag) & !is.na(ag_fb1), ag_fb1, ag)
+    }
+
     # Age groups in authoritative microdata:
     # - Values 1, 2, 3, 4 map directly to 4 bands (confirmed from data)
     # - Value 999 = missing/refused
