@@ -90,8 +90,16 @@
       "fr": "Toutes les catégories"
     },
     {
+      "en": "Category",
+      "fr": "Catégorie"
+    },
+    {
       "en": "Reference Data",
       "fr": "Données de référence"
+    },
+    {
+      "en": "Reference Values",
+      "fr": "Valeurs de reference"
     },
     {
       "en": "Foodbook 1 only",

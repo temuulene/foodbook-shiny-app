@@ -94,105 +94,8 @@ ui <- function(request) {
         "link-color" = "#0e4a7b",
         "link-hover-color" = "#0a3a61"
       ) |>
-      bs_add_rules(
-        "
-        body {
-          background: linear-gradient(135deg, #eef2f8 0%, #fdfdfd 60%);
-        }
-        .navbar {
-          border-bottom: 1px solid #d7e3f7;
-          background-color: rgba(255, 255, 255, 0.92);
-          backdrop-filter: blur(6px);
-        }
-        .navbar-brand {
-          color: #0f4c81 !important;
-          font-weight: 700;
-          letter-spacing: 0.02em;
-        }
-        .nav-link {
-          color: #4b5563 !important;
-          border-radius: 999px;
-          padding: 0.6rem 1.1rem;
-          margin: 0 0.3rem;
-        }
-        .nav-link:hover {
-          color: #0f4c81 !important;
-          background-color: rgba(15, 76, 129, 0.08);
-        }
-        .nav-link.active {
-          color: #0f4c81 !important;
-          background-color: rgba(15, 76, 129, 0.14) !important;
-          box-shadow: inset 0 -3px 0 #0f4c81;
-        }
-        .bslib-sidebar-layout .sidebar {
-          background: #ffffff;
-          border-right: 1px solid #dde6f5;
-          box-shadow: 4px 0 24px rgba(15, 76, 129, 0.08);
-        }
-        .bslib-sidebar-layout .sidebar .title {
-          color: #0f4c81;
-          font-weight: 600;
-        }
-        .sidebar hr {
-          border-color: #d0ddf0;
-        }
-        .btn-primary {
-          background: linear-gradient(135deg, #1160aa 0%, #0b4a86 100%);
-          border: none;
-          box-shadow: 0 12px 24px rgba(15, 76, 129, 0.18);
-        }
-        .btn-primary:hover {
-          background: linear-gradient(135deg, #0b4a86 0%, #073866 100%);
-        }
-        .btn-warning {
-          background: linear-gradient(135deg, #f7b733 0%, #f59e0b 100%);
-          border: none;
-          color: #1f2933;
-          box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
-        }
-        .btn-warning:hover {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-        .btn-secondary {
-          background: linear-gradient(135deg, #4b5563 0%, #364152 100%);
-          border: none;
-          color: #f9fafb;
-        }
-        .card {
-          border: 1px solid #dde6f5;
-          box-shadow: 0 12px 30px rgba(15, 76, 129, 0.12);
-        }
-        .card-header {
-          background: linear-gradient(135deg, #f7faff 0%, #ecf2ff 100%);
-          border-bottom: 1px solid #d0ddf0;
-          font-weight: 600;
-          color: #0f4c81;
-        }
-        .nav-tabs .nav-link {
-          color: #4b5563 !important;
-        }
-        .nav-tabs .nav-link.active {
-          color: #0f4c81 !important;
-          background-color: #e8f1ff !important;
-          border-color: #e8f1ff #e8f1ff #ffffff;
-        }
-        .selectize-input {
-          border: 2px solid #d0ddf0;
-          border-radius: 0.65rem;
-          min-height: 50px;
-          font-weight: 500;
-          transition: all 0.2s ease;
-        }
-        .selectize-input.focus {
-          border-color: #0f4c81;
-          box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
-        }
-        .selectize-dropdown-content .option.active {
-          background: #e8f1ff;
-          color: #0f4c81;
-        }
-      "
-      ),
+      # CSS styles moved to www/styles.css for maintainability
+      bs_add_rules(""),
     header = tagList(
       useShinyjs(),
       extendShinyjs(
@@ -219,252 +122,10 @@ ui <- function(request) {
         ",
         functions = c("resetFileInput")
       ),
+      # Load external CSS and JS files (extracted for maintainability)
       tags$head(
-        tags$script(HTML(
-          "
-          // Inject language selector into navbar on page load
-          $(document).ready(function() {
-            setTimeout(function() {
-              var langContainer = $('#lang_selector_container');
-              console.log('Found lang container:', langContainer.length);
-
-              if (langContainer.length > 0) {
-                // Find the form-group div inside the container
-                var formGroup = langContainer.find('.form-group').first();
-                console.log('Found form group:', formGroup.length);
-
-                if (formGroup.length > 0) {
-                  // Create wrapper and append to navbar
-                  var wrapper = $('<div class=\"language-selector-wrapper\"></div>');
-                  $('nav.navbar').first().css('position', 'relative').append(wrapper);
-
-                  // Move the entire form-group to the wrapper and make visible
-                  formGroup.appendTo(wrapper);
-                  formGroup.css('display', 'block');
-                  wrapper.css('display', 'block');
-
-                  console.log('Language selector moved to navbar');
-                }
-              }
-            }, 500);
-          });
-
-          // Custom message handler for updating button labels
-          Shiny.addCustomMessageHandler('update-button-labels', function(labels) {
-            $('#reset').text(labels.reset);
-            $('button[id*=bookmark]').text(labels.bookmark);
-            $('#download_plot').text(labels.download);
-          });
-
-          // Custom message handler for updating tab names
-          Shiny.addCustomMessageHandler('update-tab-names', function(labels) {
-            // Update main nav tabs
-            $('a.nav-link').each(function() {
-              var $icon = $(this).find('i');
-              var iconHtml = $icon.length ? $icon.prop('outerHTML') + ' ' : '';
-              var text = $(this).text().trim();
-
-              if (text === 'Analysis' || text === 'Analyse') {
-                $(this).html(iconHtml + labels.analysis);
-              } else if (text === 'Data Info' || text === 'Info sur les données') {
-                $(this).html(iconHtml + labels.data_info);
-              } else if (text === 'About' || text === 'À propos') {
-                $(this).html(iconHtml + labels.about);
-              }
-            });
-
-            // Update inner nav tabs (Results/Visualization)
-            $('.nav-tabs .nav-link').each(function() {
-              var text = $(this).text().trim();
-              if (text === 'Results' || text === 'Résultats') {
-                $(this).text(labels.results);
-              } else if (text === 'Visualization' || text === 'Visualisation') {
-                $(this).text(labels.visualization);
-              }
-            });
-          });
-
-          // Custom message handler for updating sidebar title
-          Shiny.addCustomMessageHandler('update-sidebar-title', function(title) {
-            $('.bslib-sidebar-layout .sidebar .title').text(title);
-          });
-
-          // Custom message handler for updating accordion titles
-          Shiny.addCustomMessageHandler('update-accordion-titles', function(labels) {
-            $('.accordion-button').each(function() {
-              if ($(this).text().includes('Upload') || $(this).text().includes('Télécharger')) {
-                var $icon = $(this).find('i');
-                var iconHtml = $icon.length ? $icon.prop('outerHTML') + ' ' : '';
-                $(this).html(iconHtml + labels.upload_exposure);
-              }
-            });
-          });
-
-          // Custom message handler for updating card headers
-          Shiny.addCustomMessageHandler('update-card-headers', function(labels) {
-            $('.card-header').each(function() {
-              var text = $(this).text().trim();
-              if (text === 'Exposure Data Input' || text === 'Saisie des données d\\'exposition') {
-                $(this).text(labels.exposure_data_input);
-              } else if (text === 'Reference Settings' || text === 'Paramètres de référence') {
-                $(this).text(labels.reference_settings);
-              } else if (text.includes('Population Exposure Snapshot') || text.includes('Instantané d\\'exposition de la population')) {
-                $(this).text(labels.population_snapshot);
-              } else if (text.includes('Microdata Coverage by PT') || text.includes('Couverture des microdonnées par PT')) {
-                $(this).text(labels.microdata_pt);
-              } else if (text.includes('Microdata Coverage by Month') || text.includes('Couverture des microdonnées par mois')) {
-                $(this).text(labels.microdata_month);
-              } else if (text === 'About This Tool' || text === 'À propos de cet outil') {
-                $(this).text(labels.about_tool);
-              }
-            });
-          });
-
-          // Custom message handler for updating misc labels (help text, file inputs, etc)
-          Shiny.addCustomMessageHandler('update-misc-labels', function(labels) {
-            // Update help text (but NOT file input controls - they're handled by renderUI)
-            $('span.help-block, span.form-text, .shiny-input-container .help-block').each(function() {
-              var text = $(this).text().trim();
-              if (text.includes('Enter case counts') || text.includes('Entrez les comptes')) {
-                $(this).text(labels.enter_case_counts);
-              }
-            });
-          });
-        "
-        )),
-        tags$style(HTML(
-          "
-        /* Ensure navbar is above all content */
-        nav.navbar {
-          position: relative;
-          z-index: 9000 !important;
-        }
-
-        /* Main page content should be below navbar */
-        .tab-content {
-          position: relative;
-          z-index: 1;
-        }
-
-        .language-selector-wrapper {
-          position: absolute;
-          top: 10px;
-          right: 20px;
-          z-index: 10000;
-        }
-        .language-selector-wrapper .form-group {
-          margin: 0;
-          position: relative;
-          z-index: 10000;
-        }
-        .language-selector-wrapper label {
-          display: none;
-        }
-        .language-selector-wrapper select {
-          padding: 0.4rem 0.8rem;
-          border-radius: 0.5rem;
-          border: 1px solid #d0ddf0;
-          background: white;
-          color: #4b5563;
-          font-weight: 500;
-          font-size: 0.9rem;
-          cursor: pointer;
-          box-shadow: 0 2px 8px rgba(15, 76, 129, 0.15);
-          transition: all 0.2s;
-          position: relative;
-          z-index: 10000;
-        }
-        .language-selector-wrapper select:hover {
-          background: #f1f5ff;
-          border-color: #0f4c81;
-          color: #0f4c81;
-        }
-        .language-selector-wrapper select:focus {
-          outline: none;
-          border-color: #0f4c81;
-          box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.1);
-        }
-
-        .exposure-input-group {
-          border: 1px solid #dde6f5;
-          border-radius: 0.9rem;
-          background: #ffffff;
-          padding: 1.2rem;
-          margin-bottom: 1.25rem;
-          box-shadow: 0 16px 40px rgba(15, 76, 129, 0.08);
-        }
-        .exposure-input-group:first-child {
-          margin-top: 0.75rem;
-        }
-        .exposure-input-group .row {
-          row-gap: 0.75rem;
-        }
-        .exposure-header {
-          color: #0f4c81;
-          font-weight: 600;
-          letter-spacing: 0.01em;
-          margin-bottom: 1rem;
-        }
-        .exposure-input-group .form-control {
-          border-radius: 0.65rem;
-          border: 1px solid #d0ddf0;
-          padding: 0.6rem 0.75rem;
-          font-weight: 500;
-        }
-        .exposure-input-group .form-control:focus {
-          border-color: #0f4c81;
-          box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.15);
-        }
-        .ref-value {
-          color: #1b7b57;
-          font-weight: 600;
-          display: inline-block;
-          margin-top: 0.25rem;
-        }
-        .sidebar .form-group > label {
-          font-weight: 600;
-          color: #334155;
-        }
-        .sidebar .selectize-input,
-        .sidebar select.form-control {
-          border-radius: 0.65rem;
-          border: 1px solid #d0ddf0;
-          min-height: 44px;
-        }
-        .sidebar .selectize-input.focus,
-        .sidebar select.form-control:focus {
-          border-color: #0f4c81;
-          box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
-          outline: none;
-        }
-        .sidebar .action-button {
-          font-weight: 600;
-        }
-        .dataTables_wrapper .dt-buttons .btn {
-          background: #0f4c81;
-          color: #ffffff;
-          border: none;
-          border-radius: 0.5rem;
-          box-shadow: 0 8px 18px rgba(15, 76, 129, 0.18);
-        }
-        .dataTables_wrapper .dt-buttons .btn:hover {
-          background: #0b3a67;
-        }
-        .dataTables_wrapper .dataTables_filter input {
-          border-radius: 0.5rem;
-          border: 1px solid #d0ddf0;
-          padding: 0.45rem 0.75rem;
-        }
-        .well-panel-about h4 {
-          color: #0f4c81;
-          font-weight: 600;
-        }
-        .well-panel-about li {
-          margin-bottom: 0.55rem;
-          line-height: 1.5;
-        }
-      "
-        ))
+        tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+        tags$script(src = "app.js")
       ),
       # Hidden language selector (will be moved to navbar by JavaScript)
       tags$div(
@@ -889,6 +550,12 @@ server <- function(input, output, session) {
         selected = current_month
       )
 
+      # Update navbar title/brand via JavaScript
+      session$sendCustomMessage(
+        "update-navbar-title",
+        translator$t("Food Exposure Analysis Tool")
+      )
+
       # Update button labels via JavaScript
       session$sendCustomMessage(
         "update-button-labels",
@@ -904,10 +571,9 @@ server <- function(input, output, session) {
         "update-tab-names",
         list(
           analysis = translator$t("Analysis"),
+          reference_data = translator$t("Reference Data"),
           data_info = translator$t("Data Info"),
-          about = translator$t("About"),
-          results = translator$t("Results"),
-          visualization = translator$t("Visualization")
+          about = translator$t("About")
         )
       )
 
@@ -1200,12 +866,12 @@ server <- function(input, output, session) {
       })
     }
 
-    ages <- if (translator$t("All Ages") %in% input$age_group) {
+    ages <- if ("All Ages" %in% input$age_group) {
       NULL
     } else {
       input$age_group
     }
-    months <- if (translator$t("All Months") %in% input$month) {
+    months <- if ("All Months" %in% input$month) {
       NULL
     } else {
       as.integer(input$month)
@@ -1301,12 +967,12 @@ server <- function(input, output, session) {
       })
     }
 
-    ages <- if (translator$t("All Ages") %in% input$age_group) {
+    ages <- if ("All Ages" %in% input$age_group) {
       NULL
     } else {
       input$age_group
     }
-    months <- if (translator$t("All Months") %in% input$month) {
+    months <- if ("All Months" %in% input$month) {
       NULL
     } else {
       as.integer(input$month)
@@ -1588,7 +1254,7 @@ server <- function(input, output, session) {
       ))
     }
 
-    # Check if reference sample size is very small (≤5)
+    # Check if reference sample size is very small (â‰¤5)
     ref_sample_size <- cached_ref_sample_size()
     small_sample_warning <- NULL
     if (!is.null(ref_sample_size) && ref_sample_size <= 5) {
@@ -1674,9 +1340,9 @@ server <- function(input, output, session) {
 
   # Reset button
   observeEvent(input$reset, {
-    updateSelectInput(session, "province", selected = translator$t("Canada"))
-    updateSelectInput(session, "age_group", selected = translator$t("All Ages"))
-    updateSelectInput(session, "month", selected = translator$t("All Months"))
+    updateSelectInput(session, "province", selected = "Canada")
+    updateSelectInput(session, "age_group", selected = "All Ages")
+    updateSelectInput(session, "month", selected = "All Months")
     updateSelectizeInput(session, "exposure_select", selected = character(0))
   })
 
@@ -2309,15 +1975,13 @@ server <- function(input, output, session) {
       dplyr::select(
         !!cat_col, 
         !!label_col,
-        variable_name,
         Canada, BC, AB, SK, MB, ON, QC, NB, NS, PE, NL, YT, NT, NU
       )
       
     # Rename columns for display
-    colnames(display_df)[1:3] <- c(
+    colnames(display_df)[1:2] <- c(
       tr$t("Category"), 
-      tr$t("Exposure"), 
-      "Variable ID"
+      tr$t("Exposure")
     )
     
     datatable(
@@ -2331,9 +1995,10 @@ server <- function(input, output, session) {
       ),
       filter = 'top'
     ) |>
-      formatRound(columns = 4:17, digits = 1) 
+      formatRound(columns = 3:16, digits = 1) 
   })
 }
 
 # --- 7. Run Application ---
 shinyApp(ui, server, enableBookmarking = "url")
+

@@ -711,7 +711,9 @@ fb_normalize_pt_names <- function(pt_names) {
     "Québec" = 6L,
     "Nouveau-Brunswick" = 7L,
     "Nouvelle-Écosse" = 8L,
+    "Nouvelle-Ecosse" = 8L,
     "Île-du-Prince-Édouard" = 9L,
+    "Ile-du-Prince-Edouard" = 9L,
     "Terre-Neuve-et-Labrador" = 10L,
     "Territoires du Nord-Ouest" = 12L,
     # Abbreviations
@@ -918,13 +920,15 @@ fb_init <- function(lang = "en") {
   # =============================================================================
   if ("Age_group" %in% names(fb_env$micro)) {
     ag <- suppressWarnings(as.integer(fb_env$micro$Age_group))
-    # Age groups: 1-10 map to our 4 bands
-    # 1-2 (0-9), 3-4 (10-19), 5-8 (20-64), 9-10 (65+)
+    # Age groups in authoritative microdata:
+    # - Values 1, 2, 3, 4 map directly to 4 bands (confirmed from data)
+    # - Value 999 = missing/refused
+    # - NA = not applicable
     age_map <- c(
-      `1` = "0-9", `2` = "0-9",
-      `3` = "10-19", `4` = "10-19",
-      `5` = "20-64", `6` = "20-64", `7` = "20-64", `8` = "20-64",
-      `9` = "65+", `10` = "65+"
+      `1` = "0-9",
+      `2` = "10-19",
+      `3` = "20-64",
+      `4` = "65+"
     )
     fb_env$micro$AgeBand <- unname(age_map[as.character(ag)])
   } else if ("age" %in% names(fb_env$micro)) {
@@ -1406,6 +1410,13 @@ fb_reference_percents <- function(
   months = NULL,
   age_groups = NULL
 ) {
+  pt_to_use <- NULL
+  if (is.null(pt_names) || length(pt_names) == 0) {
+    pt_to_use <- "Canada"
+  } else if (length(pt_names) == 1) {
+    pt_to_use <- pt_names
+  }
+
   if (!is.null(fb_env$micro)) {
     cedars_map <- fb_cedars_to_foodbook_map()
 
@@ -1459,8 +1470,7 @@ fb_reference_percents <- function(
       function(fb_col) {
         # High Priority: For Total Population (no Age/Month filters), 
         # use official published values from Toolkit if available.
-        if (is.null(months) && is.null(age_groups)) {
-          pt_to_use <- if (is.null(pt_names) || "Canada" %in% pt_names) "Canada" else pt_names[1]
+        if (is.null(months) && is.null(age_groups) && !is.null(pt_to_use)) {
           tk_val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
           if (!is.na(tk_val)) {
             return(tk_val)
@@ -1534,8 +1544,10 @@ fb_reference_percents <- function(
     # 3. Fallback to Toolkit Proportions (systematized CSV)
         # This handles FB2 variables that might be missing from microdata filters or just missing in general
         # but present in the official toolkit data.
-        val <- fb_toolkit_reference_percent(fb_col, if(is.null(pt_names) || "Canada" %in% pt_names) "Canada" else pt_names[1])
-        if (!is.na(val)) return(val)
+        if (!is.null(pt_to_use)) {
+          val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
+          if (!is.na(val)) return(val)
+        }
 
         NA_real_
       },
@@ -1549,7 +1561,10 @@ fb_reference_percents <- function(
   # If microdata is NULL, try Toolkit data first, then legacy CSV
   # Try Toolkit first as it's more comprehensive and uses codes
   res_toolkit <- vapply(codes, function(x) {
-    val <- fb_toolkit_reference_percent(x, if(is.null(pt_names) || "Canada" %in% pt_names) "Canada" else pt_names[1])
+    if (is.null(pt_to_use)) {
+      return(NA_real_)
+    }
+    val <- fb_toolkit_reference_percent(x, pt_to_use)
     if (is.na(val)) {
        # Fallback to legacy CSV logic
        # This requires mapping code to label if possible, but fb_reference_percents_csv takes "label"
@@ -1631,7 +1646,9 @@ fb_toolkit_exposure_choices <- function(lang = "en", category = NULL) {
   # Filter by category if specified
   if (!is.null(category) && category != "" && category != "All" && category != "Toutes" && category != "Tous") {
     cat_col <- if (lang == "fr") "category_fr" else "category_en"
-    df <- df[df[[cat_col]] == category, ]
+    norm_category <- tolower(category)
+    norm_df <- tolower(df[[cat_col]])
+    df <- df[norm_df == norm_category, ]
   }
   
   # Prepare choices list: Label -> Variable Name (or Number if var name missing)

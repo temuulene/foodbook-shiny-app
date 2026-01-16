@@ -38,21 +38,7 @@ fb_init(lang = "en")
 backend_ok <- tryCatch(fb_is_available(), error = function(e) FALSE)
 
 # --- 3. Helper Functions ---
-# NOTE: classify_exposure is now also defined in foodbook_backend.R
-# This local definition is kept for clarity and backwards compatibility
-
-classify_exposure <- function(p_value, observed_prop, ref_prop) {
-  if (is.na(ref_prop)) return("No Reference Value")
-  ref_prop_decimal <- ref_prop / 100
-  if (is.na(p_value)) return("Insufficient Data")
-  if (observed_prop > ref_prop_decimal) {
-    case_when(p_value <= 0.05 ~ "Alert",
-              p_value <= 0.10 ~ "Borderline",
-              TRUE ~ "Not Significant")
-  } else {
-    "Not Significant"
-  }
-}
+# Shared helpers live in src/foodbook_backend.R
 
 # Helper to find Excel sheet by required columns
 find_sheet_by_columns <- function(excel_path, required_cols) {
@@ -103,142 +89,8 @@ ui <- function(request) {
         "link-color" = "#0e4a7b",
         "link-hover-color" = "#0a3a61"
       ) |>
-      bs_add_rules("
-        body {
-          background: linear-gradient(135deg, #eef2f8 0%, #fdfdfd 60%);
-        }
-        .navbar {
-          border-bottom: 1px solid #d7e3f7;
-          background-color: rgba(255, 255, 255, 0.92);
-          backdrop-filter: blur(6px);
-        }
-        .navbar-brand {
-          color: #0f4c81 !important;
-          font-weight: 700;
-          letter-spacing: 0.02em;
-        }
-        .nav-link {
-          color: #4b5563 !important;
-          border-radius: 999px;
-          padding: 0.6rem 1.1rem;
-          margin: 0 0.3rem;
-        }
-        .nav-link:hover {
-          color: #0f4c81 !important;
-          background-color: rgba(15, 76, 129, 0.08);
-        }
-        .nav-link.active {
-          color: #0f4c81 !important;
-          background-color: rgba(15, 76, 129, 0.14) !important;
-          box-shadow: inset 0 -3px 0 #0f4c81;
-        }
-        .bslib-sidebar-layout .sidebar {
-          background: #ffffff;
-          border-right: 1px solid #dde6f5;
-          box-shadow: 4px 0 24px rgba(15, 76, 129, 0.08);
-        }
-        .bslib-sidebar-layout .sidebar .title {
-          color: #0f4c81;
-          font-weight: 600;
-        }
-        .sidebar hr {
-          border-color: #d0ddf0;
-        }
-        .btn-primary {
-          background: linear-gradient(135deg, #1160aa 0%, #0b4a86 100%);
-          border: none;
-          box-shadow: 0 12px 24px rgba(15, 76, 129, 0.18);
-        }
-        .btn-primary:hover {
-          background: linear-gradient(135deg, #0b4a86 0%, #073866 100%);
-        }
-        .btn-warning {
-          background: linear-gradient(135deg, #f7b733 0%, #f59e0b 100%);
-          border: none;
-          color: #1f2933;
-          box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
-        }
-        .btn-warning:hover {
-          background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
-        .btn-secondary {
-          background: linear-gradient(135deg, #4b5563 0%, #364152 100%);
-          border: none;
-          color: #f9fafb;
-        }
-        .card {
-          border: 1px solid #dde6f5;
-          box-shadow: 0 12px 30px rgba(15, 76, 129, 0.12);
-        }
-        .card-header {
-          background: linear-gradient(135deg, #f7faff 0%, #ecf2ff 100%);
-          border-bottom: 1px solid #d0ddf0;
-          font-weight: 600;
-          color: #0f4c81;
-        }
-        .nav-tabs .nav-link {
-          color: #4b5563 !important;
-        }
-        .nav-tabs .nav-link.active {
-          color: #0f4c81 !important;
-          background-color: #e8f1ff !important;
-          border-color: #e8f1ff #e8f1ff #ffffff;
-        }
-        .selectize-input {
-          border: 2px solid #d0ddf0;
-          border-radius: 0.65rem;
-          min-height: 44px;
-          font-weight: 500;
-          transition: all 0.2s ease;
-        }
-        .selectize-input.focus {
-          border-color: #0f4c81;
-          box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
-        }
-        .selectize-dropdown-content .option.active {
-          background: #e8f1ff;
-          color: #0f4c81;
-        }
-        .sidebar .form-group > label {
-          font-weight: 600;
-          color: #334155;
-        }
-        .sidebar .selectize-input,
-        .sidebar select.form-control {
-          border-radius: 0.65rem;
-          border: 1px solid #d0ddf0;
-          min-height: 44px;
-        }
-        .sidebar .selectize-input.focus,
-        .sidebar select.form-control:focus {
-          border-color: #0f4c81;
-          box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
-          outline: none;
-        }
-        .dataTables_wrapper .dt-buttons .btn {
-          background: #0f4c81;
-          color: #ffffff;
-          border: none;
-          border-radius: 0.5rem;
-          box-shadow: 0 8px 18px rgba(15, 76, 129, 0.18);
-        }
-        .dataTables_wrapper .dt-buttons .btn:hover {
-          background: #0b3a67;
-        }
-        .dataTables_wrapper .dataTables_filter input {
-          border-radius: 0.5rem;
-          border: 1px solid #d0ddf0;
-          padding: 0.45rem 0.75rem;
-        }
-        .well-panel-about h4 {
-          color: #0f4c81;
-          font-weight: 600;
-        }
-        .well-panel-about li {
-          margin-bottom: 0.55rem;
-          line-height: 1.5;
-        }
-      "),
+      # CSS styles moved to www/styles.css for maintainability
+      bs_add_rules(""),
     header = tagList(
       useShinyjs(),
       extendShinyjs(
@@ -265,139 +117,22 @@ ui <- function(request) {
         ",
         functions = c("resetFileInput")
       ),
+      # Load external CSS and JS files (extracted for maintainability)
       tags$head(
-        tags$script(HTML("
-          // Inject language selector into navbar on page load
-          $(document).ready(function() {
-            setTimeout(function() {
-              var langContainer = $('#lang_selector_container');
-              console.log('Found lang container:', langContainer.length);
-
-              if (langContainer.length > 0) {
-                // Find the form-group div inside the container
-                var formGroup = langContainer.find('.form-group').first();
-                console.log('Found form group:', formGroup.length);
-
-                if (formGroup.length > 0) {
-                  // Create wrapper and append to navbar
-                  var wrapper = $('<div class=\"language-selector-wrapper\"></div>');
-                  $('nav.navbar').first().css('position', 'relative').append(wrapper);
-
-                  // Move the entire form-group to the wrapper and make visible
-                  formGroup.appendTo(wrapper);
-                  formGroup.css('display', 'block');
-                  wrapper.css('display', 'block');
-
-                  console.log('Language selector moved to navbar');
-                }
-              }
-            }, 500);
-          });
-
-          // Custom message handler for updating button labels
-          Shiny.addCustomMessageHandler('update-button-labels', function(labels) {
-            $('#download_plot').text(labels.download);
-          });
-
-          // Custom message handler for updating tab names
-          // Use icon classes to identify tabs (more reliable than text matching with encoding issues)
-          Shiny.addCustomMessageHandler('update-tab-names', function(labels) {
-            // Update main nav tabs using icon classes
-            $('a.nav-link').each(function() {
-              var $link = $(this);
-              var $icon = $link.find('i');
-              var iconHtml = $icon.length ? $icon.prop('outerHTML') + ' ' : '';
-
-              // Check for upload icon (fa-upload or fa-file-arrow-up)
-              if ($icon.hasClass('fa-upload') || $icon.hasClass('fa-file-arrow-up')) {
-                $link.html(iconHtml + labels.cedars);
-              }
-              // Check for database icon
-              else if ($icon.hasClass('fa-database')) {
-                $link.html(iconHtml + labels.data_info);
-              }
-              // Check for info icon (fa-info-circle or fa-circle-info)
-              else if ($icon.hasClass('fa-info-circle') || $icon.hasClass('fa-circle-info')) {
-                $link.html(iconHtml + labels.about);
-              }
-            });
-          });
-
-          // Note: Sidebar titles are now handled via renderUI for reliable translation
-
-          // Custom message handler for updating misc labels (help text, etc)
-          // Note: File input labels and Browse button are now handled via renderUI
-          Shiny.addCustomMessageHandler('update-misc-labels', function(labels) {
-            // Update help text
-            $('span.help-block, span.form-text, .shiny-input-container .help-block').each(function() {
-              var text = $(this).text().trim();
-              if (text.includes('auto-detect sheets') || text.includes('dÃƒÂ©tectera automatiquement')) {
-                $(this).text(labels.auto_detect_help);
-              }
-            });
-          });
-        ")),
-        tags$style(HTML("
-        /* Ensure navbar is above all content */
-        nav.navbar {
-          position: relative;
-          z-index: 9000 !important;
-        }
-
-        /* Main page content should be below navbar */
-        .tab-content {
-          position: relative;
-          z-index: 1;
-        }
-
-        .language-selector-wrapper {
-          position: absolute;
-          top: 10px;
-          right: 20px;
-          z-index: 10000;
-        }
-        .language-selector-wrapper .form-group {
-          margin: 0;
-          position: relative;
-          z-index: 10000;
-        }
-        .language-selector-wrapper label {
-          display: none;
-        }
-        .language-selector-wrapper select {
-          padding: 0.4rem 0.8rem;
-          border-radius: 0.5rem;
-          border: 1px solid #d0ddf0;
-          background: white;
-          color: #4b5563;
-          font-weight: 500;
-          font-size: 0.9rem;
-          cursor: pointer;
-          box-shadow: 0 2px 8px rgba(15, 76, 129, 0.15);
-          transition: all 0.2s;
-          position: relative;
-          z-index: 10000;
-        }
-        .language-selector-wrapper select:hover {
-          background: #f1f5ff;
-          border-color: #0f4c81;
-          color: #0f4c81;
-        }
-        .language-selector-wrapper select:focus {
-          outline: none;
-          border-color: #0f4c81;
-          box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.1);
-        }
-        "))
+        tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+        tags$script(src = "app.js")
       ),
       # Hidden language selector (will be moved to navbar by JavaScript)
-      tags$div(id = "lang_selector_container", style = "display: none;",
-          language_selector_ui("lang_selector", style = "dropdown"))
+      tags$div(
+        id = "lang_selector_container",
+        style = "display: none;",
+        language_selector_ui("lang_selector", style = "dropdown")
+      )
     ),
 
     # CEDARS Upload Tab
     nav_panel(
-      title = translator$t("CEDARS Analysis"),
+      title = span(id = "nav-cedars-label", translator$t("CEDARS Analysis")),
       icon = icon("upload"),
 
       layout_sidebar(
@@ -412,7 +147,12 @@ ui <- function(request) {
             id = "cedars_upload_container",
             uiOutput("cedars_file_input_ui"),
 
-            helpText(translator$t("The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist).")),
+            helpText(span(
+              id = "help-auto-detect",
+              translator$t(
+                "The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist)."
+              )
+            )),
             actionButton(
               "cedars_clear",
               label = translator$t("Remove File"),
@@ -478,7 +218,7 @@ ui <- function(request) {
 
     # Data Info Tab
     nav_panel(
-      title = translator$t("Data Info"),
+      title = span(id = "nav-data-info-label", translator$t("Data Info")),
       icon = icon("database"),
       layout_columns(
         col_widths = c(6, 6),
@@ -503,7 +243,7 @@ ui <- function(request) {
 
     # About Tab
     nav_panel(
-      title = translator$t("About"),
+      title = span(id = "nav-about-label", translator$t("About")),
       icon = icon("info-circle"),
 
       card(
@@ -541,15 +281,18 @@ server <- function(input, output, session) {
                                          style = "dropdown")
 
   current_lang <- lang_state$language
+  get_tr <- reactive({
+    lang <- current_lang()
+    set_language(lang, session)
+    get_translator(session)
+  })
 
   adv_cases <- reactiveVal(NULL)
 
   # Render file input with current language
   output$cedars_file_input_ui <- renderUI({
     lang <- current_lang()
-    # Create translator with current language to avoid race condition
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     tooltip(
       fileInput("cedars_file",
@@ -564,23 +307,20 @@ server <- function(input, output, session) {
   # Render sidebar titles
   output$sidebar_upload_title <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
     h4(tr$t("Upload CEDARS Exposure Data"))
   })
 
   output$sidebar_parameters_title <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
     h5(tr$t("Analysis Parameters"))
   })
 
   # Render results card header
   output$results_card_header <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
     tr$t("Results")
   })
 
@@ -588,9 +328,7 @@ server <- function(input, output, session) {
   observeEvent(current_lang(), {
     lang <- current_lang()
     set_language(lang, session)
-    # Create fresh translator to avoid encoding issues
-    translator <- Translator$new(translation_json_path = "../translations/translation.json")
-    translator$set_translation_language(lang)
+    translator <- get_tr()
 
     # Update language labels only, don't re-initialize entire backend
     fb_update_language(lang = lang)
@@ -697,9 +435,7 @@ server <- function(input, output, session) {
   observeEvent(input$cedars_file, {
     req(input$cedars_file)
     lang <- current_lang()
-    # Create fresh translator to avoid encoding issues
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     tryCatch({
       df <- withProgress(message = tr$t("Processing..."), value = 0, {
@@ -838,9 +574,7 @@ server <- function(input, output, session) {
     shinyjs::js$resetFileInput(id = "cedars_file")
 
     lang <- current_lang()
-    # Create fresh translator to avoid encoding issues
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     updateSelectInput(session, "adv_province",
                      choices = build_province_choices(lang),
@@ -897,8 +631,9 @@ server <- function(input, output, session) {
     d <- adv_cases()
     if (is.null(d)) return(NULL)
     lang <- current_lang()
+    tr <- get_tr()
 
-    withProgress(message = translator$t("Processing..."), value = 0, {
+    withProgress(message = tr$t("Processing..."), value = 0, {
       # Get PT filter
       pts_selected <- input$adv_province
       if (is.null(pts_selected)) {
@@ -913,7 +648,7 @@ server <- function(input, output, session) {
       if ("provinceterritory" %in% names(d) && !is.null(pts_selected)) {
         if (!("Canada" %in% pts_selected)) {
           d_filtered <- d %>% filter(is.na(provinceterritory) | provinceterritory %in% pts_for_backend)
-          validate(need(nrow(d_filtered) > 0, translator$t("No cases found for selected province(s)")))
+          validate(need(nrow(d_filtered) > 0, tr$t("No cases found for selected province(s)")))
         }
       }
 
@@ -934,7 +669,7 @@ server <- function(input, output, session) {
         pts_for_reference <- "Canada"
       }
       if (identical(reference_scope, "Canada")) {
-        reference_scope <- translator$t("Canada")
+        reference_scope <- tr$t("Canada")
       }
 
       # Summarise counts by exposure code (count unique cases, not rows)
@@ -998,8 +733,7 @@ server <- function(input, output, session) {
   # Render results table container (with empty state support)
   output$adv_results_table_container <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     res <- adv_results()
 
@@ -1026,6 +760,7 @@ server <- function(input, output, session) {
   output$adv_results_table <- renderDT(server = FALSE, {
     res <- adv_results()
     lang <- current_lang()
+    tr <- get_tr()
 
     if (is.null(res)) {
       return(NULL)
@@ -1064,31 +799,31 @@ server <- function(input, output, session) {
       extensions = 'Buttons',
       rownames = FALSE,
       colnames = c(
-        translator$t("Reference Scope"),
-        translator$t("Exposure"),
-        translator$t("Total Valid"),
-        translator$t("Yes"),
-        translator$t("Probably"),
-        translator$t("No"),
-        translator$t("DK"),
-        translator$t("Observed %"),
-        translator$t("Reference %"),
-        translator$t("P-Value"),
-        translator$t("Classification")
+        tr$t("Reference Scope"),
+        tr$t("Exposure"),
+        tr$t("Total Valid"),
+        tr$t("Yes"),
+        tr$t("Probably"),
+        tr$t("No"),
+        tr$t("DK"),
+        tr$t("Observed %"),
+        tr$t("Reference %"),
+        tr$t("P-Value"),
+        tr$t("Classification")
       )
     ) %>%
       formatStyle(
         "Classification",
         backgroundColor = styleEqual(
-          c(translator$t("Alert"), translator$t("Borderline"),
-            translator$t("Not Significant"), translator$t("Insufficient Data"),
-            translator$t("No Reference Value")),
+          c(tr$t("Alert"), tr$t("Borderline"),
+            tr$t("Not Significant"), tr$t("Insufficient Data"),
+            tr$t("No Reference Value")),
           c("#fde4e6", "#fff4d6", "#edf2ff", "#f1f5f9", "#e2e8f0")
         ),
         color = styleEqual(
-          c(translator$t("Alert"), translator$t("Borderline"),
-            translator$t("Not Significant"), translator$t("Insufficient Data"),
-            translator$t("No Reference Value")),
+          c(tr$t("Alert"), tr$t("Borderline"),
+            tr$t("Not Significant"), tr$t("Insufficient Data"),
+            tr$t("No Reference Value")),
           c("#b82c3a", "#b35c00", "#1f2933", "#475569", "#64748b")
         ),
         fontWeight = "600"
@@ -1115,38 +850,32 @@ server <- function(input, output, session) {
   # Data Info tab card headers (reactive for translation)
   output$ref_settings_header <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
     tr$t("Reference Settings")
   })
 
   output$ref_snapshot_header <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
     tr$t("Population Exposure Snapshot (Reference)")
   })
 
   output$ref_pt_header <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
     tr$t("Microdata Coverage by PT (after filters)")
   })
 
   output$ref_month_header <- renderUI({
     lang <- current_lang()
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
     tr$t("Microdata Coverage by Month (after filters)")
   })
 
   # Data Info tab outputs
   output$ref_summary_ui <- renderUI({
     lang <- current_lang()
-    # Create fresh translator to avoid encoding issues
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     f <- ref_filters()
     pts <- f$pts %||% tr$t("Canada")
@@ -1194,9 +923,7 @@ server <- function(input, output, session) {
     d <- fb_filtered()
     req(nrow(d) > 0)
     lang <- current_lang()
-    # Create fresh translator to avoid encoding issues
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     pt_map <- fb_pt_names(lang)
     # invert mapping names->codes to codes->names
@@ -1223,9 +950,7 @@ server <- function(input, output, session) {
     d <- fb_filtered()
     req(nrow(d) > 0)
     lang <- current_lang()
-    # Create fresh translator to avoid encoding issues
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     month_names_display <- if (lang == "fr") fb_month_names("fr") else month.name
 
@@ -1248,9 +973,7 @@ server <- function(input, output, session) {
   # About page content (reactive for translation)
   output$about_content <- renderUI({
     lang <- current_lang()
-    # Create fresh translator to avoid encoding issues
-    tr <- Translator$new(translation_json_path = "../translations/translation.json")
-    tr$set_translation_language(lang)
+    tr <- get_tr()
 
     tagList(
       # Purpose/Methodology
