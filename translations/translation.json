@@ -218,6 +218,10 @@
       "fr": "Classification"
     },
     {
+      "en": "classification_key",
+      "fr": "classification_key"
+    },
+    {
       "en": "Alert",
       "fr": "Alerte"
     },
@@ -774,6 +778,46 @@
       "fr": "À propos de cet outil"
     },
     {
+      "en": "The Food Exposure Analysis Tool facilitates the comparison of case exposure data against population reference values from the Foodbook Report.",
+      "fr": "L'outil d'analyse de l'exposition alimentaire facilite la comparaison des données d'exposition des cas avec les valeurs de référence de la population du rapport Foodbook."
+    },
+    {
+      "en": "Population reference values for Canada and Provinces/Territories.",
+      "fr": "Valeurs de référence de la population pour le Canada et les provinces/territoires."
+    },
+    {
+      "en": "Updated data where available.",
+      "fr": "Données mises à jour lorsque disponibles."
+    },
+    {
+      "en": "Results are classified based on statistical comparison (Binomial Exact Test):",
+      "fr": "Les résultats sont classés selon une comparaison statistique (test binomial exact) :"
+    },
+    {
+      "en": "p-value ≤ 0.05. Observed proportion is significantly higher than reference.",
+      "fr": "valeur p ≤ 0,05. La proportion observée est significativement plus élevée que la référence."
+    },
+    {
+      "en": "p-value ≤ 0.10. Observed proportion is marginally higher than reference.",
+      "fr": "valeur p ≤ 0,10. La proportion observée est marginalement plus élevée que la référence."
+    },
+    {
+      "en": "Developed by Public Health Agency of Canada.",
+      "fr": "Développé par l'Agence de la santé publique du Canada."
+    },
+    {
+      "en": "Location:",
+      "fr": "Lieu :"
+    },
+    {
+      "en": "Age Groups:",
+      "fr": "Groupes d'âge :"
+    },
+    {
+      "en": "Months:",
+      "fr": "Mois :"
+    },
+    {
       "en": "Purpose",
       "fr": "Objectif"
     },
@@ -1124,6 +1168,22 @@
     {
       "en": "Data Quality Warning",
       "fr": "Avertissement sur la qualité des données"
+    },
+    {
+      "en": "Download template",
+      "fr": "Télécharger le modèle"
+    },
+    {
+      "en": "Download Template",
+      "fr": "Télécharger le modèle"
+    },
+    {
+      "en": "* Exposures from Foodbook 1.0",
+      "fr": "* Expositions de Foodbook 1.0"
+    },
+    {
+      "en": "* Exposures from Foodbook 1 only",
+      "fr": "* Expositions de Foodbook 1 seulement"
     }
   ],
   "cultural_date_format": {

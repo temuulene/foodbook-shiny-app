@@ -737,6 +737,85 @@ fb_normalize_pt_names <- function(pt_names) {
   codes[!is.na(codes)]
 }
 
+# Normalize mixed PT inputs to abbreviations (e.g., "ON")
+fb_normalize_pt_values <- function(pt_values) {
+  if (is.null(pt_values) || length(pt_values) == 0) {
+    return(character())
+  }
+
+  abbrs <- c("BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU")
+  abbrs_upper <- abbrs
+
+  normalize_one <- function(value) {
+    if (is.null(value) || is.na(value)) {
+      return(NA_character_)
+    }
+
+    # Numeric or numeric-like values (1-13)
+    if (is.numeric(value)) {
+      code <- as.integer(value)
+      if (!is.na(code) && code >= 1 && code <= 13) {
+        return(abbrs[code])
+      }
+    }
+
+    val_chr <- trimws(as.character(value))
+    num_chr <- suppressWarnings(as.integer(val_chr))
+    if (!is.na(num_chr) && num_chr >= 1 && num_chr <= 13 && grepl("^\\d+$", val_chr)) {
+      return(abbrs[num_chr])
+    }
+
+    val_upper <- toupper(val_chr)
+    if (val_upper %in% abbrs_upper) {
+      return(val_upper)
+    }
+
+    code <- fb_normalize_pt_names(val_chr)
+    if (length(code) > 0) {
+      return(abbrs[code[1]])
+    }
+
+    val_chr
+  }
+
+  vapply(pt_values, normalize_one, character(1), USE.NAMES = FALSE)
+}
+
+# Extract Province/Territory values from a data frame and optionally normalize
+fb_extract_provinceterritory <- function(df, normalize = TRUE) {
+  if (is.null(df) || !is.data.frame(df)) {
+    return(character())
+  }
+
+  values <- if ("provinceterritory" %in% names(df)) {
+    as.character(df$provinceterritory)
+  } else {
+    rep(NA_character_, nrow(df))
+  }
+
+  if (normalize) {
+    values <- fb_normalize_pt_values(values)
+  }
+
+  values
+}
+
+# Build available PT list from cases; include Canada only when all PTs present
+fb_available_pts_from_cases <- function(pt_values) {
+  pt_codes <- fb_normalize_pt_values(pt_values)
+  pt_codes <- unique(pt_codes[!is.na(pt_codes) & nzchar(pt_codes)])
+  if (!length(pt_codes)) {
+    return(character())
+  }
+
+  all_pts <- c("BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU")
+  if (setequal(pt_codes, all_pts)) {
+    return(c("Canada", pt_codes))
+  }
+
+  pt_codes
+}
+
 # Initialise and cache everything we need
 # ONLY uses authoritative PHAC OMD data from upgrade-context/
 # Open Canada data has been archived and removed from workflow
@@ -1395,8 +1474,9 @@ fb_reference_percents_csv <- function(codes, pt_names = NULL) {
     return(res)
   }
   # Otherwise, average across selected PTs (simple mean; survey weights unavailable in CSV)
-  ab <- fb_pt_abbrev_map()
-  sel_ab <- unname(ab[pt_names])
+  pt_codes <- fb_normalize_pt_names(pt_names)
+  pt_abbr <- c("BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU")
+  sel_ab <- unique(pt_abbr[pt_codes])
   res <- vapply(
     codes,
     function(x) {

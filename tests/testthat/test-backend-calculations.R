@@ -73,6 +73,48 @@ test_that("fb_normalize_pt_names handles French variants", {
   )
 })
 
+test_that("fb_normalize_pt_values returns abbreviations for mixed inputs", {
+  if (!exists("fb_normalize_pt_values")) {
+    fail("fb_normalize_pt_values not implemented")
+    return()
+  }
+
+  res <- fb_normalize_pt_values(c("Ontario", "ON", "6", 6L, "Unknown"))
+  expect_equal(res, c("ON", "ON", "QC", "QC", "Unknown"))
+})
+
+test_that("fb_extract_provinceterritory returns normalized values", {
+  if (!exists("fb_extract_provinceterritory")) {
+    fail("fb_extract_provinceterritory not implemented")
+    return()
+  }
+
+  df <- data.frame(
+    provinceterritory = c("Ontario", "QC", NA),
+    stringsAsFactors = FALSE
+  )
+  expect_equal(fb_extract_provinceterritory(df), c("ON", "QC", NA))
+
+  df_missing <- data.frame(id = 1:2, stringsAsFactors = FALSE)
+  expect_equal(fb_extract_provinceterritory(df_missing), rep(NA_character_, 2))
+})
+
+test_that("fb_available_pts_from_cases adds Canada only for full coverage", {
+  if (!exists("fb_available_pts_from_cases")) {
+    fail("fb_available_pts_from_cases not implemented")
+    return()
+  }
+
+  all_pts <- c("BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU")
+  res_all <- fb_available_pts_from_cases(all_pts)
+  expect_true("Canada" %in% res_all)
+  expect_true(all(all_pts %in% res_all))
+
+  res_subset <- fb_available_pts_from_cases(c("BC", "ON"))
+  expect_false("Canada" %in% res_subset)
+  expect_equal(sort(res_subset), sort(c("BC", "ON")))
+})
+
 test_that("fb_reference_percents skips toolkit fallback for multi-PT", {
   old_micro <- fb_env$micro
   old_micro_fb1 <- fb_env$micro_fb1
@@ -229,6 +271,13 @@ test_that("fb_reference_percents_csv reads and processes CSV correctly", {
   )
   # Should average BC (50.0) and ON (no data, so just BC)
   expect_true(!is.na(result_pts["Raw vegetables"]))
+
+  # Test PT abbreviations
+  result_pts_abbr <- fb_reference_percents_csv(
+    codes = c("Raw vegetables"),
+    pt_names = c("BC", "ON")
+  )
+  expect_equal(as.numeric(result_pts_abbr["Raw vegetables"]), 50.0)
 
   # Test missing exposure
   result_missing <- fb_reference_percents_csv(
