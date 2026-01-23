@@ -17,18 +17,15 @@ Thumbs.db
 tmp/
 ~$*
 
+# Local test exports that are not meant for the repo
+data/test-data/
+
 # Deployment and plots
 rsconnect/
 Rplots.pdf
 
 # Claude Code settings (local only)
 .claude/
-
-# Sensitive data - legacy microdata (internal use only)
-upgrade-context/
-
-# Local test exports that should stay private
-data/test-data/
 
 # Archived data (no longer used)
 archive/
