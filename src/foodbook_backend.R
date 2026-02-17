@@ -23,28 +23,21 @@ suppressPackageStartupMessages({
 # =============================================================================
 
 #' Classify exposure based on p-value and observed vs reference proportions
-#' @param p_value P-value from binomial test
+#' Fully vectorized — accepts scalar or vector inputs.
+#' @param p_value P-value from binomial test (numeric)
 #' @param observed_prop Observed proportion (0-1 scale)
 #' @param ref_prop Reference percentage (0-100 scale)
-#' @return Character classification: "Alert", "Borderline", "Not Significant",
-#'         "Insufficient Data", or "No Reference Value"
+#' @return Character vector of classifications: "Alert", "Borderline",
+#'         "Not Significant", "Insufficient Data", or "No Reference Value"
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
-  if (is.na(ref_prop)) {
-    return("No Reference Value")
-  }
   ref_prop_decimal <- ref_prop / 100
-  if (is.na(p_value)) {
-    return("Insufficient Data")
-  }
-  if (observed_prop > ref_prop_decimal) {
-    case_when(
-      p_value <= 0.05 ~ "Alert",
-      p_value <= 0.10 ~ "Borderline",
-      TRUE ~ "Not Significant"
-    )
-  } else {
-    "Not Significant"
-  }
+  dplyr::case_when(
+    is.na(ref_prop)                                     ~ "No Reference Value",
+    is.na(p_value)                                      ~ "Insufficient Data",
+    observed_prop > ref_prop_decimal & p_value <= 0.05  ~ "Alert",
+    observed_prop > ref_prop_decimal & p_value <= 0.10  ~ "Borderline",
+    TRUE                                                ~ "Not Significant"
+  )
 }
 
 #' Create safe HTML ID from exposure name
@@ -54,6 +47,41 @@ make_safe_id <- function(exposure_name) {
   gsub("[^a-zA-Z0-9]", "", exposure_name)
 }
 
+#' Safely convert to numeric with explicit validation
+#' Replaces suppressWarnings(as.numeric(...)) throughout the codebase.
+#' Non-convertible values become NA; optionally logs data quality warnings.
+#' @param x Vector to convert
+#' @param context Optional context label for log messages (NULL = silent)
+#' @return Numeric vector (non-convertible values become NA)
+safe_as_numeric <- function(x, context = NULL) {
+  result <- tryCatch(
+    as.numeric(x),
+    warning = function(w) {
+      if (!is.null(context)) {
+        message("[Data Quality] Non-numeric values in ", context, ": ", conditionMessage(w))
+      }
+      suppressWarnings(as.numeric(x))
+    }
+  )
+  result
+}
+
+# =============================================================================
+# Global Backend State
+# =============================================================================
+# ARCHITECTURE NOTE (#9): fb_env is a process-global environment used to cache
+# microdata, label maps, and toolkit data. In a single-process multi-session
+# deployment (e.g., Shiny Server open-source), all sessions share this state.
+#
+# Immutable data (microdata, exposure codes, toolkit CSVs) is safe to share.
+# The only mutable field is label_map$label, which fb_update_language() swaps
+# between label_en/label_fr. This is safe because all functions that read labels
+# explicitly select the correct column via the `lang` parameter rather than
+# relying on the cached `label` column.
+#
+# If true per-session isolation is needed in the future, wrap fb_env in a
+# session-scoped reactiveValues object inside fb_init_common().
+# =============================================================================
 fb_env <- new.env(parent = emptyenv())
 
 # Helper to detect correct base directory (handles both root and subdirectory apps)
@@ -379,9 +407,10 @@ fb_parse_fb2_renames <- function(path) {
   tibble::tibble(old = m[, 2], new = m[, 3])
 }
 
-# Get mapping: CEDARS exposure code (P-codes) -> Foodbook column name
-# This allows us to calculate references for CEDARS P-codes like P01001
-# Note: This should ONLY be used for actual CEDARS P-codes, not renamed Foodbook columns
+#' Get mapping: CEDARS exposure code (P-codes) -> Foodbook column name
+#' Used internally by fb_reference_percents() (line ~1509) for CEDARS code resolution.
+#' NOT dead code — called when CEDARS data is uploaded.
+#' @return Named character vector (currently empty; pending CEDARS mapping file)
 fb_cedars_to_foodbook_map <- function() {
   fb_init()
 
@@ -497,12 +526,12 @@ fb_normalise_weight <- function(df) {
 
   # Priority 1: FB1 weight (EXPWEIGHT_CMA2)
   if ("EXPWEIGHT_CMA2" %in% names(df)) {
-    w <- suppressWarnings(as.numeric(df$EXPWEIGHT_CMA2))
+    w <- safe_as_numeric(df$EXPWEIGHT_CMA2, "EXPWEIGHT_CMA2")
   }
 
   # Priority 2: FB2 weight (proj_weight_non_traveller) - fills in where FB1 weight is NA
   if ("proj_weight_non_traveller" %in% names(df)) {
-    fb2_w <- suppressWarnings(as.numeric(df$proj_weight_non_traveller))
+    fb2_w <- safe_as_numeric(df$proj_weight_non_traveller, "proj_weight_non_traveller")
     if (is.null(w)) {
       w <- fb2_w
     } else {
@@ -513,15 +542,15 @@ fb_normalise_weight <- function(df) {
 
   # Fallback: Try Open Canada variant column names
   if (is.null(w) && "EXPWEIGHT_CMA2_dv" %in% names(df)) {
-    w <- suppressWarnings(as.numeric(df$EXPWEIGHT_CMA2_dv))
+    w <- safe_as_numeric(df$EXPWEIGHT_CMA2_dv, "EXPWEIGHT_CMA2_dv")
   }
   if (is.null(w) && "Proj_weight_non_traveller_dv" %in% names(df)) {
-    w <- suppressWarnings(as.numeric(df$Proj_weight_non_traveller_dv))
+    w <- safe_as_numeric(df$Proj_weight_non_traveller_dv, "Proj_weight_non_traveller_dv")
   }
 
   # Fallback: Generic weight column
   if (is.null(w) && "weight" %in% names(df)) {
-    w <- suppressWarnings(as.numeric(df$weight))
+    w <- safe_as_numeric(df$weight, "weight")
   }
 
   # Default to 1 if no weight found
@@ -654,7 +683,13 @@ fb_load_microdata <- function(
   }
 
   # Combine datasets (append FB2 to FB1, as per authoritative workflow)
-  combined <- suppressWarnings(dplyr::bind_rows(dfs))
+  combined <- tryCatch(
+    dplyr::bind_rows(dfs),
+    warning = function(w) {
+      message("[Data Quality] Column type mismatch during dataset merge: ", conditionMessage(w))
+      suppressWarnings(dplyr::bind_rows(dfs))
+    }
+  )
 
   # Apply weight normalization (merges FB1 and FB2 weights)
   combined <- fb_normalise_weight(combined)
@@ -760,7 +795,7 @@ fb_normalize_pt_values <- function(pt_values) {
     }
 
     val_chr <- trimws(as.character(value))
-    num_chr <- suppressWarnings(as.integer(val_chr))
+    num_chr <- safe_as_numeric(val_chr)
     if (!is.na(num_chr) && num_chr >= 1 && num_chr <= 13 && grepl("^\\d+$", val_chr)) {
       return(abbrs[num_chr])
     }
@@ -998,12 +1033,12 @@ fb_init <- function(lang = "en") {
   # Construct AgeBand for filtering
   # =============================================================================
   if ("Age_group" %in% names(fb_env$micro)) {
-    ag <- suppressWarnings(as.integer(fb_env$micro$Age_group))
+    ag <- safe_as_numeric(fb_env$micro$Age_group, "Age_group")
     
     # [FB1 FIX] Coalesce with age_grp4_dv if present (legacy FB1 variable)
     # Both variables use 1-4 coding mapping to same bands
     if ("age_grp4_dv" %in% names(fb_env$micro)) {
-      ag_fb1 <- suppressWarnings(as.integer(fb_env$micro$age_grp4_dv))
+      ag_fb1 <- safe_as_numeric(fb_env$micro$age_grp4_dv, "age_grp4_dv")
       ag <- ifelse(is.na(ag) & !is.na(ag_fb1), ag_fb1, ag)
     }
 
@@ -1019,7 +1054,7 @@ fb_init <- function(lang = "en") {
     )
     fb_env$micro$AgeBand <- unname(age_map[as.character(ag)])
   } else if ("age" %in% names(fb_env$micro)) {
-    a <- suppressWarnings(as.numeric(fb_env$micro$age))
+    a <- safe_as_numeric(fb_env$micro$age, "age")
     fb_env$micro$AgeBand <- cut(
       a,
       breaks = c(-Inf, 9, 19, 64, Inf),
@@ -1204,8 +1239,11 @@ fb_exposure_label <- function(code, lang = "en") {
   }
 }
 
-# Get ALL exposure labels including legacy CEDARS codes (not filtered by microdata columns)
-# This is needed for CEDARS uploads which use legacy exposure codes
+#' Get ALL exposure labels including legacy CEDARS codes (not filtered by microdata)
+#' Used by app-internal/app.R for CEDARS label mapping in uploads.
+#' NOT dead code — required for CEDARS upload workflow.
+#' @param lang Language code ("en" or "fr")
+#' @return Named character vector of exposure code -> label
 fb_exposure_choices_all <- function(lang = "en") {
   fb_init(lang = lang)
 
@@ -1399,8 +1437,8 @@ fb_weighted_percent <- function(code, d, return_sample_size = FALSE) {
     }
     return(NA_real_)
   }
-  x <- suppressWarnings(as.numeric(d[[code]]))
-  w <- suppressWarnings(as.numeric(d$weight))
+  x <- safe_as_numeric(d[[code]], code)
+  w <- safe_as_numeric(d$weight, "weight")
   ok <- !is.na(x) & (x %in% c(0, 1, 2))
   # Many FB dv vars are 1 = yes, 2 = no; treat 0 as missing/not asked
   yy <- ok & (x == 1)
@@ -1466,7 +1504,7 @@ fb_reference_percents_csv <- function(codes, pt_names = NULL) {
       codes,
       function(x) {
         v <- df$Proportion[df$Exposure == x & df$Province.Territory == "Canada"]
-        v <- suppressWarnings(as.numeric(v[1]))
+        v <- safe_as_numeric(v[1])
         ifelse(length(v) == 0, NA_real_, v)
       },
       numeric(1)
@@ -1481,7 +1519,7 @@ fb_reference_percents_csv <- function(codes, pt_names = NULL) {
     codes,
     function(x) {
       v <- df$Proportion[df$Exposure == x & df$Province.Territory %in% sel_ab]
-      v <- suppressWarnings(as.numeric(v))
+      v <- safe_as_numeric(v)
       if (!length(v)) {
         return(NA_real_)
       }

@@ -87,6 +87,10 @@ exposure_module_server <- function(id) {
   })
 }
 
+# Update exposure module inputs from the PARENT session.
+# MODULE ISOLATION NOTE (#3/#12): NS(id) is intentionally used here instead of
+# session$ns because this function is called from app.R (parent context), not
+# from within moduleServer(). Using session$ns would double-nest the namespace.
 exposure_module_update <- function(session, id, yes = NULL, prob = NULL, no = NULL, dk = NULL, custom_ref = NULL) {
   ns <- NS(id)
   if (!is.null(yes)) updateNumericInput(session, ns("yes"), value = yes)

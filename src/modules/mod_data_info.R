@@ -92,6 +92,7 @@ mod_data_info_server <- function(
 
     # PT coverage bar chart
     output$ref_pt_plot <- renderPlot({
+      req(current_lang(), selected_province(), selected_age(), selected_month())
       lang <- current_lang()
       provs <- selected_province()
       ages  <- selected_age()
@@ -113,6 +114,7 @@ mod_data_info_server <- function(
 
     # Month coverage bar chart
     output$ref_month_plot <- renderPlot({
+      req(current_lang(), selected_province(), selected_age(), selected_month())
       lang <- current_lang()
       provs <- selected_province()
       ages  <- selected_age()

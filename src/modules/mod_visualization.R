@@ -57,8 +57,12 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
           head(10)
       }
       
-      # Create Plot (reusing existing ggplot logic)
-      ggplot(top_exposures, aes(x = reorder(Exposure, `Observed %`), y = `Observed %` * 100)) +
+      # Data Asymmetry Fix (#11): Observed % is on 0-1 scale,
+      # Reference % is on 0-100 scale. Normalize both to 0-100 for plotting.
+      plot_data <- top_exposures
+      plot_data$obs_pct <- plot_data$`Observed %` * 100
+
+      ggplot(plot_data, aes(x = reorder(Exposure, obs_pct), y = obs_pct)) +
         geom_bar(stat = "identity", fill = "#0e4a7b") +
         geom_point(aes(y = `Reference %`, color = "Reference"), size = 3) + 
         coord_flip() +
@@ -82,6 +86,7 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
     })
     
     output$plot <- renderPlot({
+      req(generated_plot())
       generated_plot()
     })
     
