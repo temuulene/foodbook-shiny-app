@@ -12,16 +12,9 @@ mod_results_table_ui <- function(id) {
   )
 }
 
-mod_results_table_server <- function(id, results_data_reactive, lang_reactive) {
+mod_results_table_server <- function(id, results_data_reactive, get_tr) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    
-    get_tr <- reactive({
-      lang <- lang_reactive()
-      tr <- Translator$new(translation_json_path = "../translations/translation.json")
-      tr$set_translation_language(lang)
-      tr
-    })
     
     output$table_container <- renderUI({
       tr <- get_tr()

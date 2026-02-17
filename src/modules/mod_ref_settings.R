@@ -10,26 +10,17 @@ mod_ref_settings_ui <- function(id) {
 
 mod_ref_settings_server <- function(
   id,
-  lang_reactive,
+  get_tr,
   available_pts_reactive = reactive("Canada"),
   default_select_all = FALSE
 ) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
     
-    # Helper to get translator
-    get_tr <- reactive({
-      lang <- lang_reactive()
-      # We assume global translator is set properly, but for safety inside module:
-      tr <- Translator$new(translation_json_path = "../translations/translation.json")
-      tr$set_translation_language(lang)
-      tr
-    })
-    
     # Render UI
     output$settings_ui <- renderUI({
       tr <- get_tr()
-      lang <- lang_reactive()
+      lang <- tr$get_translation_language()
       
       tagList(
         tooltip(
@@ -68,8 +59,8 @@ mod_ref_settings_server <- function(
     prev_pt_codes <- reactiveVal(NULL)
 
     # Update Inputs on Language or Available PTs Change
-    observeEvent(list(lang_reactive(), available_pts_reactive()), {
-      lang <- lang_reactive()
+    observeEvent(list(get_tr(), available_pts_reactive()), {
+      lang <- get_tr()$get_translation_language()
       tr <- get_tr()
       avail_pts <- available_pts_reactive()
       

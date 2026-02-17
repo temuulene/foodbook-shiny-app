@@ -6,13 +6,11 @@ mod_about_ui <- function(id) {
   uiOutput(ns("about_content"))
 }
 
-mod_about_server <- function(id, lang_reactive) {
+mod_about_server <- function(id, get_tr) {
   moduleServer(id, function(input, output, session) {
     
     output$about_content <- renderUI({
-      lang <- lang_reactive()
-      tr <- Translator$new(translation_json_path = "../translations/translation.json")
-      tr$set_translation_language(lang)
+      tr <- get_tr()
       
       tagList(
         p(tr$t("The Food Exposure Analysis Tool facilitates the comparison of case exposure data against population reference values from the Foodbook Report.")),

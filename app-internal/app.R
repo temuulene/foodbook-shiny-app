@@ -30,6 +30,7 @@ source("../src/modules/mod_ref_settings.R")
 source("../src/modules/mod_results_table.R")
 source("../src/modules/mod_visualization.R")
 source("../src/modules/mod_about.R")
+source("../src/modules/mod_data_info.R")
 
 # Suppress warnings
 options(sass.cache = FALSE)
@@ -109,25 +110,7 @@ ui <- function(request) {
     nav_panel(
       title = span(id = "nav-data-info-label", translator$t("Data Info")),
       icon = icon("database"),
-      layout_columns(
-        col_widths = c(6, 6),
-        card(
-          card_header(span(id = "card-ref-settings-label", translator$t("Reference Settings"))),
-          card_body(uiOutput("ref_summary_ui"))
-        ),
-        card(
-          card_header(span(id = "card-pop-snapshot-label", translator$t("Population Exposure Snapshot (Reference)"))),
-          card_body(withSpinner(DTOutput("ref_top_exposures"), type = 4, color = "#0f4c81"))
-        ),
-        card(
-          card_header(span(id = "card-cov-pt-label", translator$t("Microdata Coverage by PT (after filters)"))),
-          card_body(withSpinner(plotOutput("ref_pt_plot", height = "350px"), type = 4, color = "#0f4c81"))
-        ),
-        card(
-          card_header(span(id = "card-cov-month-label", translator$t("Microdata Coverage by Month (after filters)"))),
-          card_body(withSpinner(plotOutput("ref_month_plot", height = "350px"), type = 4, color = "#0f4c81"))
-        )
-      )
+      mod_data_info_ui("data_info")
     ),
 
     # About Tab
@@ -176,7 +159,7 @@ server <- function(input, output, session) {
   
   # Reference Settings Module (sidebar)
   ref_settings <- mod_ref_settings_server("ref_settings", 
-                                          lang_reactive = current_lang,
+                                          get_tr = get_tr,
                                           available_pts_reactive = available_pts_reactive,
                                           default_select_all = TRUE)
   
@@ -185,7 +168,7 @@ server <- function(input, output, session) {
   selected_month <- ref_settings$month
   
   # About Module
-  mod_about_server("about", lang_reactive = current_lang)
+  mod_about_server("about", get_tr = get_tr)
 
   # --- CEDARS File Processing ---
 
@@ -327,10 +310,10 @@ server <- function(input, output, session) {
       
     if (nrow(exposure_counts) == 0) return(NULL)
     
-    # Get Refs
-    if (!is.null(ages_selected) && "All Ages" %in% ages_selected) ages_selected <- NULL
-    if (!is.null(months_selected) && "All Months" %in% months_selected) months_selected <- NULL
-    else if (!is.null(months_selected)) months_selected <- as.integer(months_selected)
+    # Normalize age/month filters
+    filters <- fb_normalize_filters(ref_pts, ages_selected, months_selected)
+    ages_selected <- filters$age
+    months_selected <- filters$month
     
     ref_perc <- fb_reference_percents(exposure_counts$exposure, pt_names = ref_pts, months = months_selected, age_groups = ages_selected)
     
@@ -346,7 +329,9 @@ server <- function(input, output, session) {
           y_plus_p = (Y %||% 0) + (P %||% 0),
           total = y_plus_p + (N %||% 0),
           observed_prop = if (total > 0) y_plus_p / total else NA_real_,
-          p_value = if (total > 0) pbinom(y_plus_p - 1, total, province_ref / 100, lower.tail = FALSE) else NA_real_,
+          p_value = if (total >= 5 && !is.na(province_ref) && province_ref > 0 && province_ref <= 100) {
+            pbinom(y_plus_p - 1, total, province_ref / 100, lower.tail = FALSE)
+          } else NA_real_,
           Classification = classify_exposure(p_value, observed_prop, province_ref)
       ) %>%
       ungroup() %>%
@@ -366,24 +351,18 @@ server <- function(input, output, session) {
   })
 
   # Pass results to modules
-  mod_results_table_server("results_table", adv_results, current_lang)
+  mod_results_table_server("results_table", adv_results, get_tr)
   
-  # Data Info (Legacy/Inline) - reused logic from Public approx
-  output$ref_summary_ui <- renderUI({
-     tr <- get_tr()
-     # Just display selected params
-     provs <- selected_province() %||% tr$t("Canada")
-     if (!"Canada" %in% provs) {
-       pt_map <- fb_pt_names(current_lang()); disp <- pt_map[provs]; disp[is.na(disp)] <- provs[is.na(disp)]
-       provs <- disp
-     } else provs <- tr$t("Canada")
-     
-     tagList(
-       div(strong(tr$t("Location:")), paste(provs, collapse=", ")),
-       div(strong(tr$t("Age Groups:")), paste(selected_age() %||% tr$t("All Ages"), collapse=", ")),
-       div(strong(tr$t("Months:")), paste(selected_month() %||% tr$t("All Months"), collapse=", "))
-     )
-  })
+  # Data Info (Module)
+  mod_data_info_server(
+    "data_info",
+    get_tr = get_tr,
+    current_lang = current_lang,
+    selected_province = selected_province,
+    selected_age = selected_age,
+    selected_month = selected_month,
+    reference_table_data = reference_table_data
+  )
   
   reference_table_data <- reactive({
     lang <- current_lang()
@@ -394,15 +373,10 @@ server <- function(input, output, session) {
     ages <- selected_age()
     months <- selected_month()
 
-    if (is.null(provs) || (length(provs) == 1 && provs == "Canada")) {
-      backend_pt <- NULL
-    } else {
-      backend_pt <- provs
-    }
-
-    if (!is.null(ages) && "All Ages" %in% ages) ages <- NULL
-    if (!is.null(months) && "All Months" %in% months) months <- NULL
-    else if (!is.null(months)) months <- as.integer(months)
+    filters <- fb_normalize_filters(provs, ages, months)
+    backend_pt <- filters$pt
+    ages <- filters$age
+    months <- filters$month
 
     tbl <- fb_public_build_reference_table(
       choices,
@@ -412,75 +386,6 @@ server <- function(input, output, session) {
     )
     if (!nrow(tbl)) return(NULL)
     tbl
-  })
-
-  output$ref_top_exposures <- renderDT({
-    tr <- get_tr()
-    tbl <- reference_table_data()
-    if (is.null(tbl) || !nrow(tbl)) return(NULL)
-
-    top_tbl <- fb_public_top_exposures(tbl, n = 10)
-    if (!nrow(top_tbl)) return(NULL)
-    top_tbl$`Reference %` <- round(top_tbl$`Reference %`, 2)
-
-    datatable(
-      top_tbl,
-      options = list(
-        pageLength = 10,
-        lengthChange = FALSE,
-        searching = FALSE,
-        info = FALSE,
-        language = list(
-          zeroRecords = tr$t("No data available")
-        )
-      ),
-      rownames = FALSE
-    )
-  })
-
-  output$ref_pt_plot <- renderPlot({
-    lang <- current_lang()
-    provs <- selected_province()
-    ages <- selected_age()
-    months <- selected_month()
-
-    if (is.null(provs) || (length(provs) == 1 && provs == "Canada")) provs <- NULL
-    if (!is.null(ages) && "All Ages" %in% ages) ages <- NULL
-    if (!is.null(months) && "All Months" %in% months) months <- NULL
-    else if (!is.null(months)) months <- as.integer(months)
-
-    df <- fb_filter_micro(pt_names = provs, months = months, age_groups = ages)
-    cov <- fb_public_pt_coverage(df, lang = lang)
-    req(nrow(cov) > 0)
-
-    ggplot(cov, aes(x = reorder(PT, Count), y = Count)) +
-      geom_col(fill = "#0f4c81") +
-      coord_flip() +
-      labs(x = NULL, y = get_tr()$t("Sample Size (n)")) +
-      theme_minimal(base_size = 12)
-  })
-
-  output$ref_month_plot <- renderPlot({
-    lang <- current_lang()
-    provs <- selected_province()
-    ages <- selected_age()
-    months <- selected_month()
-
-    if (is.null(provs) || (length(provs) == 1 && provs == "Canada")) provs <- NULL
-    if (!is.null(ages) && "All Ages" %in% ages) ages <- NULL
-    if (!is.null(months) && "All Months" %in% months) months <- NULL
-    else if (!is.null(months)) months <- as.integer(months)
-
-    df <- fb_filter_micro(pt_names = provs, months = months, age_groups = ages)
-    cov <- fb_public_month_coverage(df, lang = lang)
-    req(nrow(cov) > 0)
-    cov$Month <- factor(cov$Month, levels = cov$Month)
-
-    ggplot(cov, aes(x = Month, y = Count)) +
-      geom_col(fill = "#0f4c81") +
-      labs(x = NULL, y = get_tr()$t("Sample Size (n)")) +
-      theme_minimal(base_size = 12) +
-      theme(axis.text.x = element_text(angle = 45, hjust = 1))
   })
 }
 

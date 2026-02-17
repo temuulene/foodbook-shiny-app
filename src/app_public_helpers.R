@@ -183,3 +183,11 @@ fb_public_available_pts <- function() {
   pt_cols <- unique(c("Canada", setdiff(pt_cols, "Canada")))
   pt_cols
 }
+
+fb_normalize_filters <- function(provs, ages, months) {
+  if (is.null(provs) || (length(provs) == 1 && provs == "Canada")) provs <- NULL
+  if (!is.null(ages) && "All Ages" %in% ages) ages <- NULL
+  if (!is.null(months) && "All Months" %in% months) months <- NULL
+  else if (!is.null(months)) months <- as.integer(months)
+  list(pt = provs, age = ages, month = months)
+}

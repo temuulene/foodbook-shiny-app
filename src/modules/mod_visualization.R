@@ -12,16 +12,9 @@ mod_visualization_ui <- function(id) {
   )
 }
 
-mod_visualization_server <- function(id, results_data_reactive, lang_reactive) {
+mod_visualization_server <- function(id, results_data_reactive, get_tr) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
-    
-    get_tr <- reactive({
-      lang <- lang_reactive()
-      tr <- Translator$new(translation_json_path = "../translations/translation.json")
-      tr$set_translation_language(lang)
-      tr
-    })
     
     # Download Button UI
     output$download_btn_ui <- renderUI({
@@ -35,7 +28,7 @@ mod_visualization_server <- function(id, results_data_reactive, lang_reactive) {
       if (is.null(res) || nrow(res) == 0) return(NULL)
       
       tr <- get_tr()
-      lang <- lang_reactive()
+      lang <- tr$get_translation_language()
       
       # Filter for significant results (Alert/Borderline logic)
       # Note: Classification is already translated in the results data
