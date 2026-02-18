@@ -67,14 +67,7 @@ ui <- function(request) {
     title = "Food Exposure Analysis Tool",
     lang = "en",
     theme = fb_theme(),
-    header = tagList(
-      fb_commons_head(),
-      tags$div(
-        id = "lang_selector_container",
-        style = "display: none;",
-        language_selector_ui("lang_selector", style = "dropdown")
-      )
-    ),
+    header = fb_commons_head(),
 
     # CEDARS Analysis Tab
     nav_panel(
@@ -86,14 +79,21 @@ ui <- function(request) {
         sidebar = sidebar(
           width = 350,
           uiOutput("sidebar_upload_title"),
-
-          uiOutput("cedars_upload_section_ui"),
-          
-          hr(),
-          uiOutput("sidebar_parameters_title"),
-          
-          # Reference Settings Module
-          mod_ref_settings_ui("ref_settings")
+          accordion(
+            open = c("upload_panel"),
+            accordion_panel(
+              title = span(id = "acc-upload-label", translator$t("Upload CEDARS Data")),
+              value = "upload_panel",
+              icon = icon("upload"),
+              uiOutput("cedars_upload_section_ui")
+            ),
+            accordion_panel(
+              title = span(id = "acc-ref-settings-label", translator$t("Analysis Parameters")),
+              value = "ref_settings_panel",
+              icon = icon("sliders"),
+              mod_ref_settings_ui("ref_settings")
+            )
+          )
         ),
 
         # Main panel
@@ -123,6 +123,15 @@ ui <- function(request) {
         card_body(mod_about_ui("about"))
       )
     ),
+
+    # Right-side navbar items
+    nav_spacer(),
+    nav_item(
+      language_selector_ui("lang_selector", style = "dropdown")
+    ),
+    nav_item(
+      input_dark_mode(id = "dark_mode", mode = "light")
+    )
   )
 }
 
@@ -302,7 +311,7 @@ server <- function(input, output, session) {
 
     # Summarize
     exposure_counts <- d_filtered %>%
-      mutate(val = dplyr::recode(val, y = "Y", n = "N", p = "P", dk = "DK")) %>%
+      mutate(val = dplyr::case_match(val, "y" ~ "Y", "n" ~ "N", "p" ~ "P", "dk" ~ "DK", .default = val)) %>%
       filter(val %in% c("Y", "N", "P", "DK")) %>%
       distinct(natid, exposure, val) %>%
       count(exposure, val) %>%
@@ -390,4 +399,6 @@ server <- function(input, output, session) {
 }
 
 # --- 5. Run the Application ---
+thematic::thematic_shiny()
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 13))
 shinyApp(ui = ui, server = server)

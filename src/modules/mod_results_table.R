@@ -6,8 +6,7 @@ mod_results_table_ui <- function(id) {
   tagList(
     withSpinner(
       uiOutput(ns("table_container"), width = "100%"),
-      type = 4,
-      color = "#0f4c81"
+      type = 4
     )
   )
 }
@@ -48,11 +47,12 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
              "",
              as.character(Classification)
            ))),
-           classification_key = if_else(
-             classification_key %in% c("alerte", "limite"),
-             dplyr::recode(classification_key, "alerte" = "alert", "limite" = "borderline"),
-             classification_key
-           ),
+           classification_key = case_match(
+              classification_key,
+              "alerte" ~ "alert",
+              "limite" ~ "borderline",
+              .default = classification_key
+            ),
            alert_rank = if_else(
              classification_key %in% c("alert", "borderline"),
              0L,
@@ -79,8 +79,12 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
       # Generate filename
       filename <- paste0("foodbook_results_", Sys.Date())
       
+      # Find classification column index for hiding & styling
       hidden_cols <- which(col_names == "classification_key") - 1
       key_index <- hidden_cols
+      
+      # Visible columns for export (exclude hidden classification_key)
+      visible_col_indices <- setdiff(seq_along(col_names) - 1, hidden_cols)
 
       datatable(
         res_formatted,
@@ -100,20 +104,37 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
           ),
           rowCallback = JS(sprintf(
             "function(row, data) {
-               var key = data[%d];
+               var key = data[%1$d];
+               var bgColor = null;
+               var borderColor = null;
+               
                if (key === 'alert') {
-                 $('td', row).css('background-color', '#ffebee');
+                 bgColor = '#f8d7da';
+                 borderColor = '#dc3545';
                } else if (key === 'borderline') {
-                 $('td', row).css('background-color', '#fff3e0');
+                 bgColor = '#fff3cd';
+                 borderColor = '#fd7e14';
+               }
+               
+               if (bgColor) {
+                 // Target the row itself for the border and general bg
+                 row.style.setProperty('background-color', bgColor, 'important');
+                 row.style.setProperty('border-left', '5px solid ' + borderColor, 'important');
+                 
+                 // Target individual cells to override Bootstrap's cell-specific bg (e.g. from striping)
+                 var cells = row.getElementsByTagName('td');
+                 for (var i = 0; i < cells.length; i++) {
+                   cells[i].style.setProperty('background-color', bgColor, 'important');
+                 }
                }
              }",
              key_index
           )),
           columnDefs = list(list(visible = FALSE, targets = hidden_cols)),
           buttons = list(
-            list(extend = 'csv', filename = filename, exportOptions = list(columns = ':visible'), text = tr$t("Export")),
-            list(extend = 'copy', exportOptions = list(columns = ':visible'), text = tr$t("Copy")),
-            list(extend = 'print', exportOptions = list(columns = ':visible'), text = tr$t("Print"))
+            list(extend = 'csv', filename = filename, exportOptions = list(columns = visible_col_indices), text = tr$t("Export")),
+            list(extend = 'copy', exportOptions = list(columns = visible_col_indices), text = tr$t("Copy")),
+            list(extend = 'print', exportOptions = list(columns = visible_col_indices), text = tr$t("Print"))
           )
         ),
         extensions = 'Buttons',

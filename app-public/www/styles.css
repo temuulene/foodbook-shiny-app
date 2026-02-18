@@ -1,110 +1,176 @@
 /* Foodbook Public Analysis Tool - Styles */
-/* Extracted from app.R for maintainability */
+/* Uses CSS custom properties (Bootstrap 5) for theme consistency */
 
 /* ========================================
-   Theme Styles (from bs_add_rules)
+   Base & Background
    ======================================== */
 
 body {
   background: linear-gradient(135deg, #eef2f8 0%, #fdfdfd 60%);
 }
 
+/* ========================================
+   Navbar
+   ======================================== */
+
 .navbar {
-  border-bottom: 1px solid #d7e3f7;
+  border-bottom: 1px solid var(--bs-border-color, #d7e3f7);
   background-color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(6px);
 }
 
 .navbar-brand {
-  color: #0f4c81 !important;
+  color: var(--bs-primary, #0e4a7b) !important;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .nav-link {
-  color: #4b5563 !important;
+  color: var(--bs-secondary, #4b5563) !important;
   border-radius: 999px;
   padding: 0.6rem 1.1rem;
   margin: 0 0.3rem;
+  transition: all 0.2s ease;
 }
 
 .nav-link:hover {
-  color: #0f4c81 !important;
-  background-color: rgba(15, 76, 129, 0.08);
+  color: var(--bs-primary, #0e4a7b) !important;
+  background-color: rgba(14, 74, 123, 0.08);
 }
 
 .nav-link.active {
-  color: #0f4c81 !important;
-  background-color: rgba(15, 76, 129, 0.14) !important;
-  box-shadow: inset 0 -3px 0 #0f4c81;
+  color: var(--bs-primary, #0e4a7b) !important;
+  background-color: rgba(14, 74, 123, 0.12) !important;
+  box-shadow: inset 0 -3px 0 var(--bs-primary, #0e4a7b);
 }
+
+/* ========================================
+   Sidebar
+   ======================================== */
 
 .bslib-sidebar-layout .sidebar {
   background: #ffffff;
-  border-right: 1px solid #dde6f5;
-  box-shadow: 4px 0 24px rgba(15, 76, 129, 0.08);
+  border-right: 1px solid var(--bs-border-color, #dde6f5);
+  box-shadow: 4px 0 24px rgba(14, 74, 123, 0.06);
 }
 
 .bslib-sidebar-layout .sidebar .title {
-  color: #0f4c81;
+  color: var(--bs-primary, #0e4a7b);
   font-weight: 600;
 }
 
 .sidebar hr {
-  border-color: #d0ddf0;
+  border-color: var(--bs-border-color, #d0ddf0);
 }
+
+.sidebar .form-group > label {
+  font-weight: 600;
+  color: #334155;
+}
+
+.sidebar .selectize-input,
+.sidebar select.form-control {
+  border-radius: 0.65rem;
+  border: 1px solid var(--bs-border-color, #d0ddf0);
+  min-height: 44px;
+}
+
+.sidebar .selectize-input.focus,
+.sidebar select.form-control:focus {
+  border-color: var(--bs-primary, #0e4a7b);
+  box-shadow: 0 0 0 4px rgba(14, 74, 123, 0.15);
+  outline: none;
+}
+
+.sidebar .action-button {
+  font-weight: 600;
+}
+
+/* ========================================
+   Buttons
+   ======================================== */
 
 .btn-primary {
   background: linear-gradient(135deg, #1160aa 0%, #0b4a86 100%);
   border: none;
-  box-shadow: 0 12px 24px rgba(15, 76, 129, 0.18);
+  box-shadow: 0 4px 12px rgba(14, 74, 123, 0.18);
+  transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, #0b4a86 0%, #073866 100%);
+  box-shadow: 0 6px 16px rgba(14, 74, 123, 0.25);
+  transform: translateY(-1px);
 }
 
 .btn-warning {
   background: linear-gradient(135deg, #f7b733 0%, #f59e0b 100%);
   border: none;
   color: #1f2933;
-  box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.18);
+  transition: all 0.2s ease;
 }
 
 .btn-warning:hover {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.25);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
   background: linear-gradient(135deg, #4b5563 0%, #364152 100%);
   border: none;
   color: #f9fafb;
+  transition: all 0.2s ease;
 }
 
+.btn-secondary:hover {
+  transform: translateY(-1px);
+}
+
+/* ========================================
+   Cards
+   ======================================== */
+
 .card {
-  border: 1px solid #dde6f5;
-  box-shadow: 0 12px 30px rgba(15, 76, 129, 0.12);
+  border: 1px solid var(--bs-border-color, #dde6f5);
+  box-shadow: 0 4px 16px rgba(14, 74, 123, 0.08);
+  transition: box-shadow 0.25s ease;
+}
+
+.card:hover {
+  box-shadow: 0 8px 28px rgba(14, 74, 123, 0.12);
 }
 
 .card-header {
   background: linear-gradient(135deg, #f7faff 0%, #ecf2ff 100%);
-  border-bottom: 1px solid #d0ddf0;
+  border-bottom: 1px solid var(--bs-border-color, #d0ddf0);
   font-weight: 600;
-  color: #0f4c81;
+  color: var(--bs-primary, #0e4a7b);
 }
 
-.nav-tabs .nav-link {
-  color: #4b5563 !important;
+/* ========================================
+   Tabs (inside navset_card_underline)
+   ======================================== */
+
+.nav-tabs .nav-link,
+.nav-underline .nav-link {
+  color: var(--bs-secondary, #4b5563) !important;
+  transition: color 0.2s ease, border-color 0.2s ease;
 }
 
-.nav-tabs .nav-link.active {
-  color: #0f4c81 !important;
-  background-color: #e8f1ff !important;
-  border-color: #e8f1ff #e8f1ff #ffffff;
+.nav-tabs .nav-link.active,
+.nav-underline .nav-link.active {
+  color: var(--bs-primary, #0e4a7b) !important;
+  background-color: transparent !important;
 }
+
+/* ========================================
+   Selectize Inputs
+   ======================================== */
 
 .selectize-input {
-  border: 2px solid #d0ddf0;
+  border: 2px solid var(--bs-border-color, #d0ddf0);
   border-radius: 0.65rem;
   min-height: 50px;
   font-weight: 500;
@@ -112,82 +178,116 @@ body {
 }
 
 .selectize-input.focus {
-  border-color: #0f4c81;
-  box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
+  border-color: var(--bs-primary, #0e4a7b);
+  box-shadow: 0 0 0 4px rgba(14, 74, 123, 0.15);
 }
 
 .selectize-dropdown-content .option.active {
-  background: #e8f1ff;
-  color: #0f4c81;
+  background: rgba(14, 74, 123, 0.08);
+  color: var(--bs-primary, #0e4a7b);
 }
 
 /* ========================================
-   Additional Styles (from tags$style)
+   Z-index / Navbar Layering
    ======================================== */
 
-/* Ensure navbar is above all content */
 nav.navbar {
   position: relative;
-  z-index: 9000 !important;
+  z-index: 1030;
 }
 
-/* Main page content should be below navbar */
 .tab-content {
   position: relative;
   z-index: 1;
 }
 
-.language-selector-wrapper {
-  position: absolute;
-  top: 10px;
-  right: 20px;
-  z-index: 10000;
-}
+/* ========================================
+   Language Selector (in navbar via nav_item)
+   ======================================== */
 
-.language-selector-wrapper .form-group {
+.navbar .nav-item .form-group {
   margin: 0;
-  position: relative;
-  z-index: 10000;
 }
 
-.language-selector-wrapper label {
+.navbar .nav-item .form-group > label {
   display: none;
 }
 
-.language-selector-wrapper select {
-  padding: 0.4rem 0.8rem;
+.navbar .nav-item select.form-select,
+.navbar .nav-item select.form-control {
+  padding: 0.35rem 0.75rem;
   border-radius: 0.5rem;
-  border: 1px solid #d0ddf0;
+  border: 1px solid var(--bs-border-color, #d0ddf0);
   background: white;
-  color: #4b5563;
+  color: var(--bs-secondary, #4b5563);
   font-weight: 500;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(15, 76, 129, 0.15);
-  transition: all 0.2s;
-  position: relative;
-  z-index: 10000;
+  min-width: 120px;
+  transition: all 0.2s ease;
 }
 
-.language-selector-wrapper select:hover {
-  background: #f1f5ff;
-  border-color: #0f4c81;
-  color: #0f4c81;
+.navbar .nav-item select:hover {
+  border-color: var(--bs-primary, #0e4a7b);
+  color: var(--bs-primary, #0e4a7b);
 }
 
-.language-selector-wrapper select:focus {
+.navbar .nav-item select:focus {
   outline: none;
-  border-color: #0f4c81;
-  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.1);
+  border-color: var(--bs-primary, #0e4a7b);
+  box-shadow: 0 0 0 3px rgba(14, 74, 123, 0.1);
 }
+
+/* Dark mode toggle button */
+.navbar .nav-item .form-check.form-switch {
+  margin: 0;
+  padding-top: 0.25rem;
+}
+
+/* ========================================
+   Sidebar Accordion
+   ======================================== */
+
+.sidebar .accordion {
+  --bs-accordion-border-color: var(--bs-border-color, #dde6f5);
+  --bs-accordion-btn-padding-y: 0.65rem;
+  --bs-accordion-btn-padding-x: 0.85rem;
+}
+
+.sidebar .accordion-button {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--bs-primary, #0e4a7b);
+  background-color: transparent;
+}
+
+.sidebar .accordion-button:not(.collapsed) {
+  color: var(--bs-primary, #0e4a7b);
+  background-color: rgba(14, 74, 123, 0.04);
+  box-shadow: none;
+}
+
+.sidebar .accordion-body {
+  padding: 0.75rem 0.85rem;
+}
+
+/* ========================================
+   Exposure Input Groups
+   ======================================== */
 
 .exposure-input-group {
-  border: 1px solid #dde6f5;
-  border-radius: 0.9rem;
+  border: 1px solid var(--bs-border-color, #dde6f5);
+  border-radius: 0.85rem;
   background: #ffffff;
   padding: 1.2rem;
   margin-bottom: 1.25rem;
-  box-shadow: 0 16px 40px rgba(15, 76, 129, 0.08);
+  box-shadow: 0 4px 16px rgba(14, 74, 123, 0.06);
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
+}
+
+.exposure-input-group:hover {
+  box-shadow: 0 8px 24px rgba(14, 74, 123, 0.1);
+  border-color: rgba(14, 74, 123, 0.2);
 }
 
 .exposure-input-group:first-child {
@@ -199,78 +299,125 @@ nav.navbar {
 }
 
 .exposure-header {
-  color: #0f4c81;
+  color: var(--bs-primary, #0e4a7b);
   font-weight: 600;
   letter-spacing: 0.01em;
   margin-bottom: 1rem;
+  font-size: 1rem;
 }
 
 .exposure-input-group .form-control {
   border-radius: 0.65rem;
-  border: 1px solid #d0ddf0;
+  border: 1px solid var(--bs-border-color, #d0ddf0);
   padding: 0.6rem 0.75rem;
   font-weight: 500;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .exposure-input-group .form-control:focus {
-  border-color: #0f4c81;
-  box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.15);
+  border-color: var(--bs-primary, #0e4a7b);
+  box-shadow: 0 0 0 4px rgba(14, 74, 123, 0.12);
 }
 
 .ref-value {
-  color: #1b7b57;
+  color: var(--bs-success, #176d4e);
   font-weight: 600;
   display: inline-block;
   margin-top: 0.25rem;
 }
 
-.sidebar .form-group > label {
-  font-weight: 600;
-  color: #334155;
-}
-
-.sidebar .selectize-input,
-.sidebar select.form-control {
-  border-radius: 0.65rem;
-  border: 1px solid #d0ddf0;
-  min-height: 44px;
-}
-
-.sidebar .selectize-input.focus,
-.sidebar select.form-control:focus {
-  border-color: #0f4c81;
-  box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
-  outline: none;
-}
-
-.sidebar .action-button {
-  font-weight: 600;
-}
+/* ========================================
+   DataTables
+   ======================================== */
 
 .dataTables_wrapper .dt-buttons .btn {
-  background: #0f4c81;
+  background: var(--bs-primary, #0e4a7b);
   color: #ffffff;
   border: none;
   border-radius: 0.5rem;
-  box-shadow: 0 8px 18px rgba(15, 76, 129, 0.18);
+  box-shadow: 0 4px 12px rgba(14, 74, 123, 0.15);
+  transition: all 0.2s ease;
 }
 
 .dataTables_wrapper .dt-buttons .btn:hover {
   background: #0b3a67;
+  transform: translateY(-1px);
 }
 
 .dataTables_wrapper .dataTables_filter input {
   border-radius: 0.5rem;
-  border: 1px solid #d0ddf0;
+  border: 1px solid var(--bs-border-color, #d0ddf0);
   padding: 0.45rem 0.75rem;
+  transition: border-color 0.2s ease;
 }
 
+/* ========================================
+   About Panel
+   ======================================== */
+
 .well-panel-about h4 {
-  color: #0f4c81;
+  color: var(--bs-primary, #0e4a7b);
   font-weight: 600;
 }
 
 .well-panel-about li {
   margin-bottom: 0.55rem;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+/* ========================================
+   Value Box Summary Strip
+   ======================================== */
+
+.summary-value-box .card {
+  box-shadow: none;
+  border: 1px solid var(--bs-border-color, #dde6f5);
+}
+
+/* ========================================
+   Visualization Empty State
+   ======================================== */
+
+.viz-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 2rem;
+  text-align: center;
+  color: var(--bs-secondary, #4b5563);
+}
+
+.viz-empty-state .empty-icon {
+  font-size: 3rem;
+  color: var(--bs-border-color, #d0ddf0);
+  margin-bottom: 1rem;
+}
+
+.viz-empty-state p {
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+/* ========================================
+   Scrollable Exposure Container
+   ======================================== */
+
+.exposure-scroll-container {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+/* ========================================
+   Subtle Animation Utilities
+   ======================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  .btn {
+    transition: all 0.2s ease;
+  }
+
+  .card {
+    transition: box-shadow 0.25s ease;
+  }
 }

@@ -49,14 +49,7 @@ ui <- function(request) {
     title = "Food Exposure Analysis Tool", # Will be updated via JS
     lang = "en",
     theme = fb_theme(),
-    header = tagList(
-      fb_commons_head(),
-      tags$div(
-        id = "lang_selector_container",
-        style = "display: none;",
-        language_selector_ui("lang_selector", style = "dropdown")
-      )
-    ),
+    header = fb_commons_head(),
     
     # Analysis Tab
     nav_panel(
@@ -65,14 +58,15 @@ ui <- function(request) {
       layout_sidebar(
         sidebar = sidebar(
           uiOutput("sidebar_analysis_title"),
-          
-          # Reference Settings Module
-          mod_ref_settings_ui("ref_settings"),
-          
-          # Over-analysis warning
-          uiOutput("overanalysis_warning_ui"),
-          hr(),
           accordion(
+            open = c("ref_settings_panel"),
+            accordion_panel(
+              title = span(id = "acc-ref-settings-label", translator$t("Reference Settings")),
+              value = "ref_settings_panel",
+              icon = icon("sliders"),
+              mod_ref_settings_ui("ref_settings"),
+              uiOutput("overanalysis_warning_ui")
+            ),
             accordion_panel(
               title = span(id = "acc-upload-label", translator$t("Upload Exposure Counts (Optional)")),
               value = "upload_panel",
@@ -81,19 +75,23 @@ ui <- function(request) {
               uiOutput("xlsx_help_text"),
               uiOutput("xlsx_clear_button"),
               uiOutput("xlsx_template_ui")
+            ),
+            accordion_panel(
+              title = span(id = "acc-actions-label", translator$t("Actions")),
+              value = "actions_panel",
+              icon = icon("gear"),
+              actionButton(
+                "reset",
+                translator$t("Reset Inputs"),
+                class = "btn-warning",
+                width = "100%"
+              ),
+              bookmarkButton(
+                label = translator$t("Bookmark Analysis"),
+                class = "btn-secondary",
+                width = "100%"
+              )
             )
-          ),
-          hr(),
-          actionButton(
-            "reset",
-            translator$t("Reset Inputs"),
-            class = "btn-warning",
-            width = "100%"
-          ),
-          bookmarkButton(
-            label = translator$t("Bookmark Analysis"),
-            class = "btn-secondary",
-            width = "100%"
           )
         ),
         card(
@@ -103,13 +101,13 @@ ui <- function(request) {
             uiOutput("help_enter_counts_ui"),
             uiOutput("exposure_select_ui"),
             div(
-              style = "max-height: 60vh; overflow-y: auto;",
+              class = "exposure-scroll-container",
               uiOutput("exposure_modules_ui")
             ),
             uiOutput("footnote_fb1_ui")
           )
         ),
-        navset_card_tab(
+        navset_card_underline(
           full_screen = TRUE,
           nav_panel(
             title = uiOutput("nav_results_nested_label"),
@@ -119,7 +117,12 @@ ui <- function(request) {
           nav_panel(
             title = uiOutput("nav_visualization_label"),
             class = "visual-panel",
-            mod_visualization_ui("visualization")
+            card(
+              full_screen = TRUE,
+              card_body(
+                mod_visualization_ui("visualization")
+              )
+            )
           )
         )
       )
@@ -134,8 +137,7 @@ ui <- function(request) {
         card_body(
           withSpinner(
             DTOutput("sys_ref_table"),
-            type = 4,
-            color = "#0f4c81"
+            type = 4
           ),
           uiOutput("footnote_fb1_only_ui")
         )
@@ -159,6 +161,15 @@ ui <- function(request) {
         card_body(mod_about_ui("about"))
       )
     ),
+
+    # Right-side navbar items: spacer pushes items to the right
+    nav_spacer(),
+    nav_item(
+      language_selector_ui("lang_selector", style = "dropdown")
+    ),
+    nav_item(
+      input_dark_mode(id = "dark_mode", mode = "light")
+    )
   )
 }
 
@@ -627,11 +638,19 @@ server <- function(input, output, session) {
     if (!nrow(tbl)) return(NULL)
     tbl$`Reference %` <- round(tbl$`Reference %`, 2)
 
+    # Find Code column index (0-based) to hide it from display
+    code_col_idx <- which(names(tbl) == "Code") - 1
+
     datatable(
       tbl,
       options = list(
         pageLength = 25,
         lengthMenu = c(10, 25, 50, 100),
+        columnDefs = if (length(code_col_idx) > 0) {
+          list(list(visible = FALSE, targets = code_col_idx))
+        } else {
+          list()
+        },
         language = list(
           search = tr$t("Search:"),
           lengthMenu = paste0(tr$t("Show"), " _MENU_ ", tr$t("entries")),
@@ -672,4 +691,6 @@ server <- function(input, output, session) {
 }
 
 # --- 4. Run the Application ---
+thematic::thematic_shiny()
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 13))
 shinyApp(ui = ui, server = server, enableBookmarking = "url")

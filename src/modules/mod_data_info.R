@@ -11,15 +11,17 @@ mod_data_info_ui <- function(id) {
     ),
     card(
       card_header(span(id = ns("card-pop-snapshot-label"), uiOutput(ns("pop_snapshot_title"), inline = TRUE))),
-      card_body(withSpinner(DTOutput(ns("ref_top_exposures")), type = 4, color = "#0f4c81"))
+      card_body(withSpinner(DTOutput(ns("ref_top_exposures")), type = 4))
     ),
     card(
+      full_screen = TRUE,
       card_header(span(id = ns("card-cov-pt-label"), uiOutput(ns("cov_pt_title"), inline = TRUE))),
-      card_body(withSpinner(plotOutput(ns("ref_pt_plot"), height = "350px"), type = 4, color = "#0f4c81"))
+      card_body(withSpinner(plotOutput(ns("ref_pt_plot"), height = "350px"), type = 4))
     ),
     card(
+      full_screen = TRUE,
       card_header(span(id = ns("card-cov-month-label"), uiOutput(ns("cov_month_title"), inline = TRUE))),
-      card_body(withSpinner(plotOutput(ns("ref_month_plot"), height = "350px"), type = 4, color = "#0f4c81"))
+      card_body(withSpinner(plotOutput(ns("ref_month_plot"), height = "350px"), type = 4))
     )
   )
 }
@@ -75,6 +77,9 @@ mod_data_info_server <- function(
       if (!nrow(top_tbl)) return(NULL)
       top_tbl$`Reference %` <- round(top_tbl$`Reference %`, 2)
 
+      # Find Code column index (0-based) to hide it from display
+      code_col_idx <- which(names(top_tbl) == "Code") - 1
+
       datatable(
         top_tbl,
         options = list(
@@ -82,6 +87,11 @@ mod_data_info_server <- function(
           lengthChange = FALSE,
           searching = FALSE,
           info = FALSE,
+          columnDefs = if (length(code_col_idx) > 0) {
+            list(list(visible = FALSE, targets = code_col_idx))
+          } else {
+            list()
+          },
           language = list(
             zeroRecords = tr$t("No data available")
           )

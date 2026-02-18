@@ -1,67 +1,138 @@
 /* Foodbook Internal Analysis Tool - Styles */
-/* Extracted from app.R for maintainability */
+/* Modernized to use CSS variables from bslib theme */
 
 /* ========================================
-   Theme Styles (from bs_add_rules)
+   Base & Background
    ======================================== */
 
 body {
   background: linear-gradient(135deg, #eef2f8 0%, #fdfdfd 60%);
 }
 
+/* ========================================
+   Navbar
+   ======================================== */
+
 .navbar {
-  border-bottom: 1px solid #d7e3f7;
+  border-bottom: 1px solid var(--bs-border-color, #d7e3f7);
   background-color: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(6px);
 }
 
 .navbar-brand {
-  color: #0f4c81 !important;
+  color: var(--bs-primary, #0f4c81) !important;
   font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .nav-link {
-  color: #4b5563 !important;
+  color: var(--bs-secondary, #4b5563) !important;
   border-radius: 999px;
   padding: 0.6rem 1.1rem;
   margin: 0 0.3rem;
+  transition: all 0.2s ease;
 }
 
 .nav-link:hover {
-  color: #0f4c81 !important;
-  background-color: rgba(15, 76, 129, 0.08);
+  color: var(--bs-primary, #0f4c81) !important;
+  background-color: rgba(14, 74, 123, 0.08);
 }
 
 .nav-link.active {
-  color: #0f4c81 !important;
-  background-color: rgba(15, 76, 129, 0.14) !important;
-  box-shadow: inset 0 -3px 0 #0f4c81;
+  color: var(--bs-primary, #0f4c81) !important;
+  background-color: rgba(14, 74, 123, 0.14) !important;
+  box-shadow: inset 0 -3px 0 var(--bs-primary, #0f4c81);
 }
 
+nav.navbar {
+  position: relative;
+  z-index: 1030;
+}
+
+.tab-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* ========================================
+   Sidebar
+   ======================================== */
+
 .bslib-sidebar-layout .sidebar {
-  background: #ffffff;
-  border-right: 1px solid #dde6f5;
-  box-shadow: 4px 0 24px rgba(15, 76, 129, 0.08);
+  background: var(--bs-body-bg, #ffffff);
+  border-right: 1px solid var(--bs-border-color, #dde6f5);
+  box-shadow: 4px 0 24px rgba(14, 74, 123, 0.08);
 }
 
 .bslib-sidebar-layout .sidebar .title {
-  color: #0f4c81;
+  color: var(--bs-primary, #0f4c81);
   font-weight: 600;
 }
 
 .sidebar hr {
-  border-color: #d0ddf0;
+  border-color: var(--bs-border-color, #d0ddf0);
 }
+
+.sidebar .form-group > label {
+  font-weight: 600;
+  color: var(--bs-body-color, #334155);
+}
+
+.sidebar .selectize-input,
+.sidebar select.form-control {
+  border-radius: 0.65rem;
+  border: 1px solid var(--bs-border-color, #d0ddf0);
+  min-height: 44px;
+}
+
+.sidebar .selectize-input.focus,
+.sidebar select.form-control:focus {
+  border-color: var(--bs-primary, #0f4c81);
+  box-shadow: 0 0 0 4px rgba(14, 74, 123, 0.18);
+  outline: none;
+}
+
+/* ========================================
+   Sidebar Accordion
+   ======================================== */
+
+.sidebar .accordion {
+  --bs-accordion-border-color: var(--bs-border-color, #dde6f5);
+  --bs-accordion-btn-padding-y: 0.65rem;
+  --bs-accordion-btn-padding-x: 0.85rem;
+}
+
+.sidebar .accordion-button {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--bs-primary, #0e4a7b);
+  background-color: transparent;
+}
+
+.sidebar .accordion-button:not(.collapsed) {
+  color: var(--bs-primary, #0e4a7b);
+  background-color: rgba(14, 74, 123, 0.04);
+  box-shadow: none;
+}
+
+.sidebar .accordion-body {
+  padding: 0.75rem 0.85rem;
+}
+
+/* ========================================
+   Buttons
+   ======================================== */
 
 .btn-primary {
   background: linear-gradient(135deg, #1160aa 0%, #0b4a86 100%);
   border: none;
-  box-shadow: 0 12px 24px rgba(15, 76, 129, 0.18);
+  box-shadow: 0 12px 24px rgba(14, 74, 123, 0.18);
+  transition: all 0.2s ease;
 }
 
 .btn-primary:hover {
   background: linear-gradient(135deg, #0b4a86 0%, #073866 100%);
+  transform: translateY(-1px);
 }
 
 .btn-warning {
@@ -69,10 +140,12 @@ body {
   border: none;
   color: #1f2933;
   box-shadow: 0 12px 24px rgba(245, 158, 11, 0.22);
+  transition: all 0.2s ease;
 }
 
 .btn-warning:hover {
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -81,30 +154,33 @@ body {
   color: #f9fafb;
 }
 
+/* ========================================
+   Cards
+   ======================================== */
+
 .card {
-  border: 1px solid #dde6f5;
-  box-shadow: 0 12px 30px rgba(15, 76, 129, 0.12);
+  border: 1px solid var(--bs-border-color, #dde6f5);
+  box-shadow: 0 12px 30px rgba(14, 74, 123, 0.12);
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: 0 14px 32px rgba(14, 74, 123, 0.15);
 }
 
 .card-header {
   background: linear-gradient(135deg, #f7faff 0%, #ecf2ff 100%);
-  border-bottom: 1px solid #d0ddf0;
+  border-bottom: 1px solid var(--bs-border-color, #d0ddf0);
   font-weight: 600;
-  color: #0f4c81;
+  color: var(--bs-primary, #0f4c81);
 }
 
-.nav-tabs .nav-link {
-  color: #4b5563 !important;
-}
-
-.nav-tabs .nav-link.active {
-  color: #0f4c81 !important;
-  background-color: #e8f1ff !important;
-  border-color: #e8f1ff #e8f1ff #ffffff;
-}
+/* ========================================
+   Selectize / Inputs
+   ======================================== */
 
 .selectize-input {
-  border: 2px solid #d0ddf0;
+  border: 2px solid var(--bs-border-color, #d0ddf0);
   border-radius: 0.65rem;
   min-height: 44px;
   font-weight: 500;
@@ -112,40 +188,25 @@ body {
 }
 
 .selectize-input.focus {
-  border-color: #0f4c81;
-  box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
+  border-color: var(--bs-primary, #0f4c81);
+  box-shadow: 0 0 0 4px rgba(14, 74, 123, 0.18);
 }
 
 .selectize-dropdown-content .option.active {
-  background: #e8f1ff;
-  color: #0f4c81;
+  background: rgba(14, 74, 123, 0.08);
+  color: var(--bs-primary, #0f4c81);
 }
 
-.sidebar .form-group > label {
-  font-weight: 600;
-  color: #334155;
-}
-
-.sidebar .selectize-input,
-.sidebar select.form-control {
-  border-radius: 0.65rem;
-  border: 1px solid #d0ddf0;
-  min-height: 44px;
-}
-
-.sidebar .selectize-input.focus,
-.sidebar select.form-control:focus {
-  border-color: #0f4c81;
-  box-shadow: 0 0 0 4px rgba(15, 76, 129, 0.18);
-  outline: none;
-}
+/* ========================================
+   DataTables
+   ======================================== */
 
 .dataTables_wrapper .dt-buttons .btn {
-  background: #0f4c81;
+  background: var(--bs-primary, #0f4c81);
   color: #ffffff;
   border: none;
   border-radius: 0.5rem;
-  box-shadow: 0 8px 18px rgba(15, 76, 129, 0.18);
+  box-shadow: 0 8px 18px rgba(14, 74, 123, 0.18);
 }
 
 .dataTables_wrapper .dt-buttons .btn:hover {
@@ -154,12 +215,59 @@ body {
 
 .dataTables_wrapper .dataTables_filter input {
   border-radius: 0.5rem;
-  border: 1px solid #d0ddf0;
+  border: 1px solid var(--bs-border-color, #d0ddf0);
   padding: 0.45rem 0.75rem;
 }
 
+/* ========================================
+   Language Selector (in navbar via nav_item)
+   ======================================== */
+
+.navbar .nav-item .form-group {
+  margin: 0;
+}
+
+.navbar .nav-item .form-group > label {
+  display: none;
+}
+
+.navbar .nav-item select.form-select,
+.navbar .nav-item select.form-control {
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--bs-border-color, #d0ddf0);
+  background: white;
+  color: var(--bs-secondary, #4b5563);
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+  min-width: 120px;
+  transition: all 0.2s ease;
+}
+
+.navbar .nav-item select:hover {
+  border-color: var(--bs-primary, #0e4a7b);
+  color: var(--bs-primary, #0e4a7b);
+}
+
+.navbar .nav-item select:focus {
+  outline: none;
+  border-color: var(--bs-primary, #0e4a7b);
+  box-shadow: 0 0 0 3px rgba(14, 74, 123, 0.1);
+}
+
+/* Dark mode toggle */
+.navbar .nav-item .form-check.form-switch {
+  margin: 0;
+  padding-top: 0.25rem;
+}
+
+/* ========================================
+   About Panel
+   ======================================== */
+
 .well-panel-about h4 {
-  color: #0f4c81;
+  color: var(--bs-primary, #0f4c81);
   font-weight: 600;
 }
 
@@ -169,61 +277,14 @@ body {
 }
 
 /* ========================================
-   Additional Styles (from tags$style)
+   Reduced Motion
    ======================================== */
 
-/* Ensure navbar is above all content */
-nav.navbar {
-  position: relative;
-  z-index: 9000 !important;
-}
-
-/* Main page content should be below navbar */
-.tab-content {
-  position: relative;
-  z-index: 1;
-}
-
-.language-selector-wrapper {
-  position: absolute;
-  top: 10px;
-  right: 20px;
-  z-index: 10000;
-}
-
-.language-selector-wrapper .form-group {
-  margin: 0;
-  position: relative;
-  z-index: 10000;
-}
-
-.language-selector-wrapper label {
-  display: none;
-}
-
-.language-selector-wrapper select {
-  padding: 0.4rem 0.8rem;
-  border-radius: 0.5rem;
-  border: 1px solid #d0ddf0;
-  background: white;
-  color: #4b5563;
-  font-weight: 500;
-  font-size: 0.9rem;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(15, 76, 129, 0.15);
-  transition: all 0.2s;
-  position: relative;
-  z-index: 10000;
-}
-
-.language-selector-wrapper select:hover {
-  background: #f1f5ff;
-  border-color: #0f4c81;
-  color: #0f4c81;
-}
-
-.language-selector-wrapper select:focus {
-  outline: none;
-  border-color: #0f4c81;
-  box-shadow: 0 0 0 3px rgba(15, 76, 129, 0.1);
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

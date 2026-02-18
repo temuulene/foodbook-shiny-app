@@ -1,28 +1,5 @@
 // Foodbook Public Analysis Tool - JavaScript
-// Extracted from app.R for maintainability
-
-// Inject language selector into navbar on page load
-$(document).ready(function() {
-  setTimeout(function() {
-    var langContainer = $('#lang_selector_container');
-
-    if (langContainer.length > 0) {
-      // Find the form-group div inside the container
-      var formGroup = langContainer.find('.form-group').first();
-
-      if (formGroup.length > 0) {
-        // Create wrapper and append to navbar
-        var wrapper = $('<div class="language-selector-wrapper"></div>');
-        $('nav.navbar').first().css('position', 'relative').append(wrapper);
-
-        // Move the entire form-group to the wrapper and make visible
-        formGroup.appendTo(wrapper);
-        formGroup.css('display', 'block');
-        wrapper.css('display', 'block');
-      }
-    }
-  }, 500);
-});
+// Custom Shiny message handlers for dynamic UI updates
 
 // Register custom message handlers safely
 function registerHandlers() {
@@ -60,7 +37,9 @@ function registerHandlers() {
 
   // Custom message handler for updating accordion titles
   Shiny.addCustomMessageHandler('update-accordion-titles', function(labels) {
+    $('#acc-ref-settings-label').text(labels.reference_settings);
     $('#acc-upload-label').text(labels.upload_exposure);
+    $('#acc-actions-label').text(labels.actions);
   });
 
   // Custom message handler for updating card headers
@@ -72,7 +51,7 @@ function registerHandlers() {
     $('#card-cov-month-label').text(labels.microdata_month);
     $('#card-about-label').text(labels.about_tool);
     $('#card-ref-values-label').text(labels.reference_values);
-    
+
     // Nested results tab in public app
     $('#nav-results-nested-label').text(labels.results);
   });
@@ -98,4 +77,3 @@ if (document.readyState === 'complete') {
 } else {
   $(window).on('load', registerHandlers);
 }
-

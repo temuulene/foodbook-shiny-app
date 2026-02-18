@@ -18,7 +18,14 @@ fb_theme <- function() {
     warning = "#a45100",
     danger = "#b21f2d",
     base_font = font_google("Inter", wght = "300;400;600;700"),
-    heading_font = font_google("DM Sans", wght = "400;600;700")
+    heading_font = font_google("DM Sans", wght = "400;600;700"),
+    "card-border-radius" = "0.85rem",
+    "card-cap-padding-y" = "0.85rem",
+    "card-cap-padding-x" = "1.1rem",
+    "card-spacer-y" = "1rem",
+    "card-spacer-x" = "1.1rem",
+    "nav-link-font-weight" = "500",
+    "navbar-padding-y" = "0.65rem"
   ) |>
     bs_add_variables(
       "body-color" = "#0f172a",
@@ -30,9 +37,7 @@ fb_theme <- function() {
       "color-contrast-light" = "#ffffff",
       "link-color" = "#0e4a7b",
       "link-hover-color" = "#0a3a61"
-    ) |>
-    # CSS styles moved to www/styles.css for maintainability
-    bs_add_rules("")
+    )
 }
 
 # Common HEAD elements

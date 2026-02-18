@@ -75,7 +75,9 @@ fb_init_common <- function(session, translation_path = "../translations/translat
     session$sendCustomMessage(
       "update-accordion-titles",
       list(
-        upload_exposure = tr$t("Upload Exposure Counts (Optional)")
+        reference_settings = tr$t("Reference Settings"),
+        upload_exposure = tr$t("Upload Exposure Counts (Optional)"),
+        actions = tr$t("Actions")
       )
     )
 

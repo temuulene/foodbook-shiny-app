@@ -1,9 +1,6 @@
 # Language Selector Module
 # Provides UI and server logic for switching between English and French
 
-library(shiny)
-library(shiny.i18n)
-
 language_selector_ui <- function(id, style = "radio") {
   ns <- NS(id)
 
