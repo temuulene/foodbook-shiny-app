@@ -80,7 +80,7 @@ ui <- function(request) {
           width = 350,
           uiOutput("sidebar_upload_title"),
           accordion(
-            open = c("upload_panel"),
+            open = c("upload_panel", "ref_settings_panel"),
             accordion_panel(
               title = span(id = "acc-upload-label", translator$t("Upload CEDARS Data")),
               value = "upload_panel",
@@ -164,12 +164,38 @@ server <- function(input, output, session) {
     fb_available_pts_from_cases(pts)
   })
 
+  # Unique Age Groups from uploaded cases
+  case_ages <- reactive({
+    d <- adv_cases()
+    if (is.null(d) || !"age_group_raw" %in% names(d)) return(NULL)
+    unique(d$age_group_raw[!is.na(d$age_group_raw)])
+  })
+
+  # Unique Months from uploaded cases
+  case_months <- reactive({
+    d <- adv_cases()
+    if (is.null(d) || !"episode_date" %in% names(d)) return(NULL)
+    dates <- d$episode_date[!is.na(d$episode_date)]
+    if (length(dates) == 0) return(NULL)
+    
+    # Try to parse date if character, otherwise assume Date/POSIXct
+    # Extract month number (1-12)
+    # Using format() handles Date and POSIXct
+    # If character, need to be careful, but readxl usually gives POSIXct for dates
+    tryCatch({
+      m_params <- unique(as.integer(format(as.Date(dates), "%m")))
+      as.character(sort(m_params))
+    }, error = function(e) NULL)
+  })
+
   # --- Modules ---
   
   # Reference Settings Module (sidebar)
   ref_settings <- mod_ref_settings_server("ref_settings", 
                                           get_tr = get_tr,
                                           available_pts_reactive = available_pts_reactive,
+                                          available_ages_reactive = case_ages,
+                                          available_months_reactive = case_months,
                                           default_select_all = TRUE)
   
   selected_province <- ref_settings$province
@@ -242,7 +268,9 @@ server <- function(input, output, session) {
         df_line <- df_line %>% 
           transmute(
             natid = as.character(.data$natid),
-            provinceterritory = pt_values
+            provinceterritory = pt_values,
+            age_group_raw = if("agegroup" %in% names(.data)) as.character(.data$agegroup) else NA_character_,
+            episode_date = if("episodedate" %in% names(.data)) .data$episodedate else NA
           ) %>%
           distinct(natid, .keep_all=TRUE)
           

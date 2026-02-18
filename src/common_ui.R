@@ -11,12 +11,12 @@ fb_theme <- function() {
     version = 5,
     bg = "#f7f9fc",
     fg = "#0f172a",
-    primary = "#0e4a7b",
+    primary = "#EB2D37", # FIP Red
     secondary = "#4b5563",
     success = "#176d4e",
     info = "#0e6a88",
     warning = "#a45100",
-    danger = "#b21f2d",
+    danger = "#B91C25", # A darker shade of FIP red for distinction
     base_font = font_google("Inter", wght = "300;400;600;700"),
     heading_font = font_google("DM Sans", wght = "400;600;700"),
     "card-border-radius" = "0.85rem",
@@ -28,15 +28,10 @@ fb_theme <- function() {
     "navbar-padding-y" = "0.65rem"
   ) |>
     bs_add_variables(
-      "body-color" = "#0f172a",
-      "card-cap-bg" = "#f7faff",
-      "card-border-color" = "#dde6f5",
       "border-radius" = "0.75rem",
-      "min-contrast-ratio" = 4.5,
-      "color-contrast-dark" = "#000000",
-      "color-contrast-light" = "#ffffff",
-      "link-color" = "#0e4a7b",
-      "link-hover-color" = "#0a3a61"
+      "min-contrast-ratio" = 2,
+      "link-color" = "#EB2D37",
+      "link-hover-color" = "#B91C25"
     )
 }
 

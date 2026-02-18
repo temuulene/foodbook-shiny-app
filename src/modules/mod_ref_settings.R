@@ -12,6 +12,8 @@ mod_ref_settings_server <- function(
   id,
   get_tr,
   available_pts_reactive = reactive("Canada"),
+  available_ages_reactive = reactive(NULL),
+  available_months_reactive = reactive(NULL),
   default_select_all = FALSE
 ) {
   moduleServer(id, function(input, output, session) {
@@ -58,11 +60,13 @@ mod_ref_settings_server <- function(
     
     prev_pt_codes <- reactiveVal(NULL)
 
-    # Update Inputs on Language or Available PTs Change
-    observeEvent(list(get_tr(), available_pts_reactive()), {
+    # Update Inputs on Language or Available Data Change
+    observeEvent(list(get_tr(), available_pts_reactive(), available_ages_reactive(), available_months_reactive()), {
       lang <- get_tr()$get_translation_language()
       tr <- get_tr()
       avail_pts <- available_pts_reactive()
+      avail_ages <- available_ages_reactive()
+      avail_months <- available_months_reactive()
       
       # Province Choices
       # Logic: "Canada" + localized names for available_pts
@@ -100,7 +104,7 @@ mod_ref_settings_server <- function(
         choices_vec <- c(choices_vec, setNames(pt_codes, display_names))
       }
 
-      # Preserve selection
+      # Preserve selection (Province)
       current_prov <- input$province
       if (isTRUE(default_select_all)) {
         new_codes <- sort(pt_codes)
@@ -119,8 +123,6 @@ mod_ref_settings_server <- function(
         if ("Canada" %in% avail_pts) current_prov <- "Canada"
         else current_prov <- pt_codes
       }
-      # Translate "Canada" in selection if needed (though backend expects "Canada")
-      # Actually, input logic usually keeps "Canada" as value.
       
       updateSelectInput(
         session, 
@@ -135,12 +137,36 @@ mod_ref_settings_server <- function(
       current_age <- input$age_group
       if (is.null(current_age)) current_age <- "All Ages"
       
-      age_choices <- c(stats::setNames("All Ages", tr$t("All Ages")), fb_age_groups())
+      # Dynamic Age Choices
+      # If avail_ages is present (from upload), filter standard choices to just those present + "All Ages"
+      # Otherwise show all standard choices
+      std_age_choices <- fb_age_groups()
+      
+      if (!is.null(avail_ages) && length(avail_ages) > 0) {
+        # Only keep ages that exist in uploaded data
+        # Check against names or values? fb_age_groups() return named vector: c("0-4 Years" = "0-4 Years", ...)
+        # Actually in app code we extract raw age strings. Assuming they match standard keys.
+        # Let's interact: filter std_age_choices where value is in avail_ages
+        valid_ages <- std_age_choices[std_age_choices %in% avail_ages]
+        # Also include any custom ages found in file but not in standard list?
+        # Ideally yes, but fb_toolkit requires standard ages for ref data.
+        # If the file has non-standard ages, they won't match ref table anyway.
+        # So strict filtering is safer for now.
+        if (length(valid_ages) > 0) {
+           age_choices_list <- c(stats::setNames("All Ages", tr$t("All Ages")), valid_ages)
+        } else {
+           # Fallback if no matches (weird data format?) -> show all
+           age_choices_list <- c(stats::setNames("All Ages", tr$t("All Ages")), std_age_choices)
+        }
+      } else {
+        age_choices_list <- c(stats::setNames("All Ages", tr$t("All Ages")), std_age_choices)
+      }
+
       updateSelectInput(
         session,
         "age_group",
         label = tr$t("Restrict by Age Group"),
-        choices = age_choices,
+        choices = age_choices_list,
         selected = current_age
       )
       
@@ -148,12 +174,28 @@ mod_ref_settings_server <- function(
       current_month <- input$month
       if (is.null(current_month)) current_month <- "All Months"
       
-      month_choices <- c(stats::setNames("All Months", tr$t("All Months")), stats::setNames(as.character(1:12), fb_month_names(lang)))
+      # Dynamic Month Choices
+      # avail_months is char vector "1".."12"
+      std_month_choices <- stats::setNames(as.character(1:12), fb_month_names(lang))
+      
+      if (!is.null(avail_months) && length(avail_months) > 0) {
+         # Filter standard list
+         # std_month_choices values are "1", "2"...
+         valid_months <- std_month_choices[std_month_choices %in% avail_months]
+         if (length(valid_months) > 0) {
+             month_choices_list <- c(stats::setNames("All Months", tr$t("All Months")), valid_months)
+         } else {
+             month_choices_list <- c(stats::setNames("All Months", tr$t("All Months")), std_month_choices)
+         }
+      } else {
+         month_choices_list <- c(stats::setNames("All Months", tr$t("All Months")), std_month_choices)
+      }
+
       updateSelectInput(
         session,
         "month",
         label = tr$t("Restrict by Month"),
-        choices = month_choices,
+        choices = month_choices_list,
         selected = current_month
       )
       
