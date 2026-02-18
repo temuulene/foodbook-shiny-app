@@ -17,13 +17,17 @@ This file is the authoritative guide for developers and AI agents working on the
 
 ## 2. Architecture Overview
 
-This project provides **two separate Shiny applications** sharing a common backend:
+This project provides **two separate Shiny applications** with a shared codebase:
 1.  **Public App** (`app-public/app.R`): For external partners (Manual entry, CSV upload).
 2.  **Internal App** (`app-internal/app.R`): For PHAC internal use (CEDARS Excel upload).
 
-**Core Components:**
+**Shared Backend & UI Patterns:**
+-   **Full UI Parity**: Both apps follow the same modern design system (`bslib` Bootstrap 5). They share identical features:
+    -   Language selector in the top-right navbar.
+    -   Dark mode toggle.
+    -   Sidebar inputs grouped into `accordion` panels.
 -   **Shared Backend** (`src/foodbook_backend.R`): Handles data loading, bilingual labels, and weighted calculations.
--   **Shiny Modules** (`src/modules/`): Reusable UI components (e.g., `exposure_module.R`).
+-   **Shiny Modules** (`src/modules/`): Reusable UI components. `mod_data_info.R` and `mod_results_table.R` are shared across both apps.
 -   **Bilingual Support**: Fully bilingual (EN/FR) using `shiny.i18n` and `translations/translation.json`.
 -   **Data Priority**: Foodbook 2 (Open Canada) → Foodbook 1 (Open Canada) → Legacy CSV.
 
@@ -32,18 +36,21 @@ This project provides **two separate Shiny applications** sharing a common backe
 2.  **Reference Calculation**:
     -   *Microdata*: Computes weighted % filtered by PT/Age/Month.
     -   *CSV Fallback*: Uses pre-computed averages (no age/month filtering).
-3.  **User Workflow**: Users select filters, input exposure data (Manual/CSV/CEDARS), and view statistical comparisons.
+3.  **User Workflow**: Users select filters, input exposure data (Manual/CSV/CEDARS), and view statistical comparisons in the Results & Visualization tabs.
 
 ## 3. File Organization
 
 ```
-app-public/             # Public app entry point & manifest
-app-internal/           # Internal app entry point & manifest
+app-public/             # Public app entry point & assets
+app-internal/           # Internal app entry point & assets
 src/
   foodbook_backend.R    # Core backend logic (data loading, calcs)
   i18n_helper.R         # Internationalization helpers
   modules/              # Reusable Shiny modules
-  data-clean-proportions.R # Script to regenerate legacy CSV
+    exposure_module.R   # Main inputs module
+    mod_data_info.R     # Shared Reference Data module
+    mod_results_table.R # Shared DT Results module
+    mod_visualization.R # Shared ggplot2 module
 translations/           # Bilingual UI strings (translation.json)
 data/
   open-canada/          # Public Foodbook data (FB1 & FB2)
@@ -61,22 +68,22 @@ README.md               # User documentation
 -   **Data**: `fb_exposure_choices(lang)`, `fb_pt_names(lang)`, `fb_month_names(lang)`
 -   **Calc**: `fb_reference_percents(codes, pt_names, age_groups, months)`
 
-## 5. Development Guidelines
-
-### Safe Changes for Agents
--   **UI/Copy**: Tweaks in `app-public/app.R` or `app-internal/app.R`.
--   **Formatting**: Adjusting tables/plots (respecting `bslib` theme).
--   **Backend**: Performance improvements in `src/` without changing signatures.
--   **Features**: Add behind conditionals preserving defaults.
+### Development Best Practices
+-   **UI Components**: Prefer `bslib` components where possible:
+    -   Wrap plots and tables in `card()`.
+    -   Use `layout_columns()` and `layout_column_wrap()` for responsive grids.
+    -   Use `accordion()` for grouping sidebar controls.
+-   **Plotting**: Always call `thematic_shiny()` in the server (usually in `app.R`) to make ggplot2 plots match the Bootstrap theme. Avoid `font = "auto"` if it causes warnings on corporate workstations.
+-   **DT Formatting**: For classification coloring in results tables, do **not** use `formatStyle()` on the target column (the backend often uses hidden keys). Instead, use the reinforced `rowCallback` in `mod_results_table.R` which targets `<td>` elements with JS `setProperty('...', '...', 'important')`.
 
 ### Common Gotchas
 1.  **Missing Data**: Ensure at least `foodbook_data.csv` or microdata exists.
 2.  **PT Codes**: Backend uses numeric codes internally; map carefully to names.
-3.  **Language Switching**: Use `renderUI` for dynamic translations, not JS text replacement.
+3.  **Language Switching**: Use `renderUI` for dynamic translations. Ensure the language selector is in the navbar (`nav_spacer() + nav_item()`).
 4.  **Paths**: Use relative paths; avoid hardcoded absolute paths.
+5.  **Sensitive Columns**: Hide internal 'Code' columns in public modules (default in `mod_data_info.R` and `mod_results_table.R`).
 
 ### Git Commit Guidelines
--   **NO AI ATTRIBUTION**: Do not mention "Claude", "AI", "LLM" in commits.
 -   **Professional Messages**: Focus on WHAT and WHY.
 -   **Format**: Use conventional commits (feat:, fix:, docs:) where appropriate.
 
@@ -87,6 +94,7 @@ README.md               # User documentation
 -   **Naming**: `snake_case` for variables/functions. Verbs for functions.
 -   **Assignment**: `<-` for assignment.
 -   **Strings**: `glue::glue()` over `paste0()`.
+-   **Dplyr**: Prefer `dplyr::case_match()` over the deprecated `dplyr::recode()`.
 -   **Line Length**: Keep under 80 chars.
 
 **Shiny Specifics:**
