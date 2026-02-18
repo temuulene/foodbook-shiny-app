@@ -1,12 +1,10 @@
 # Module: Visualization
 # Renders enhanced visualizations with diverging lollipop chart,
-# classification coloring, value box summaries, and interactive features
+# classification coloring, and interactive features
 
 mod_visualization_ui <- function(id) {
   ns <- NS(id)
   tagList(
-    # Summary value boxes strip
-    uiOutput(ns("summary_boxes")),
     # Download controls
     div(
       style = "margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;",
@@ -30,42 +28,6 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
       "Normal" = "#6c757d",     # neutral gray
       "Normale" = "#6c757d"
     )
-
-    # --- Summary Value Boxes ---
-    output$summary_boxes <- renderUI({
-      res <- results_data_reactive()
-      tr <- get_tr()
-      if (is.null(res) || nrow(res) == 0) return(NULL)
-
-      n_total <- nrow(res)
-      n_alert <- sum(res$Classification %in% c("Alert", "Alerte"), na.rm = TRUE)
-      n_border <- sum(res$Classification %in% c("Borderline", "Limite"), na.rm = TRUE)
-      n_normal <- n_total - n_alert - n_border
-
-      layout_column_wrap(
-        width = 1 / 3,
-        fill = FALSE,
-        class = "summary-value-box",
-        value_box(
-          title = tr$t("Alert"),
-          value = n_alert,
-          showcase = icon("circle-exclamation"),
-          theme = "danger"
-        ),
-        value_box(
-          title = tr$t("Borderline"),
-          value = n_border,
-          showcase = icon("triangle-exclamation"),
-          theme = "warning"
-        ),
-        value_box(
-          title = tr$t("Normal"),
-          value = n_normal,
-          showcase = icon("circle-check"),
-          theme = "secondary"
-        )
-      )
-    })
 
     # --- Download Buttons ---
     output$download_btn_ui <- renderUI({
