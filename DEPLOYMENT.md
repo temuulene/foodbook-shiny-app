@@ -35,7 +35,7 @@ Internal app additionally supports:
 - `upgrade-context/` - Optional legacy microdata for expanded exposure coverage
 
 ### R Version
-- **Recommended:** R 4.5.1 (as specified in manifests)
+- **Recommended:** R 4.5.2 (as specified in manifests)
 - **Minimum:** R 4.4.x
 
 ### Required Packages
@@ -406,8 +406,7 @@ Track:
 
 ### Documentation
 - `README.md` - User guide
-- `AGENT.md` - Developer guide
-- `AGENTS.md` - Quick reference
+- `AGENTS.md` - Developer & Agent Guide
 
 ### Contacts
 - **App Developer:** [Your Name]

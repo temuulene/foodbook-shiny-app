@@ -23,7 +23,7 @@ testthat::test_dir("tests/testthat")
 
 ## Documentation
 
--   [AGENT.md](AGENT.md): Developer guide, architecture, and contribution rules.
+-   [AGENTS.md](AGENTS.md): Developer guide, architecture, and contribution rules.
 -   [DEPLOYMENT.md](DEPLOYMENT.md): Posit Connect deployment instructions.
 
 ## Support

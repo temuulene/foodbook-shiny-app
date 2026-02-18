@@ -1,4 +1,4 @@
-# AGENT.md - Developer & Agent Guide
+# AGENTS.md - Developer & Agent Guide
 
 This file is the authoritative guide for developers and AI agents working on the Foodbook Shiny App. It combines project-specific instructions with general R best practices.
 
@@ -26,8 +26,8 @@ This project provides **two separate Shiny applications** with a shared codebase
     -   Language selector in the top-right navbar.
     -   Dark mode toggle.
     -   Sidebar inputs grouped into `accordion` panels.
--   **Shared Backend** (`src/foodbook_backend.R`): Handles data loading, bilingual labels, and weighted calculations.
--   **Shiny Modules** (`src/modules/`): Reusable UI components. `mod_data_info.R` and `mod_results_table.R` are shared across both apps.
+-   **Shared Backend** (`src/foodbook_backend.R`): Wrapper for the modular backend ecosystem (`src/backend/`) which handles data loading, bilingual labels, and weighted calculations.
+-   **Shiny Modules** (`src/modules/`): Reusable UI components. `mod_data_info.R`, `mod_results_table.R`, and `mod_visualization.R` are shared across both apps.
 -   **Bilingual Support**: Fully bilingual (EN/FR) using `shiny.i18n` and `translations/translation.json`.
 -   **Data Priority**: Foodbook 2 (Open Canada) → Foodbook 1 (Open Canada) → Legacy CSV.
 
@@ -44,13 +44,26 @@ This project provides **two separate Shiny applications** with a shared codebase
 app-public/             # Public app entry point & assets
 app-internal/           # Internal app entry point & assets
 src/
-  foodbook_backend.R    # Core backend logic (data loading, calcs)
+  foodbook_backend.R    # Backend entry point (sources src/backend/)
   i18n_helper.R         # Internationalization helpers
+  app_public_helpers.R  # Public app specific helpers
+  common_ui.R           # Shared UI components
+  common_server.R       # Shared server logic
+  backend/              # Modularized backend logic
+    fb_data_loading.R   # Data ingestion (CSV, DTA, Excel)
+    fb_exposures.R      # Exposure calculations and filtering
+    fb_geography.R      # PT mapping and normalization
+    fb_init.R           # Initialization and language switching
+    fb_toolkit.R        # Toolkit data management
+    fb_utils.R          # Utility functions and environment
   modules/              # Reusable Shiny modules
-    exposure_module.R   # Main inputs module
-    mod_data_info.R     # Shared Reference Data module
-    mod_results_table.R # Shared DT Results module
-    mod_visualization.R # Shared ggplot2 module
+    exposure_module.R         # Main inputs module
+    language_selector_module.R # Navbar language toggle
+    mod_about.R               # About tab content
+    mod_data_info.R           # Shared Reference Data module
+    mod_ref_settings.R        # Reference settings (Year/Region)
+    mod_results_table.R       # Shared DT Results module
+    mod_visualization.R       # Shared ggplot2 module
 translations/           # Bilingual UI strings (translation.json)
 data/
   open-canada/          # Public Foodbook data (FB1 & FB2)
@@ -58,15 +71,19 @@ data/
 upgrade-context/        # Internal microdata (SENSITIVE - DO NOT COMMIT)
 tests/                  # Unit tests (testthat)
 DEPLOYMENT.md           # Deployment guide
-AGENT.md                # This file
+AGENTS.md               # This file
 README.md               # User documentation
 ```
 
 ## 4. Backend API (`src/foodbook_backend.R`)
 
--   **Init**: `fb_init(lang)`, `fb_is_available()`
--   **Data**: `fb_exposure_choices(lang)`, `fb_pt_names(lang)`, `fb_month_names(lang)`
--   **Calc**: `fb_reference_percents(codes, pt_names, age_groups, months)`
+This file acts as the central hub, sourcing specific modules from `src/backend/` in dependency order.
+
+**Key Modules (`src/backend/`):**
+-   **fb_init.R**: `fb_init(lang)`, `fb_is_available()` - Handles startup and data validation.
+-   **fb_exposures.R**: `fb_exposure_choices(lang)`, `fb_reference_percents(...)` - Core logic.
+-   **fb_geography.R**: `fb_pt_names(lang)` - PT mapping (Open Canada standard).
+-   **fb_data_loading.R**: `load_microdata()` - Handles .dta and .csv loading.
 
 ### Development Best Practices
 -   **UI Components**: Prefer `bslib` components where possible:
@@ -113,10 +130,11 @@ README.md               # User documentation
 -   **Key Tests**:
     -   `test-backend-parsing.R`: Stata parsing, renames.
     -   `test-backend-calculations.R`: Weighted proportions, filtering.
+    -   `test-new-features.R`: CEDARS sheet detection, custom exposures, export filenames.
 
 ## 8. Deployment
 
--   **Platform**: Posit Connect (R 4.5.1).
+-   **Platform**: Posit Connect (R 4.5.2).
 -   **Method**: Git-backed (recommended) or Push-based (`rsconnect`).
 -   **Manifests**: Update `app-public/manifest.json` and `app-internal/manifest.json` when dependencies change.
     ```r
@@ -128,12 +146,12 @@ README.md               # User documentation
 R is not in the system PATH on this workstation. Use the full path to Rscript:
 
 ```powershell
-& "C:\Program Files\R\R-4.5.1\bin\x64\Rscript.exe" -e "your_command_here"
+& "C:\Program Files\R\R-4.5.2\bin\x64\Rscript.exe" -e "your_command_here"
 ```
 
 Or set PATH first, then use Rscript commands normally:
 ```powershell
-$env:PATH = "C:\Program Files\R\R-4.5.1\bin\x64;$env:PATH"
+$env:PATH = "C:\Program Files\R\R-4.5.2\bin\x64;$env:PATH"
 Rscript -e "rsconnect::writeManifest()"
 ```
 
