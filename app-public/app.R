@@ -65,6 +65,7 @@ ui <- function(request) {
               value = "ref_settings_panel",
               icon = icon("sliders"),
               mod_ref_settings_ui("ref_settings"),
+              uiOutput("category_filter_ui"),
               uiOutput("overanalysis_warning_ui")
             ),
             accordion_panel(
@@ -94,34 +95,35 @@ ui <- function(request) {
             )
           )
         ),
-        card(
-          card_header(uiOutput("card_exposure_input_label")),
-          card_body(
-            uiOutput("category_filter_ui"),
-            uiOutput("help_enter_counts_ui"),
-            uiOutput("exposure_select_ui"),
-            div(
-              class = "exposure-scroll-container",
-              uiOutput("exposure_modules_ui")
-            ),
-            uiOutput("footnote_fb1_ui")
-          )
-        ),
-        navset_card_underline(
-          full_screen = TRUE,
-          nav_panel(
-            title = uiOutput("nav_results_nested_label"),
-            class = "results-panel",
-            mod_results_table_ui("results_table")
+        layout_columns(
+          col_widths = breakpoints(lg = c(5, 7), md = c(12, 12)),
+          # LEFT: Compact exposure inputs
+          card(
+            card_header(uiOutput("card_exposure_input_label")),
+            card_body(
+              fill = TRUE,
+              class = "p-2",
+              uiOutput("help_enter_counts_ui"),
+              uiOutput("exposure_select_ui"),
+              div(
+                class = "exposure-scroll-container",
+                uiOutput("exposure_modules_ui")
+              ),
+              uiOutput("footnote_fb1_ui")
+            )
           ),
-          nav_panel(
-            title = uiOutput("nav_visualization_label"),
-            class = "visual-panel",
-            card(
-              full_screen = TRUE,
-              card_body(
-                mod_visualization_ui("visualization")
-              )
+          # RIGHT: Results + Visualization (always visible)
+          navset_card_underline(
+            full_screen = TRUE,
+            nav_panel(
+              title = uiOutput("nav_results_nested_label"),
+              class = "results-panel",
+              mod_results_table_ui("results_table")
+            ),
+            nav_panel(
+              title = uiOutput("nav_visualization_label"),
+              class = "visual-panel",
+              mod_visualization_ui("visualization")
             )
           )
         )
@@ -318,7 +320,7 @@ server <- function(input, output, session) {
     
     selectizeInput(
       "exposure_select", tr$t("Select Exposures:"), choices = all_exposures,
-      selected = current_selection, multiple = TRUE,
+      selected = current_selection, multiple = TRUE, width = "100%",
       options = list(placeholder = tr$t("Start typing..."), plugins = list("remove_button"), create = TRUE)
     )
   })
@@ -499,18 +501,18 @@ server <- function(input, output, session) {
   
   # --- Analysis Logic ---
   
-  # Gather Data from Modules for Results
-  reactive_results <- reactive({
+  # Gather Data from Modules for Results (debounced to avoid re-render on each exposure add)
+  reactive_results_raw <- reactive({
     ids <- exposure_module_ids()
     if (length(ids) == 0) return(NULL)
-    
+
     tr <- get_tr()
     lang <- current_lang()
     label_map <- fb_build_exposure_label_map(lang)
-    
+
     exposure_codes <- input$exposure_select %||% character()
     if (length(exposure_codes) == 0) return(NULL)
-    
+
     # Convert to DF
     df <- fb_public_collect_exposure_inputs(exposure_codes, input)
     if (nrow(df) == 0) return(NULL)
@@ -522,18 +524,18 @@ server <- function(input, output, session) {
       lang = lang,
       label_map = label_map
     )
-    
+
     # Backend Parameters
     provs <- selected_province()
     ages <- selected_age()
     months <- selected_month()
-    
+
     # Normalize filters
     filters <- fb_normalize_filters(provs, ages, months)
     backend_pt <- filters$pt
     ages <- filters$age
     months <- filters$month
-    
+
     # Build scope label for display
     if (is.null(backend_pt)) {
        scope_label <- tr$t("Canada")
@@ -543,10 +545,10 @@ server <- function(input, output, session) {
        display[is.na(display)] <- provs[is.na(display)]
        scope_label <- paste(display, collapse=", ")
     }
-    
+
     # Calculate Refs
     refs <- fb_reference_percents(df$Exposure, pt_names = backend_pt, months = months, age_groups = ages)
-    
+
     # Build analysis input: resolve reference % (system or custom fallback)
     sys_refs <- as.numeric(refs[df$Exposure])
     df$ref_pct <- dplyr::if_else(is.na(sys_refs), df$custom, sys_refs)
@@ -554,6 +556,7 @@ server <- function(input, output, session) {
 
     fb_classify_results(df, lang = lang)
   })
+  reactive_results <- reactive_results_raw |> debounce(millis = 800)
 
   # Pass results to modules
   mod_results_table_server("results_table", reactive_results, get_tr)
