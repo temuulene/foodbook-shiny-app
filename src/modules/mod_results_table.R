@@ -47,11 +47,11 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
              "",
              as.character(Classification)
            ))),
-           classification_key = case_match(
+           classification_key = recode_values(
               classification_key,
-              "alerte" ~ "alert",
-              "limite" ~ "borderline",
-              .default = classification_key
+              from = c("alerte", "limite"),
+              to = c("alert", "borderline"),
+              default = classification_key
             ),
            alert_rank = if_else(
              classification_key %in% c("alert", "borderline"),
@@ -88,9 +88,12 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
 
       datatable(
         res_formatted,
+        class = "compact stripe nowrap",
         options = list(
           pageLength = 50,
           dom = 'Bfrtip',
+          scrollX = FALSE,
+          autoWidth = TRUE,
           order = list(),
           language = list(
              search = tr$t("Search:"),

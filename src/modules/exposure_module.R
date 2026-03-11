@@ -49,23 +49,32 @@ exposure_module_ui <- function(id, exposure_name, ref_value, is_custom = FALSE, 
   }
 
   div(
-    class = "exposure-input-group",
-    h4(header_text, class = "exposure-header"),
-    layout_columns(
-      col_widths = c(2, 2, 2, 2, 4),
-      numericInput(ns("yes"), yes_label, 0, min = 0, max = 10000, step = 1),
-      numericInput(ns("prob"), prob_label, 0, min = 0, max = 10000, step = 1),
-      numericInput(ns("no"), no_label, 0, min = 0, max = 10000, step = 1),
-      numericInput(ns("dk"), dk_label, 0, min = 0, max = 10000, step = 1),
-      if (is_custom) {
-        numericInput(ns("custom_ref"), custom_label, value = 60, min = 0, max = 100, step = 0.1)
-      } else {
-        div(
-          p(paste0(ref_label, ":"), class = "ref-value"),
-          span(style = "font-size: 1.2em;", paste0(ref_value, "%"))
-        )
+    class = "exposure-input-group compact",
+    div(
+      class = "exposure-header-compact",
+      tags$strong(header_text),
+      if (!is_custom) {
+        span(class = "ref-badge", paste0(ref_label, ": ", ref_value, "%"))
       }
-    )
+    ),
+    if (is_custom) {
+      layout_columns(
+        col_widths = c(2, 3, 2, 2, 3),
+        numericInput(ns("yes"), yes_label, 0, min = 0, max = 10000, step = 1),
+        numericInput(ns("prob"), prob_label, 0, min = 0, max = 10000, step = 1),
+        numericInput(ns("no"), no_label, 0, min = 0, max = 10000, step = 1),
+        numericInput(ns("dk"), dk_label, 0, min = 0, max = 10000, step = 1),
+        numericInput(ns("custom_ref"), custom_label, value = 60, min = 0, max = 100, step = 0.1)
+      )
+    } else {
+      layout_columns(
+        col_widths = c(3, 3, 3, 3),
+        numericInput(ns("yes"), yes_label, 0, min = 0, max = 10000, step = 1),
+        numericInput(ns("prob"), prob_label, 0, min = 0, max = 10000, step = 1),
+        numericInput(ns("no"), no_label, 0, min = 0, max = 10000, step = 1),
+        numericInput(ns("dk"), dk_label, 0, min = 0, max = 10000, step = 1)
+      )
+    }
   )
 }
 

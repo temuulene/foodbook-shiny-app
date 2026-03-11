@@ -341,7 +341,7 @@ server <- function(input, output, session) {
 
     # Summarize
     exposure_counts <- d_filtered |>
-      mutate(val = dplyr::case_match(val, "y" ~ "Y", "n" ~ "N", "p" ~ "P", "dk" ~ "DK", .default = val)) |>
+      mutate(val = dplyr::recode_values(val, from = c("y", "n", "p", "dk"), to = c("Y", "N", "P", "DK"), default = val)) |>
       filter(val %in% c("Y", "N", "P", "DK")) |>
       distinct(natid, exposure, val) |>
       count(exposure, val) |>
