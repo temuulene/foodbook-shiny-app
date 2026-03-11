@@ -47,11 +47,10 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
              "",
              as.character(Classification)
            ))),
-           classification_key = recode_values(
-              classification_key,
-              from = c("alerte", "limite"),
-              to = c("alert", "borderline"),
-              default = classification_key
+           classification_key = case_when(
+              classification_key == "alerte" ~ "alert",
+              classification_key == "limite" ~ "borderline",
+              TRUE ~ classification_key
             ),
            alert_rank = if_else(
              classification_key %in% c("alert", "borderline"),
