@@ -17,11 +17,11 @@ mod_about_server <- function(id, get_tr) {
         h5(tr$t("Data Sources")),
         tags$ul(
           tags$li(
-            strong("Foodbook 1.0 (2014-2015):"), " ",
+            strong(tr$t("Foodbook 1.0 (2014-2015):")), " ",
             tr$t("Population reference values for Canada and Provinces/Territories.")
           ),
           tags$li(
-            strong("Foodbook 2.0 (2025):"), " ",
+            strong(tr$t("Foodbook 2.0 (2025):")), " ",
             tr$t("Updated data where available.")
           )
         ),
@@ -39,7 +39,7 @@ mod_about_server <- function(id, get_tr) {
         ),
         hr(),
         p(
-          style = "font-size: 0.9rem; color: #666;",
+          class = "text-body-secondary", style = "font-size: 0.9rem;",
           tr$t("Developed by Public Health Agency of Canada.")
         )
       )

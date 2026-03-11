@@ -25,15 +25,15 @@ language_selector_ui <- function(id, style = "radio") {
       selected = "en"
     )
   } else {
+    # Fallback to radio buttons for unsupported styles
     div(
       style = "display: inline-block; margin-left: 20px;",
-      radioGroupButtons(
+      radioButtons(
         inputId = ns("language"),
         label = NULL,
         choices = choices,
         selected = "en",
-        justified = FALSE,
-        size = "sm"
+        inline = TRUE
       )
     )
   }

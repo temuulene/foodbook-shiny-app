@@ -242,7 +242,7 @@ server <- function(input, output, session) {
         # 2. Reading exposure
         df_exp <- readxl::read_excel(path, sheet = exp_sheet$sheet)
         names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
-        df_exp <- df_exp %>% transmute(natid = as.character(.data$nationalid), exposure = as.character(.data$exposurecode), val = tolower(as.character(.data$hasexposureoccurred)))
+        df_exp <- df_exp |> transmute(natid = as.character(.data$nationalid), exposure = as.character(.data$exposurecode), val = tolower(as.character(.data$hasexposureoccurred)))
         
         # 3. Find Linelist
         all_sheets <- readxl::excel_sheets(path)
@@ -260,21 +260,23 @@ server <- function(input, output, session) {
         names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
         
         # 5. Filter & Merge
-        if ("casestatus" %in% names(df_line)) df_line <- df_line %>% filter(tolower(as.character(casestatus)) == "confirmed")
+        if ("casestatus" %in% names(df_line)) df_line <- df_line |> filter(tolower(as.character(casestatus)) == "confirmed")
         
         if (!"natid" %in% names(df_line)) df_line$natid <- as.character(df_line$nationalid)
         
         pt_values <- fb_extract_provinceterritory(df_line)
-        df_line <- df_line %>% 
-          transmute(
-            natid = as.character(.data$natid),
-            provinceterritory = pt_values,
-            age_group_raw = if("agegroup" %in% names(.data)) as.character(.data$agegroup) else NA_character_,
-            episode_date = if("episodedate" %in% names(.data)) .data$episodedate else NA
-          ) %>%
-          distinct(natid, .keep_all=TRUE)
+        has_agegroup <- "agegroup" %in% names(df_line)
+        has_episodedate <- "episodedate" %in% names(df_line)
+        df_line <- dplyr::transmute(
+          df_line,
+          natid = as.character(.data$natid),
+          provinceterritory = pt_values,
+          age_group_raw = if (has_agegroup) as.character(.data$agegroup) else NA_character_,
+          episode_date = if (has_episodedate) .data$episodedate else NA
+        ) |>
+          distinct(natid, .keep_all = TRUE)
           
-        df <- df_exp %>% inner_join(df_line, by="natid", relationship="many-to-one")
+        df <- df_exp |> inner_join(df_line, by="natid", relationship="many-to-one")
         validate(need(nrow(df) > 0, "No matching cases"))
         
         showNotification(paste0(tr$t("Success"), ": ", length(unique(df$natid)), " ", tr$t("cases")), type="message")
@@ -311,7 +313,7 @@ server <- function(input, output, session) {
     # Filter Logic
     d_filtered <- d
     if ("provinceterritory" %in% names(d) && length(pts_selected) > 0 && !("Canada" %in% pts_selected)) {
-        d_filtered <- d %>% filter(is.na(provinceterritory) | provinceterritory %in% pts_selected)
+        d_filtered <- d |> filter(is.na(provinceterritory) | provinceterritory %in% pts_selected)
     }
     
     # Determine Reference Scope
@@ -338,11 +340,11 @@ server <- function(input, output, session) {
     }
 
     # Summarize
-    exposure_counts <- d_filtered %>%
-      mutate(val = dplyr::case_match(val, "y" ~ "Y", "n" ~ "N", "p" ~ "P", "dk" ~ "DK", .default = val)) %>%
-      filter(val %in% c("Y", "N", "P", "DK")) %>%
-      distinct(natid, exposure, val) %>%
-      count(exposure, val) %>%
+    exposure_counts <- d_filtered |>
+      mutate(val = dplyr::case_match(val, "y" ~ "Y", "n" ~ "N", "p" ~ "P", "dk" ~ "DK", .default = val)) |>
+      filter(val %in% c("Y", "N", "P", "DK")) |>
+      distinct(natid, exposure, val) |>
+      count(exposure, val) |>
       tidyr::pivot_wider(names_from = val, values_from = n, values_fill = 0)
       
     if (nrow(exposure_counts) == 0) return(NULL)
@@ -354,52 +356,30 @@ server <- function(input, output, session) {
     
     ref_perc <- fb_reference_percents(exposure_counts$exposure, pt_names = ref_pts, months = months_selected, age_groups = ages_selected)
     
-    # Classify
+    # Build analysis input
     code_to_label <- names(fb_exposure_choices_all(lang))
     names(code_to_label) <- as.vector(fb_exposure_choices_all(lang))
-    
-    results <- exposure_counts %>%
-      rowwise() %>%
-      mutate(
-          Exposure = sub(" \\([^)]+\\)$", "", code_to_label[exposure] %||% exposure),
-          province_ref = as.numeric(ref_perc[match(exposure, names(ref_perc))]),
-          y_plus_p = (Y %||% 0) + (P %||% 0),
-          total = y_plus_p + (N %||% 0),
-          observed_prop = if (total > 0) y_plus_p / total else NA_real_,
-          p_value = if (total >= 5 && !is.na(province_ref) && province_ref > 0 && province_ref <= 100) {
-            pbinom(y_plus_p - 1, total, province_ref / 100, lower.tail = FALSE)
-          } else NA_real_,
-          Classification = classify_exposure(p_value, observed_prop, province_ref)
-      ) %>%
-      ungroup() %>%
-      transmute(
-          `Reference Scope` = scope_label,
-          Exposure,
-          `Total Valid` = total,
-          Yes = Y %||% 0, Probably = P %||% 0, No = N %||% 0, DK = DK %||% 0,
-          `Observed %` = observed_prop,
-          `Reference %` = province_ref,
-          `P-Value` = p_value,
-          Classification
-      )
-      
-    results$Classification <- purrr::map_chr(results$Classification, ~classification_label_i18n(., lang))
-    results
+
+    analysis_df <- data.frame(
+      ExposureLabel = vapply(
+        exposure_counts$exposure,
+        function(x) sub(" \\([^)]+\\)$", "", code_to_label[x] %||% x),
+        character(1)
+      ),
+      Y = exposure_counts$Y %||% 0L,
+      P = exposure_counts$P %||% 0L,
+      N = exposure_counts$N %||% 0L,
+      DK = exposure_counts$DK %||% 0L,
+      ref_pct = as.numeric(ref_perc[match(exposure_counts$exposure, names(ref_perc))]),
+      scope_label = scope_label,
+      stringsAsFactors = FALSE
+    )
+
+    fb_classify_results(analysis_df, lang = lang)
   })
 
   # Pass results to modules
   mod_results_table_server("results_table", adv_results, get_tr)
-  
-  # Data Info (Module)
-  mod_data_info_server(
-    "data_info",
-    get_tr = get_tr,
-    current_lang = current_lang,
-    selected_province = selected_province,
-    selected_age = selected_age,
-    selected_month = selected_month,
-    reference_table_data = reference_table_data
-  )
   
   reference_table_data <- reactive({
     lang <- current_lang()
@@ -424,6 +404,17 @@ server <- function(input, output, session) {
     if (!nrow(tbl)) return(NULL)
     tbl
   })
+
+  # Data Info (Module) -- defined after reference_table_data
+  mod_data_info_server(
+    "data_info",
+    get_tr = get_tr,
+    current_lang = current_lang,
+    selected_province = selected_province,
+    selected_age = selected_age,
+    selected_month = selected_month,
+    reference_table_data = reference_table_data
+  )
 }
 
 # --- 5. Run the Application ---

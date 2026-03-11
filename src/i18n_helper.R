@@ -43,14 +43,12 @@ get_translator <- function(session = shiny::getDefaultReactiveDomain()) {
 }
 
 t_ <- function(key, lang = NULL) {
-  translator <- get_translator()
   if (!is.null(lang)) {
-    current_lang <- translator$get_translation_language()
-    translator$set_translation_language(lang)
-    result <- translator$t(key)
-    translator$set_translation_language(current_lang)
-    return(result)
+    # Create a temporary translator to avoid mutating shared state
+    temp_tr <- fb_create_translator(lang)
+    return(temp_tr$t(key))
   }
+  translator <- get_translator()
   translator$t(key)
 }
 

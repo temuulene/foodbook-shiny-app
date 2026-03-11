@@ -73,14 +73,9 @@ safe_as_numeric <- function(x, context = NULL) {
 # microdata, label maps, and toolkit data. In a single-process multi-session
 # deployment (e.g., Shiny Server open-source), all sessions share this state.
 #
-# Immutable data (microdata, exposure codes, toolkit CSVs) is safe to share.
-# The only mutable field is label_map$label, which fb_update_language() swaps
-# between label_en/label_fr. This is safe because all functions that read labels
-# explicitly select the correct column via the `lang` parameter rather than
-# relying on the cached `label` column.
-#
-# If true per-session isolation is needed in the future, wrap fb_env in a
-# session-scoped reactiveValues object inside fb_init_common().
+# All cached data is immutable after initialization. The label_map$label column
+# is set to label_en at init time and never mutated. All functions select the
+# correct label column (label_en/label_fr) via the `lang` parameter.
 # =============================================================================
 fb_env <- new.env(parent = emptyenv())
 

@@ -47,6 +47,10 @@ fb_public_exposure_exclusion_codes <- function() {
   c("Q89_D", "Q89_D_FB1")
 }
 
+#' Get exposure choices for UI input
+#' @param lang Language code ("en" or "fr")
+#' @param apply_public_exclusions Logical; if TRUE, removes codes in the public exclusion list
+#' @return Named character vector: label -> exposure_code, suitable for selectInput choices
 fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
   fb_init(lang = lang)
   
@@ -204,7 +208,12 @@ fb_exposure_choices_all <- function(lang = "en") {
 fb_age_groups <- function() {
   fb_init()
   # If microdata present, offer the fixed mapping; else return empty so UI shows "All" only
-  if (!is.null(fb_env$micro)) c("0-9", "10-19", "20-64", "65+") else character()
+  if (!is.null(fb_env$micro)) {
+    ages <- c("0-9", "10-19", "20-64", "65+")
+    stats::setNames(ages, ages)
+  } else {
+    character()
+  }
 }
 
 fb_months <- function() {
@@ -301,7 +310,11 @@ fb_filter_dataset <- function(
   d
 }
 
-# Internal: filter microdata given reference selections
+#' Filter microdata by province/territory, month, and age group
+#' @param pt_names Character vector of PT names (English, French, or abbreviations); NULL = Canada
+#' @param months Integer vector of months (1-12); NULL = all months
+#' @param age_groups Character vector of age band labels; NULL = all ages
+#' @return Combined data frame of filtered FB2 + FB1 microdata, or NULL if no data loaded
 fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
   fb_init()
 
@@ -408,185 +421,141 @@ fb_reference_percents_csv <- function(codes, pt_names = NULL) {
   res
 }
 
-fb_reference_percents <- function(
-  codes,
-  pt_names = NULL,
-  months = NULL,
-  age_groups = NULL
-) {
-  pt_to_use <- NULL
-  if (is.null(pt_names) || length(pt_names) == 0) {
-    pt_to_use <- "Canada"
+# Try to find an exposure code in a dataset (with suffix fallbacks)
+fb_ref_from_dataset <- function(fb_col, dataset, suffixes = c("", "_dv", "_FB1")) {
+  if (is.null(dataset)) return(NA_real_)
+  for (sfx in suffixes) {
+    col <- paste0(fb_col, sfx)
+    if (col %in% names(dataset)) {
+      return(fb_weighted_percent(col, dataset))
+    }
+  }
+  NA_real_
+}
+
+# Check if a code is FB1-only (not in FB2 microdata)
+fb_is_fb1_only <- function(fb_col, fb2_cols, d_supp, is_legacy_mode) {
+  if (is_legacy_mode) return(FALSE)
+  in_fb2 <- fb_col %in% fb2_cols || paste0(fb_col, "_dv") %in% fb2_cols
+  in_fb1 <- !is.null(d_supp) &&
+    (fb_col %in% names(d_supp) ||
+      paste0(fb_col, "_dv") %in% names(d_supp) ||
+      paste0(fb_col, "_FB1") %in% names(d_supp))
+  !in_fb2 && in_fb1
+}
+
+# Resolve reference % for a single code against FB1 CSV fallback
+fb_ref_fb1_csv_fallback <- function(fb_col, pt_names, fb2_cols, d_supp,
+                                     is_legacy_mode, fb1_codes) {
+  if (is_legacy_mode) return(NA_real_)
+
+  is_fb1 <- fb_is_fb1_only(fb_col, fb2_cols, d_supp, is_legacy_mode)
+  if (!is_fb1 && !fb_col %in% fb1_codes) return(NA_real_)
+
+  label_row <- fb_env$label_map[fb_env$label_map$code == fb_col, , drop = FALSE]
+  label_en <- if (nrow(label_row) && "label_en" %in% names(label_row)) {
+    label_row$label_en[[1]]
+  } else {
+    fb_col
+  }
+
+  if (is_fb1) label_en <- paste0(label_en, "*")
+  val <- fb_reference_percents_csv(label_en, pt_names)[[1]]
+  if (is.na(val) && is_fb1) {
+    val <- fb_reference_percents_csv(label_row$label_en[[1]], pt_names)[[1]]
+  }
+  val
+}
+
+#' Compute reference percentages for a vector of exposure codes
+#'
+#' Uses a priority chain: toolkit -> FB1 CSV fallback -> primary microdata ->
+#' supplementary microdata -> toolkit fallback -> legacy CSV.
+#'
+#' @param codes Character vector of exposure codes
+#' @param pt_names Province/territory names (NULL = Canada)
+#' @param months Integer month codes (NULL = all)
+#' @param age_groups Character age band labels (NULL = all)
+#' @return Named numeric vector of reference percentages (0-100)
+#' Look up population reference proportions for a vector of exposure codes
+#' @param codes Character vector of exposure codes (e.g. "Q1_A")
+#' @param pt_names Character vector of PT names; NULL or "Canada" for national estimate
+#' @param months Integer vector of months to restrict to; NULL = all
+#' @param age_groups Character vector of age bands to restrict to; NULL = all
+#' @return Named numeric vector (percent 0-100) with same names as `codes`; NA where unavailable
+fb_reference_percents <- function(codes, pt_names = NULL, months = NULL,
+                                   age_groups = NULL) {
+  pt_to_use <- if (is.null(pt_names) || length(pt_names) == 0) {
+    "Canada"
   } else if (length(pt_names) == 1) {
-    pt_to_use <- pt_names
+    pt_names
+  } else {
+    NULL
   }
 
   if (!is.null(fb_env$micro)) {
     cedars_map <- fb_cedars_to_foodbook_map()
-
     fb_codes <- vapply(
       codes,
-      function(code) {
-        if (code %in% names(cedars_map)) {
-          cedars_map[[code]]
-        } else {
-          code
-        }
-      },
+      function(code) { v <- cedars_map[code]; if (length(v) && !is.na(v)) v else code },
       character(1),
       USE.NAMES = FALSE
     )
 
-    # Filter datasets separately
     d_main <- fb_filter_dataset(fb_env$micro, pt_names, months, age_groups)
     d_supp <- fb_filter_dataset(fb_env$micro_fb1, pt_names, months, age_groups)
-
-    # Check if we're using legacy combined data (FB1+FB2 already merged with renames)
     is_legacy_mode <- fb_env$data_source == "Legacy"
-
-    # Helper to check if code is FB1-only (not in FB2 microdata)
-    # Only relevant when NOT in legacy mode
-    fb2_cols <- if (!is.null(fb_env$micro)) names(fb_env$micro) else character()
+    fb2_cols <- names(fb_env$micro)
     fb1_codes <- if (!is.null(fb_env$label_map_fb1) && !is_legacy_mode) {
       fb_env$label_map_fb1$code
     } else {
       character()
     }
-    is_fb1_only <- function(fb_col) {
-      # In legacy mode, all data is in one dataset - no FB1-only logic needed
-      if (is_legacy_mode) {
-        return(FALSE)
+
+    results <- vapply(fb_codes, function(fb_col) {
+      # 1. Toolkit (total population, single PT)
+      if (is.null(months) && is.null(age_groups) && !is.null(pt_to_use)) {
+        tk_val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
+        if (!is.na(tk_val)) return(tk_val)
       }
 
-      # Check if column exists only in FB1 (not in FB2)
-      in_fb2 <- fb_col %in% fb2_cols || paste0(fb_col, "_dv") %in% fb2_cols
-      in_fb1 <- !is.null(d_supp) &&
-        (fb_col %in%
-          names(d_supp) ||
-          paste0(fb_col, "_dv") %in% names(d_supp) ||
-          paste0(fb_col, "_FB1") %in% names(d_supp))
-      return(!in_fb2 && in_fb1)
-    }
+      # 2. FB1-only CSV fallback
+      val <- fb_ref_fb1_csv_fallback(
+        fb_col, pt_names, fb2_cols, d_supp, is_legacy_mode, fb1_codes
+      )
+      if (!is.na(val)) return(val)
 
-    # Calculate reference percentages for each code
-    results <- vapply(
-      fb_codes,
-      function(fb_col) {
-        # High Priority: For Total Population (no Age/Month filters), 
-        # use official published values from Toolkit if available.
-        if (is.null(months) && is.null(age_groups) && !is.null(pt_to_use)) {
-          tk_val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
-          if (!is.na(tk_val)) {
-            return(tk_val)
-          }
-        }
+      # 3. Primary dataset (FB2 or Legacy)
+      val <- fb_ref_from_dataset(fb_col, d_main, c("", "_dv"))
+      if (!is.na(val)) return(val)
 
-        # Legacy fallback for FB1 only variables (primarily Open Canada mode)
-        if (!is_legacy_mode && (is_fb1_only(fb_col) || fb_col %in% fb1_codes)) {
-          # Map code -> English label (CSV uses English exposure names)
-          label_row <- fb_env$label_map[
-            fb_env$label_map$code == fb_col,
-            ,
-            drop = FALSE
-          ]
-          label_en <- if (nrow(label_row) && "label_en" %in% names(label_row)) {
-            label_row$label_en[[1]]
-          } else {
-            fb_col
-          }
+      # 4. Supplementary dataset (FB1)
+      val <- fb_ref_from_dataset(fb_col, d_supp, c("", "_dv", "_FB1"))
+      if (!is.na(val)) return(val)
 
-          # Append * for FB1-only exposures to align with CSV naming
-          if (is_fb1_only(fb_col)) {
-            label_en <- paste0(label_en, "*")
-          }
+      # 5. Toolkit fallback (filtered scenarios)
+      if (!is.null(pt_to_use)) {
+        val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
+        if (!is.na(val)) return(val)
+      }
 
-          # Try CSV lookup with star, then without as a fallback
-          csv_result <- fb_reference_percents_csv(label_en, pt_names)
-          val <- csv_result[[1]]
-          if (is.na(val) && is_fb1_only(fb_col)) {
-            csv_result <- fb_reference_percents_csv(
-              label_row$label_en[[1]],
-              pt_names
-            )
-            val <- csv_result[[1]]
-          }
-          if (!is.na(val)) {
-            return(val)
-          }
-        }
-
-        # 1. Try Primary Dataset (FB2 or Legacy combined)
-        if (!is.null(d_main)) {
-          if (fb_col %in% names(d_main)) {
-            return(fb_weighted_percent(fb_col, d_main))
-          }
-          # Try with _dv suffix
-          fb_col_dv <- paste0(fb_col, "_dv")
-          if (fb_col_dv %in% names(d_main)) {
-            return(fb_weighted_percent(fb_col_dv, d_main))
-          }
-        }
-
-        # 2. Fallback to Supplementary Dataset (FB1)
-        if (!is.null(d_supp)) {
-          # Try direct match
-          if (fb_col %in% names(d_supp)) {
-            return(fb_weighted_percent(fb_col, d_supp))
-          }
-          # Try with _dv suffix
-          fb_col_dv <- paste0(fb_col, "_dv")
-          if (fb_col_dv %in% names(d_supp)) {
-            return(fb_weighted_percent(fb_col_dv, d_supp))
-          }
-          # Try with _FB1 suffix (for collision-renamed FB1 columns)
-          fb_col_fb1 <- paste0(fb_col, "_FB1")
-          if (fb_col_fb1 %in% names(d_supp)) {
-            return(fb_weighted_percent(fb_col_fb1, d_supp))
-          }
-        }
-
-    # 3. Fallback to Toolkit Proportions (systematized CSV)
-        # This handles FB2 variables that might be missing from microdata filters or just missing in general
-        # but present in the official toolkit data.
-        if (!is.null(pt_to_use)) {
-          val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
-          if (!is.na(val)) return(val)
-        }
-
-        NA_real_
-      },
-      numeric(1)
-    )
+      NA_real_
+    }, numeric(1))
 
     names(results) <- codes
     return(results)
   }
-  
-  # If microdata is NULL, try Toolkit data first, then legacy CSV
-  # Try Toolkit first as it's more comprehensive and uses codes
+
+  # No microdata: toolkit then legacy CSV
   res_toolkit <- vapply(codes, function(x) {
-    if (is.null(pt_to_use)) {
-      return(NA_real_)
-    }
-    val <- fb_toolkit_reference_percent(x, pt_to_use)
-    if (is.na(val)) {
-       # Fallback to legacy CSV logic
-       # This requires mapping code to label if possible, but fb_reference_percents_csv takes "label"
-       # We only have code here. The legacy function might need checking.
-       return(NA_real_) 
-    }
-    val
+    if (is.null(pt_to_use)) return(NA_real_)
+    fb_toolkit_reference_percent(x, pt_to_use)
   }, numeric(1))
-  
-  if (all(is.na(res_toolkit))) {
-    return(fb_reference_percents_csv(codes, pt_names))
-  }
-  
-  # Fill NAs in toolkit results with legacy results
+
   na_idx <- is.na(res_toolkit)
+  if (all(na_idx)) return(fb_reference_percents_csv(codes, pt_names))
   if (any(na_idx)) {
-    legacy_res <- fb_reference_percents_csv(codes[na_idx], pt_names)
-    res_toolkit[na_idx] <- legacy_res
+    res_toolkit[na_idx] <- fb_reference_percents_csv(codes[na_idx], pt_names)
   }
   res_toolkit
 }

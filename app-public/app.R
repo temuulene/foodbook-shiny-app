@@ -182,23 +182,8 @@ server <- function(input, output, session) {
   current_lang <- common$current_lang
   get_tr <- common$get_tr # Reactive translator getter
 
-  build_exposure_label_map <- function(lang) {
-    choices <- fb_toolkit_exposure_choices(lang)
-    values <- unlist(choices, use.names = FALSE)
-    if (!length(values)) return(character())
-    stats::setNames(names(choices), values)
-  }
-
-  resolve_exposure_label <- function(code, lang, label_map) {
-    label <- label_map[code]
-    if (length(label) == 0 || is.na(label) || !nzchar(label)) {
-      label <- fb_exposure_label(code, lang)
-    }
-    if (length(label) == 0 || is.na(label) || !nzchar(label)) {
-      return(code)
-    }
-    unname(label)
-  }
+  # Exposure label helpers extracted to src/app_public_helpers.R:
+  # fb_build_exposure_label_map() and fb_fb_resolve_exposure_label()
 
   # Store uploaded CSV data
   csv_data <- reactiveVal(NULL)
@@ -261,14 +246,14 @@ server <- function(input, output, session) {
   output$footnote_fb1_ui <- renderUI({
     helpText(
       span(id = "footnote-fb1-label", get_tr()$t("* Exposures from Foodbook 1.0")),
-      style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;"
+      class = "text-body-secondary", style = "font-size: 0.8rem; margin-top: 0.5rem;"
     )
   })
 
   output$footnote_fb1_only_ui <- renderUI({
     helpText(
       span(id = "footnote-fb1-only-label", get_tr()$t("* Exposures from Foodbook 1 only")),
-      style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;"
+      class = "text-body-secondary", style = "font-size: 0.8rem; margin-top: 0.5rem;"
     )
   })
 
@@ -363,7 +348,7 @@ server <- function(input, output, session) {
     
     lang <- current_lang()
     tr <- get_tr()
-    label_map <- build_exposure_label_map(lang)
+    label_map <- fb_build_exposure_label_map(lang)
     
     # Calculate reference values based on current filters
     provs <- selected_province()
@@ -382,7 +367,7 @@ server <- function(input, output, session) {
       ref_val <- refs[[exposure]]
       is_custom <- is.na(ref_val)
 
-      label <- resolve_exposure_label(exposure, lang, label_map)
+      label <- fb_resolve_exposure_label(exposure, lang, label_map)
       
       exposure_module_ui(
         id = paste0("exp_", safe_id),
@@ -409,32 +394,26 @@ server <- function(input, output, session) {
     }
   }, ignoreInit = TRUE)
   
-  # Populate via CSV
-  observeEvent(csv_needs_population(), {
+  # Populate via CSV -- wait for module IDs to update before populating values
+  observeEvent(exposure_module_ids(), {
     req(csv_needs_population())
     df <- csv_data()
     req(df)
-    
-    # For each row, update the corresponding module
-    # We need to wait for modules to render before updating.
-    # Use shinyjs::delay to ensure the UI is ready.
-    shinyjs::delay(500, {
-      for (i in seq_len(nrow(df))) {
-        exposure_code <- df$matched_exposure[i]
-        safe_id <- make_safe_id(exposure_code)
-        mod_id <- paste0("exp_", safe_id)
-        
-        # Extract values
-        y_val <- as.numeric(df$yes[i])
-        p_val <- as.numeric(df$probably[i])
-        n_val <- as.numeric(df$no[i])
-        dk_val <- as.numeric(df$dk[i])
-        
-        exposure_module_update(session, mod_id, yes = y_val, prob = p_val, no = n_val, dk = dk_val)
-      }
-    })
-    
-    csv_needs_population(FALSE) # Reset
+
+    for (i in seq_len(nrow(df))) {
+      exposure_code <- df$matched_exposure[i]
+      safe_id <- make_safe_id(exposure_code)
+      mod_id <- paste0("exp_", safe_id)
+
+      y_val <- as.numeric(df$yes[i])
+      p_val <- as.numeric(df$probably[i])
+      n_val <- as.numeric(df$no[i])
+      dk_val <- as.numeric(df$dk[i])
+
+      exposure_module_update(session, mod_id, yes = y_val, prob = p_val, no = n_val, dk = dk_val)
+    }
+
+    csv_needs_population(FALSE)
   })
   
   # CSV Upload Handling (from original)
@@ -446,7 +425,10 @@ server <- function(input, output, session) {
     file_info <- input$simple_xlsx_upload
     lang <- current_lang()
     tr <- get_tr()
-    
+
+    # Server-side file type validation
+    req(tools::file_ext(file_info$name) == "xlsx")
+
     tryCatch({
       df <- readxl::read_excel(file_info$datapath)
       names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
@@ -524,7 +506,7 @@ server <- function(input, output, session) {
     
     tr <- get_tr()
     lang <- current_lang()
-    label_map <- build_exposure_label_map(lang)
+    label_map <- fb_build_exposure_label_map(lang)
     
     exposure_codes <- input$exposure_select %||% character()
     if (length(exposure_codes) == 0) return(NULL)
@@ -535,7 +517,7 @@ server <- function(input, output, session) {
 
     df$ExposureLabel <- vapply(
       df$Exposure,
-      resolve_exposure_label,
+      fb_resolve_exposure_label,
       character(1),
       lang = lang,
       label_map = label_map
@@ -565,42 +547,12 @@ server <- function(input, output, session) {
     # Calculate Refs
     refs <- fb_reference_percents(df$Exposure, pt_names = backend_pt, months = months, age_groups = ages)
     
-    # Build Table
-    results <- df %>%
-      rowwise() %>%
-      mutate(
-        # Use custom ref if system ref is NA
-        sys_ref = refs[[Exposure]],
-        province_ref = if (!is.na(sys_ref)) sys_ref else custom,
-        
-        y_plus_p = Y + P,
-        total = y_plus_p + N,
-        observed_prop = if (total > 0) y_plus_p / total else NA_real_,
-        p_value = if (total >= 5 && !is.na(province_ref) && province_ref > 0 && province_ref <= 100) {
-          pbinom(y_plus_p - 1, total, province_ref / 100, lower.tail = FALSE)
-        } else NA_real_,
-        
-        Classification = classify_exposure(p_value, observed_prop, province_ref),
-        
-        # Format Exposure Name
-        ExposureName = ExposureLabel
-      ) %>%
-      ungroup() %>%
-      transmute(
-        `Reference Scope` = scope_label,
-        Exposure = ExposureName,
-        `Total Valid` = total,
-        Yes = Y, Probably = P, No = N, DK = DK,
-        `Observed %` = observed_prop,
-        `Reference %` = province_ref,
-        `P-Value` = p_value,
-        Classification
-      )
-      
-      # Translate Classifications
-      results$Classification <- purrr::map_chr(results$Classification, ~classification_label_i18n(., lang))
-      
-      results
+    # Build analysis input: resolve reference % (system or custom fallback)
+    sys_refs <- as.numeric(refs[df$Exposure])
+    df$ref_pct <- dplyr::if_else(is.na(sys_refs), df$custom, sys_refs)
+    df$scope_label <- scope_label
+
+    fb_classify_results(df, lang = lang)
   })
 
   # Pass results to modules

@@ -46,17 +46,17 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
       tr <- get_tr()
 
       # Filter for significant + borderline, or fallback to top observed
-      top_exposures <- res %>%
+      top_exposures <- res |>
         filter(
           Classification %in% c("Alert", "Borderline", "Alerte", "Limite") |
             (!is.na(`P-Value`) & `P-Value` <= 0.10)
-        ) %>%
-        arrange(`P-Value`) %>%
+        ) |>
+        arrange(`P-Value`) |>
         head(20)
 
       if (nrow(top_exposures) == 0) {
-        top_exposures <- res %>%
-          arrange(desc(`Observed %`)) %>%
+        top_exposures <- res |>
+          arrange(desc(`Observed %`)) |>
           head(10)
       }
 
@@ -76,8 +76,8 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
       if (has_refs) {
         # --- Diverging Lollipop Chart ---
         # Show observed vs reference as connected dots
-        plot_data <- plot_data %>%
-          filter(!is.na(ref_pct)) %>%
+        plot_data <- plot_data |>
+          filter(!is.na(ref_pct)) |>
           mutate(Exposure = factor(Exposure, levels = Exposure[order(diff)]))
 
         p <- ggplot(plot_data, aes(y = Exposure)) +
@@ -125,7 +125,7 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
           )
       } else {
         # --- Fallback: Simple bar chart colored by classification ---
-        plot_data <- plot_data %>%
+        plot_data <- plot_data |>
           mutate(Exposure = factor(Exposure, levels = Exposure[order(obs_pct)]))
 
         p <- ggplot(plot_data, aes(x = Exposure, y = obs_pct, fill = Classification)) +

@@ -13,10 +13,19 @@ fb_init <- function(lang = "en") {
   legacy_dta2_path <- fb_get_base_path("upgrade-context/foodbook2v2.dta")
 
   if (!file.exists(legacy_dta_path) && !file.exists(legacy_dta2_path)) {
-    stop(
+    warning(
       "Authoritative microdata not found in upgrade-context/. ",
-      "Please ensure foodbook.dta and/or foodbook2v2.dta are present."
+      "Falling back to toolkit CSV data only."
     )
+    fb_env$initialised <- TRUE
+    fb_env$micro <- NULL
+    fb_env$label_map <- data.frame(
+      code = character(), label = character(),
+      label_en = character(), label_fr = character(),
+      stringsAsFactors = FALSE
+    )
+    fb_env$exposure_codes <- character()
+    return(invisible(FALSE))
   }
 
   message("Loading authoritative microdata from upgrade-context/...")
@@ -136,12 +145,9 @@ fb_init <- function(lang = "en") {
     "Barres granola, barres énergétiques ou autres barres protéinées*"
   )
 
-  # For backward compatibility with existing code that expects single "label" column
-  if (lang == "fr") {
-    fb_env$label_map$label <- fb_env$label_map$label_fr
-  } else {
-    fb_env$label_map$label <- fb_env$label_map$label_en
-  }
+  # Keep label column as English default (immutable after init).
+  # All code should use label_en/label_fr via the lang parameter.
+  fb_env$label_map$label <- fb_env$label_map$label_en
 
   # =============================================================================
   # Determine exposure columns (skip aggressive filtering to preserve labels)
@@ -224,15 +230,8 @@ fb_update_language <- function(lang = "en") {
     return(invisible(TRUE))
   }
 
-  # Update the active label column based on language
-  if (!is.null(fb_env$label_map) && nrow(fb_env$label_map) > 0) {
-    if (lang == "fr" && "label_fr" %in% names(fb_env$label_map)) {
-      fb_env$label_map$label <- fb_env$label_map$label_fr
-    } else {
-      fb_env$label_map$label <- fb_env$label_map$label_en
-    }
-  }
-
+  # No global state mutation needed.
+  # All functions select label_en/label_fr via the lang parameter.
   invisible(TRUE)
 }
 

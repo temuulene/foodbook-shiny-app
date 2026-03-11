@@ -43,9 +43,13 @@ fb_commons_head <- function() {
       text = "
         shinyjs.resetFileInput = function(params) {
           var id = params.id;
-          var $fileInput = $('input[type=\"file\"][id=' + id + ']');
+          var el = document.getElementById(id);
+          var $fileInput = el ? $(el).filter('input[type=\"file\"]') : $();
+          if (!$fileInput.length && el) {
+            $fileInput = $(el).find('input[type=\"file\"]');
+          }
           if (!$fileInput.length) {
-            $fileInput = $('#' + id).find('input[type=\"file\"]');
+            $fileInput = $(document.getElementById(id)).find('input[type=\"file\"]');
           }
           if ($fileInput.length) {
             $fileInput.val('');

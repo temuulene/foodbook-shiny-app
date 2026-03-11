@@ -5,31 +5,8 @@ library(testthat)
 library(dplyr)
 library(readxl)
 
-# Define helper functions locally for testing
-# These are copies from app.R to avoid sourcing the entire Shiny app
-
-classify_exposure <- function(p_value, observed_prop, ref_prop) {
-  # Check if reference is missing/unavailable
-  if (is.na(ref_prop)) return("No Reference Value")
-
-  ref_prop_decimal <- ref_prop / 100
-  if (is.na(p_value)) return("Insufficient Data")
-  if (observed_prop > ref_prop_decimal) {
-    dplyr::case_when(p_value <= 0.05 ~ "Alert",
-              p_value <= 0.10 ~ "Borderline",
-              TRUE ~ "Not Significant")
-  } else {
-    "Not Significant"
-  }
-}
-
-make_safe_id <- function(Exposure, Province.Territory) {
-  paste(
-    gsub("[^a-zA-Z0-9]", "", Exposure),
-    gsub("[^a-zA-Z0-9]", "", Province.Territory),
-    sep = "_"
-  )
-}
+# Production classify_exposure and make_safe_id are sourced via setup.R
+# (from src/backend/fb_utils.R). Do NOT redefine them here.
 
 find_sheet_by_columns <- function(excel_path, required_cols) {
   all_sheets <- tryCatch(readxl::excel_sheets(excel_path), error = function(e) character(0))
@@ -184,18 +161,18 @@ test_that("classify_exposure prioritizes 'No Reference Value' over other classif
 # =============================================================================
 
 test_that("make_safe_id removes special characters", {
-  result <- make_safe_id("Cherry tomatoes", "British Columbia")
-  expect_equal(result, "Cherrytomatoes_BritishColumbia")
+  result <- make_safe_id("Cherry tomatoes")
+  expect_equal(result, "Cherrytomatoes")
 })
 
 test_that("make_safe_id handles spaces and hyphens", {
-  result <- make_safe_id("Roma-plum tomatoes", "New Brunswick")
-  expect_equal(result, "Romaplumtomatoes_NewBrunswick")
+  result <- make_safe_id("Roma-plum tomatoes")
+  expect_equal(result, "Romaplumtomatoes")
 })
 
 test_that("make_safe_id handles parentheses and slashes", {
-  result <- make_safe_id("Tomatoes (raw/cooked)", "Ontario")
-  expect_equal(result, "Tomatoesrawcooked_Ontario")
+  result <- make_safe_id("Tomatoes (raw/cooked)")
+  expect_equal(result, "Tomatoesrawcooked")
 })
 
 # =============================================================================
@@ -371,12 +348,12 @@ test_that("CEDARS linelist without provinceterritory column is handled correctly
     sex = c("M", "F", "M")
   )
 
-  # Apply the same transformation as in app.R (line 1222-1224)
-  df_line_transformed <- df_line %>%
-    transmute(
-      natid = as.character(natid),
-      provinceterritory = if("provinceterritory" %in% names(.)) provinceterritory else NA_character_
-    )
+  # Apply the same transformation as in app.R
+  df_line_transformed <- dplyr::transmute(
+    df_line,
+    natid = as.character(natid),
+    provinceterritory = if ("provinceterritory" %in% names(df_line)) provinceterritory else NA_character_
+  )
 
   # Test: Should have natid and provinceterritory columns
   expect_true("natid" %in% names(df_line_transformed))
@@ -398,12 +375,12 @@ test_that("CEDARS linelist WITH provinceterritory column is handled correctly", 
     age = c(25, 45, 67)
   )
 
-  # Apply the same transformation as in app.R (line 1222-1224)
-  df_line_transformed <- df_line %>%
-    transmute(
-      natid = as.character(natid),
-      provinceterritory = if("provinceterritory" %in% names(.)) provinceterritory else NA_character_
-    )
+  # Apply the same transformation as in app.R
+  df_line_transformed <- dplyr::transmute(
+    df_line,
+    natid = as.character(natid),
+    provinceterritory = if ("provinceterritory" %in% names(df_line)) provinceterritory else NA_character_
+  )
 
   # Test: Should have both columns
   expect_true("natid" %in% names(df_line_transformed))

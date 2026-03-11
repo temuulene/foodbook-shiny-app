@@ -1,5 +1,83 @@
 # Helpers for the public Shiny app
 
+#' Build a label map from toolkit exposure choices (value -> name)
+#' @param lang Language code
+#' @return Named character vector: exposure_code -> label
+fb_build_exposure_label_map <- function(lang) {
+  choices <- fb_toolkit_exposure_choices(lang)
+  values <- unlist(choices, use.names = FALSE)
+  if (!length(values)) return(character())
+  stats::setNames(names(choices), values)
+}
+
+#' Resolve a human-readable label for an exposure code
+#' @param code Exposure code
+#' @param lang Language code
+#' @param label_map Named character vector from fb_build_exposure_label_map()
+#' @return Label string (escaped if user-created)
+fb_resolve_exposure_label <- function(code, lang, label_map) {
+  label <- label_map[code]
+  if (length(label) == 0 || is.na(label) || !nzchar(label)) {
+    label <- fb_exposure_label(code, lang)
+  }
+  if (length(label) == 0 || is.na(label) || !nzchar(label)) {
+    return(htmltools::htmlEscape(code))
+  }
+  unname(label)
+}
+
+#' Compute observed proportions, p-values, and classifications for exposure data
+#'
+#' Shared analysis logic used by both public and internal apps.
+#' Fully vectorized — no rowwise() needed.
+#'
+#' @param df Data frame with columns: ExposureLabel, Y, P, N, DK, ref_pct, scope_label
+#' @param lang Language code for classification labels ("en" or "fr")
+#' @return Data frame with columns: Reference Scope, Exposure, Total Valid,
+#'         Yes, Probably, No, DK, Observed %, Reference %, P-Value, Classification
+fb_classify_results <- function(df, lang = "en") {
+  y_plus_p <- df$Y + df$P
+  total <- y_plus_p + df$N
+  ref_pct <- df$ref_pct
+
+  observed_prop <- dplyr::if_else(total > 0, y_plus_p / total, NA_real_)
+
+  can_test <- total >= 5 & !is.na(ref_pct) & ref_pct > 0 & ref_pct <= 100
+  p_value <- rep(NA_real_, nrow(df))
+  if (any(can_test)) {
+    p_value[can_test] <- stats::pbinom(
+      y_plus_p[can_test] - 1,
+      total[can_test],
+      ref_pct[can_test] / 100,
+      lower.tail = FALSE
+    )
+  }
+
+  classification <- classify_exposure(p_value, observed_prop, ref_pct)
+  classification <- vapply(
+    classification,
+    classification_label_i18n,
+    character(1),
+    lang = lang
+  )
+
+  data.frame(
+    `Reference Scope` = df$scope_label,
+    Exposure = df$ExposureLabel,
+    `Total Valid` = total,
+    Yes = df$Y,
+    Probably = df$P,
+    No = df$N,
+    DK = df$DK,
+    `Observed %` = observed_prop,
+    `Reference %` = ref_pct,
+    `P-Value` = p_value,
+    Classification = unname(classification),
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+  )
+}
+
 fb_public_sanitize_count <- function(value) {
   if (is.null(value) || is.na(value)) {
     return(0L)
@@ -184,6 +262,11 @@ fb_public_available_pts <- function() {
   pt_cols
 }
 
+#' Normalize filter selections into backend-ready values
+#' @param provs Province/territory selection (character); "Canada" or NULL -> NULL pt
+#' @param ages Age group selection (character); "All Ages" or NULL -> NULL age
+#' @param months Month selection (character or integer); "All Months" or NULL -> NULL month
+#' @return List with elements `pt`, `age`, and `month` (each NULL or specific value)
 fb_normalize_filters <- function(provs, ages, months) {
   if (is.null(provs) || (length(provs) == 1 && provs == "Canada")) provs <- NULL
   if (!is.null(ages) && "All Ages" %in% ages) ages <- NULL

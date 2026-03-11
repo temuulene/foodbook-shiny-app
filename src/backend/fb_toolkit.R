@@ -7,13 +7,25 @@ fb_load_toolkit_data <- function() {
   # Load Bilingual Exposure List
   bilingual_path <- fb_get_base_path("data/exposures_bilingual.csv")
   if (file.exists(bilingual_path)) {
-    fb_env$toolkit_exposures <- utils::read.csv(bilingual_path, encoding = "UTF-8", stringsAsFactors = FALSE)
+    df <- utils::read.csv(bilingual_path, encoding = "UTF-8", stringsAsFactors = FALSE)
+    expected <- c("variable_name", "exposure_en", "exposure_fr", "category_en", "category_fr")
+    missing <- setdiff(expected, names(df))
+    if (length(missing)) {
+      warning("exposures_bilingual.csv missing columns: ", paste(missing, collapse = ", "))
+    }
+    fb_env$toolkit_exposures <- df
   }
 
   # Load Proportions
   props_path <- fb_get_base_path("data/exposure_proportions_by_pt.csv")
   if (file.exists(props_path)) {
-    fb_env$toolkit_proportions <- utils::read.csv(props_path, encoding = "UTF-8", stringsAsFactors = FALSE)
+    df <- utils::read.csv(props_path, encoding = "UTF-8", stringsAsFactors = FALSE)
+    expected <- c("variable_name", "Canada")
+    missing <- setdiff(expected, names(df))
+    if (length(missing)) {
+      warning("exposure_proportions_by_pt.csv missing columns: ", paste(missing, collapse = ", "))
+    }
+    fb_env$toolkit_proportions <- df
   }
   
   invisible(list(exposures = fb_env$toolkit_exposures, proportions = fb_env$toolkit_proportions))
@@ -40,6 +52,10 @@ fb_exposure_categories <- function(lang = "en") {
 }
 
 #' Get exposures filtered by category for Toolkit mode
+#' Get exposure choices sourced from the toolkit bilingual CSV
+#' @param lang Language code ("en" or "fr")
+#' @param category Optional category string to filter choices; NULL = all categories
+#' @return Named list of character vectors grouped by category, suitable for selectInput choices
 fb_toolkit_exposure_choices <- function(lang = "en", category = NULL) {
   if (is.null(fb_env$toolkit_exposures)) {
     fb_load_toolkit_data()

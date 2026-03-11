@@ -299,7 +299,7 @@ test_that("fb_age_groups and fb_months return expected values", {
   fb_env$initialised <- TRUE
 
   age_groups <- fb_age_groups()
-  expect_equal(age_groups, c("0-9", "10-19", "20-64", "65+"))
+  expect_equal(unname(age_groups), c("0-9", "10-19", "20-64", "65+"))
 
   months <- fb_months()
   expect_type(months, "character")

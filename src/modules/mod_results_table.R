@@ -27,7 +27,7 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
       
       tagList(
         DTOutput(ns("results_table"), width = "100%"),
-        helpText(tr$t("* Exposures from Foodbook 1.0"), style = "font-size: 0.8rem; margin-top: 0.5rem; color: #6c757d;")
+        helpText(tr$t("* Exposures from Foodbook 1.0"), class = "text-body-secondary", style = "font-size: 0.8rem; margin-top: 0.5rem;")
       )
     })
     
@@ -40,7 +40,7 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
       # Assume 'res' comes in with columns: Reference Scope, Exposure, Total Valid, Yes, Probably, No, DK, Observed %, Reference %, P-Value, Classification
       
       # Sort by P-Value
-      res_formatted <- res %>%
+      res_formatted <- res |>
          mutate(
            classification_key = tolower(trimws(ifelse(
              is.na(Classification),
@@ -66,8 +66,8 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
              as.character(round(`Reference %`, 2))
            ),
            `P-Value` = if_else(is.na(`P-Value`), "-", as.character(round(`P-Value`, 4)))
-         ) %>%
-         arrange(alert_rank, p_value_sort) %>%
+         ) |>
+         arrange(alert_rank, p_value_sort) |>
          select(-alert_rank, -p_value_sort)
       
       # Translate column names
@@ -105,27 +105,11 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
           rowCallback = JS(sprintf(
             "function(row, data) {
                var key = data[%1$d];
-               var bgColor = null;
-               var borderColor = null;
-               
+               row.classList.remove('fb-alert-row', 'fb-borderline-row');
                if (key === 'alert') {
-                 bgColor = '#f8d7da';
-                 borderColor = '#dc3545';
+                 row.classList.add('fb-alert-row');
                } else if (key === 'borderline') {
-                 bgColor = '#fff3cd';
-                 borderColor = '#fd7e14';
-               }
-               
-               if (bgColor) {
-                 // Target the row itself for the border and general bg
-                 row.style.setProperty('background-color', bgColor, 'important');
-                 row.style.setProperty('border-left', '5px solid ' + borderColor, 'important');
-                 
-                 // Target individual cells to override Bootstrap's cell-specific bg (e.g. from striping)
-                 var cells = row.getElementsByTagName('td');
-                 for (var i = 0; i < cells.length; i++) {
-                   cells[i].style.setProperty('background-color', bgColor, 'important');
-                 }
+                 row.classList.add('fb-borderline-row');
                }
              }",
              key_index
