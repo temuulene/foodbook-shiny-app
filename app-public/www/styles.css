@@ -495,10 +495,20 @@ nav.navbar {
   border-left: 5px solid #dc3545 !important;
 }
 
+.fb-alert-row td:first-child::before {
+  content: "\26A0\FE0E ";
+  font-size: 0.9em;
+}
+
 .fb-borderline-row,
 .fb-borderline-row td {
   background-color: #fff3cd !important;
   border-left: 5px solid #fd7e14 !important;
+}
+
+.fb-borderline-row td:first-child::before {
+  content: "\25B2 ";
+  font-size: 0.75em;
 }
 
 [data-bs-theme="dark"] .fb-alert-row,

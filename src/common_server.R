@@ -77,6 +77,7 @@ fb_init_common <- function(session, translation_path = "../translations/translat
       list(
         reference_settings = tr$t("Reference Settings"),
         upload_exposure = tr$t("Upload Exposure Counts (Optional)"),
+        cedars_upload = tr$t("Upload CEDARS Exposure Data"),
         actions = tr$t("Actions")
       )
     )

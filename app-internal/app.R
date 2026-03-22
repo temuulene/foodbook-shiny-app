@@ -1,6 +1,6 @@
 # Foodbook Internal Analysis Tool
 # For PHAC internal use - CEDARS outbreak data analysis
-# Supports Open Canada data + legacy microdata (if available)
+# Uses authoritative Foodbook microdata from upgrade-context/
 
 # --- 1. Load Libraries ---
 library(shiny)
@@ -82,13 +82,13 @@ ui <- function(request) {
           accordion(
             open = c("upload_panel", "ref_settings_panel"),
             accordion_panel(
-              title = span(id = "acc-upload-label", translator$t("Upload CEDARS Data")),
+              title = span(id = "acc-upload-label", translator$t("Upload CEDARS Exposure Data")),
               value = "upload_panel",
               icon = icon("upload"),
               uiOutput("cedars_upload_section_ui")
             ),
             accordion_panel(
-              title = span(id = "acc-ref-settings-label", translator$t("Analysis Parameters")),
+              title = span(id = "acc-ref-settings-label", translator$t("Reference Settings")),
               value = "ref_settings_panel",
               icon = icon("sliders"),
               mod_ref_settings_ui("ref_settings")
@@ -231,6 +231,13 @@ server <- function(input, output, session) {
     lang <- current_lang()
     tr <- get_tr()
 
+    # Server-side file size validation (10 MB limit)
+    file_size <- file.info(input$cedars_file$datapath)$size
+    validate(need(
+      file_size <= FB_MAX_UPLOAD_BYTES,
+      tr$t("File too large. Maximum size is 10 MB.")
+    ))
+
     tryCatch({
       df <- withProgress(message = tr$t("Processing..."), value = 0, {
         path <- input$cedars_file$datapath
@@ -285,8 +292,14 @@ server <- function(input, output, session) {
       adv_cases(df)
     }, error = function(e) {
       adv_cases(NULL)
-        shinyjs::js$resetFileInput(id = "cedars_file")
-      if (!inherits(e, "shiny.silent.error")) showNotification(paste(tr$t("Error"), ": ", e$message), type = "error")
+      shinyjs::js$resetFileInput(id = "cedars_file")
+      if (!inherits(e, "shiny.silent.error")) {
+        message("[CEDARS Upload Error] ", e$message)
+        showNotification(
+          tr$t("An error occurred while processing your file. Please check the format and try again."),
+          type = "error"
+        )
+      }
     })
   }) # ignoreNULL default
 
@@ -324,7 +337,7 @@ server <- function(input, output, session) {
       } else {
         # Translate for label
         abbr_map <- fb_pt_abbrev_map()
-        abbr_to_en <- stats::setNames(names(abbr_map), unname(abbr_map))
+        abbr_to_en <- rlang::set_names(names(abbr_map), unname(abbr_map))
         map_display <- abbr_to_en[unique_case_pts]
         map_display[is.na(map_display)] <- unique_case_pts[is.na(map_display)]
         if (lang == "fr") {
@@ -360,19 +373,17 @@ server <- function(input, output, session) {
     code_to_label <- names(fb_exposure_choices_all(lang))
     names(code_to_label) <- as.vector(fb_exposure_choices_all(lang))
 
-    analysis_df <- data.frame(
-      ExposureLabel = vapply(
+    analysis_df <- tibble::tibble(
+      ExposureLabel = purrr::map_chr(
         exposure_counts$exposure,
-        function(x) sub(" \\([^)]+\\)$", "", code_to_label[x] %||% x),
-        character(1)
+        function(x) sub(" \\([^)]+\\)$", "", code_to_label[x] %||% htmltools::htmlEscape(x))
       ),
       Y = exposure_counts$Y %||% 0L,
       P = exposure_counts$P %||% 0L,
       N = exposure_counts$N %||% 0L,
       DK = exposure_counts$DK %||% 0L,
       ref_pct = as.numeric(ref_perc[match(exposure_counts$exposure, names(ref_perc))]),
-      scope_label = scope_label,
-      stringsAsFactors = FALSE
+      scope_label = scope_label
     )
 
     fb_classify_results(analysis_df, lang = lang)

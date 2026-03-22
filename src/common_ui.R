@@ -38,6 +38,12 @@ fb_theme <- function() {
 # Common HEAD elements
 fb_commons_head <- function() {
   tagList(
+    tags$a(
+      class = "visually-hidden-focusable position-absolute",
+      href = "#",
+      onclick = "var c = document.querySelector('.tab-content'); if(c){c.setAttribute('tabindex','-1'); c.focus();} return false;",
+      "Skip to main content"
+    ),
     useShinyjs(),
     extendShinyjs(
       text = "

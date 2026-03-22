@@ -153,13 +153,13 @@ mod_ref_settings_server <- function(
         # If the file has non-standard ages, they won't match ref table anyway.
         # So strict filtering is safer for now.
         if (length(valid_ages) > 0) {
-           age_choices_list <- c(stats::setNames("All Ages", tr$t("All Ages")), valid_ages)
+           age_choices_list <- c(rlang::set_names("All Ages", tr$t("All Ages")), valid_ages)
         } else {
            # Fallback if no matches (weird data format?) -> show all
-           age_choices_list <- c(stats::setNames("All Ages", tr$t("All Ages")), std_age_choices)
+           age_choices_list <- c(rlang::set_names("All Ages", tr$t("All Ages")), std_age_choices)
         }
       } else {
-        age_choices_list <- c(stats::setNames("All Ages", tr$t("All Ages")), std_age_choices)
+        age_choices_list <- c(rlang::set_names("All Ages", tr$t("All Ages")), std_age_choices)
       }
 
       updateSelectInput(
@@ -176,19 +176,19 @@ mod_ref_settings_server <- function(
       
       # Dynamic Month Choices
       # avail_months is char vector "1".."12"
-      std_month_choices <- stats::setNames(as.character(1:12), fb_month_names(lang))
+      std_month_choices <- rlang::set_names(as.character(1:12), fb_month_names(lang))
       
       if (!is.null(avail_months) && length(avail_months) > 0) {
          # Filter standard list
          # std_month_choices values are "1", "2"...
          valid_months <- std_month_choices[std_month_choices %in% avail_months]
          if (length(valid_months) > 0) {
-             month_choices_list <- c(stats::setNames("All Months", tr$t("All Months")), valid_months)
+             month_choices_list <- c(rlang::set_names("All Months", tr$t("All Months")), valid_months)
          } else {
-             month_choices_list <- c(stats::setNames("All Months", tr$t("All Months")), std_month_choices)
+             month_choices_list <- c(rlang::set_names("All Months", tr$t("All Months")), std_month_choices)
          }
       } else {
-         month_choices_list <- c(stats::setNames("All Months", tr$t("All Months")), std_month_choices)
+         month_choices_list <- c(rlang::set_names("All Months", tr$t("All Months")), std_month_choices)
       }
 
       updateSelectInput(

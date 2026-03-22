@@ -1,14 +1,11 @@
 # Normalize labels for matching against exclusion lists
 fb_normalize_label_for_match <- function(labels) {
-  labels |>
-    (function(x) {
-      x <- gsub("\\*$", "", x, perl = TRUE)
-      x <- trimws(x)
-      # Handle both mojibake and correct encodings
-      x <- gsub("PÃ¢tÃ©", "Pate", x, fixed = TRUE)
-      x <- gsub("Pâté", "Pate", x, fixed = TRUE)
-      x
-    })()
+  out <- gsub("\\*$", "", labels, perl = TRUE)
+  out <- trimws(out)
+  # Handle both mojibake and correct encodings
+  out <- gsub("PÃ¢tÃ©", "Pate", out, fixed = TRUE)
+  out <- gsub("Pâté", "Pate", out, fixed = TRUE)
+  out
 }
 
 # Public app exclusion list (label-based)
@@ -100,7 +97,7 @@ fb_exposure_choices <- function(lang = "en", apply_public_exclusions = FALSE) {
       label_col <- label_col[!dup_label_mask]
     }
 
-    return(stats::setNames(lm$code, label_col))
+    return(rlang::set_names(lm$code, label_col))
   }
   
   # No fallback - require authoritative data
@@ -175,7 +172,7 @@ fb_exposure_choices_all <- function(lang = "en") {
     dplyr::distinct(code, .keep_all = TRUE)
 
   if (nrow(lm) == 0) {
-    return(stats::setNames(character(), character()))
+    return(rlang::set_names(character(), character()))
   }
 
   # Select label column based on language
@@ -186,7 +183,7 @@ fb_exposure_choices_all <- function(lang = "en") {
   } else if ("label" %in% names(lm)) {
     label_col <- lm$label
   } else {
-    return(stats::setNames(character(), character()))
+    return(rlang::set_names(character(), character()))
   }
 
   # Handle duplicate labels
@@ -202,7 +199,7 @@ fb_exposure_choices_all <- function(lang = "en") {
   exclude_codes <- c("Q60", "Q61", "Q62", "Q63", "Q64", "Q65", "Q66")
   keep_mask <- !lm$code %in% exclude_codes
 
-  return(stats::setNames(lm$code[keep_mask], label_col[keep_mask]))
+  return(rlang::set_names(lm$code[keep_mask], label_col[keep_mask]))
 }
 
 fb_age_groups <- function() {
@@ -210,7 +207,7 @@ fb_age_groups <- function() {
   # If microdata present, offer the fixed mapping; else return empty so UI shows "All" only
   if (!is.null(fb_env$micro)) {
     ages <- c("0-9", "10-19", "20-64", "65+")
-    stats::setNames(ages, ages)
+    rlang::set_names(ages, ages)
   } else {
     character()
   }
@@ -223,7 +220,7 @@ fb_months <- function() {
   }
   m <- sort(unique(na.omit(as.integer(fb_env$micro$Month))))
   m <- m[m >= 1 & m <= 12]
-  stats::setNames(as.character(m), month.name[m])
+  rlang::set_names(as.character(m), month.name[m])
 }
 
 fb_pt_names <- function(lang = "en") {
@@ -252,7 +249,7 @@ fb_pt_names <- function(lang = "en") {
 fb_pt_names_bilingual <- function() {
   en_names <- fb_pt_names("en")
   fr_names <- fb_pt_names("fr")
-  stats::setNames(fr_names, en_names)
+  rlang::set_names(fr_names, en_names)
 }
 
 # Get month names by language
@@ -333,7 +330,7 @@ fb_filter_micro <- function(pt_names = NULL, months = NULL, age_groups = NULL) {
   } else if (!is.null(d_supp)) {
     d <- d_supp
   } else {
-    d <- data.frame()
+    d <- tibble::tibble()
   }
 
   d
@@ -379,46 +376,50 @@ fb_reference_sample_size <- function(pt_names = NULL, months = NULL, age_groups 
 fb_reference_percents_csv <- function(codes, pt_names = NULL) {
   # NOTE: This fallback uses pre-computed CSV data and calculates simple (unweighted)
   # average when multiple PTs are selected. Results may differ from microdata calculations.
-  df <- tryCatch(
-    read.csv("data/foodbook_data.csv", stringsAsFactors = FALSE),
-    error = function(e) NULL
-  )
+  if (is.null(fb_env$foodbook_csv_data)) {
+    fb_env$foodbook_csv_data <- tryCatch(
+      data.table::fread(
+        fb_get_base_path("data/foodbook_data.csv"),
+        data.table = FALSE
+      ),
+      error = function(e) NULL
+    )
+  }
+  df <- fb_env$foodbook_csv_data
   if (
     is.null(df) ||
       !all(c("Exposure", "Province.Territory", "Proportion") %in% names(df))
   ) {
-    return(stats::setNames(rep(NA_real_, length(codes)), codes))
+    return(rlang::set_names(rep(NA_real_, length(codes)), codes))
   }
   # If Canada is selected or no PTs, use Canada rows
   if (is.null(pt_names) || length(pt_names) == 0 || any(pt_names == "Canada")) {
-    res <- vapply(
-      codes,
-      function(x) {
-        v <- df$Proportion[df$Exposure == x & df$Province.Territory == "Canada"]
-        v <- safe_as_numeric(v[1])
-        ifelse(length(v) == 0, NA_real_, v)
-      },
-      numeric(1)
-    )
-    return(res)
+    res <- purrr::map_dbl(codes, function(x) {
+      v <- df$Proportion[
+        df$Exposure == x & df$Province.Territory == "Canada"
+      ]
+      v <- safe_as_numeric(v[1])
+      dplyr::if_else(length(v) == 0, NA_real_, v)
+    })
+    return(rlang::set_names(res, codes))
   }
-  # Otherwise, average across selected PTs (simple mean; survey weights unavailable in CSV)
+
+  # Otherwise, average across selected PTs
   pt_codes <- fb_normalize_pt_names(pt_names)
-  pt_abbr <- c("BC", "AB", "SK", "MB", "ON", "QC", "NB", "NS", "PE", "NL", "YT", "NT", "NU")
-  sel_ab <- unique(pt_abbr[pt_codes])
-  res <- vapply(
-    codes,
-    function(x) {
-      v <- df$Proportion[df$Exposure == x & df$Province.Territory %in% sel_ab]
-      v <- safe_as_numeric(v)
-      if (!length(v)) {
-        return(NA_real_)
-      }
-      mean(v, na.rm = TRUE)
-    },
-    numeric(1)
+  pt_abbr <- c(
+    "BC", "AB", "SK", "MB", "ON", "QC",
+    "NB", "NS", "PE", "NL", "YT", "NT", "NU"
   )
-  res
+  sel_ab <- unique(pt_abbr[pt_codes])
+  res <- purrr::map_dbl(codes, function(x) {
+    v <- df$Proportion[
+      df$Exposure == x & df$Province.Territory %in% sel_ab
+    ]
+    v <- safe_as_numeric(v)
+    if (!length(v)) return(NA_real_)
+    mean(v, na.rm = TRUE)
+  })
+  rlang::set_names(res, codes)
 }
 
 # Try to find an exposure code in a dataset (with suffix fallbacks)
@@ -476,13 +477,8 @@ fb_ref_fb1_csv_fallback <- function(fb_col, pt_names, fb2_cols, d_supp,
 #' @param pt_names Province/territory names (NULL = Canada)
 #' @param months Integer month codes (NULL = all)
 #' @param age_groups Character age band labels (NULL = all)
-#' @return Named numeric vector of reference percentages (0-100)
-#' Look up population reference proportions for a vector of exposure codes
-#' @param codes Character vector of exposure codes (e.g. "Q1_A")
-#' @param pt_names Character vector of PT names; NULL or "Canada" for national estimate
-#' @param months Integer vector of months to restrict to; NULL = all
-#' @param age_groups Character vector of age bands to restrict to; NULL = all
-#' @return Named numeric vector (percent 0-100) with same names as `codes`; NA where unavailable
+#' @return Named numeric vector of reference percentages (0-100);
+#'   NA where unavailable
 fb_reference_percents <- function(codes, pt_names = NULL, months = NULL,
                                    age_groups = NULL) {
   pt_to_use <- if (is.null(pt_names) || length(pt_names) == 0) {
@@ -495,15 +491,15 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL,
 
   if (!is.null(fb_env$micro)) {
     cedars_map <- fb_cedars_to_foodbook_map()
-    fb_codes <- vapply(
-      codes,
-      function(code) { v <- cedars_map[code]; if (length(v) && !is.na(v)) v else code },
-      character(1),
-      USE.NAMES = FALSE
-    )
+    fb_codes <- purrr::map_chr(codes, function(code) {
+      v <- cedars_map[code]
+      if (length(v) && !is.na(v)) v else code
+    })
 
     d_main <- fb_filter_dataset(fb_env$micro, pt_names, months, age_groups)
-    d_supp <- fb_filter_dataset(fb_env$micro_fb1, pt_names, months, age_groups)
+    d_supp <- fb_filter_dataset(
+      fb_env$micro_fb1, pt_names, months, age_groups
+    )
     is_legacy_mode <- fb_env$data_source == "Legacy"
     fb2_cols <- names(fb_env$micro)
     fb1_codes <- if (!is.null(fb_env$label_map_fb1) && !is_legacy_mode) {
@@ -512,7 +508,7 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL,
       character()
     }
 
-    results <- vapply(fb_codes, function(fb_col) {
+    results <- purrr::map_dbl(fb_codes, function(fb_col) {
       # 1. Toolkit (total population, single PT)
       if (is.null(months) && is.null(age_groups) && !is.null(pt_to_use)) {
         tk_val <- fb_toolkit_reference_percent(fb_col, pt_to_use)
@@ -521,7 +517,8 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL,
 
       # 2. FB1-only CSV fallback
       val <- fb_ref_fb1_csv_fallback(
-        fb_col, pt_names, fb2_cols, d_supp, is_legacy_mode, fb1_codes
+        fb_col, pt_names, fb2_cols, d_supp,
+        is_legacy_mode, fb1_codes
       )
       if (!is.na(val)) return(val)
 
@@ -530,7 +527,9 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL,
       if (!is.na(val)) return(val)
 
       # 4. Supplementary dataset (FB1)
-      val <- fb_ref_from_dataset(fb_col, d_supp, c("", "_dv", "_FB1"))
+      val <- fb_ref_from_dataset(
+        fb_col, d_supp, c("", "_dv", "_FB1")
+      )
       if (!is.na(val)) return(val)
 
       # 5. Toolkit fallback (filtered scenarios)
@@ -540,17 +539,18 @@ fb_reference_percents <- function(codes, pt_names = NULL, months = NULL,
       }
 
       NA_real_
-    }, numeric(1))
+    })
 
     names(results) <- codes
     return(results)
   }
 
   # No microdata: toolkit then legacy CSV
-  res_toolkit <- vapply(codes, function(x) {
+  res_toolkit <- purrr::map_dbl(codes, function(x) {
     if (is.null(pt_to_use)) return(NA_real_)
     fb_toolkit_reference_percent(x, pt_to_use)
-  }, numeric(1))
+  })
+  names(res_toolkit) <- codes
 
   na_idx <- is.na(res_toolkit)
   if (all(na_idx)) return(fb_reference_percents_csv(codes, pt_names))

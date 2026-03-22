@@ -17,8 +17,17 @@ translate_or_fallback <- function(key, lang, fallback_en, fallback_fr = fallback
   fallback
 }
 
-exposure_module_ui <- function(id, exposure_name, ref_value, is_custom = FALSE, lang = "en") {
+exposure_module_ui <- function(id, exposure_name, ref_value, is_custom = FALSE, lang = "en",
+                               initial_values = NULL) {
   ns <- NS(id)
+
+  # Resolve initial values (preserve user-entered data across re-renders)
+  init <- initial_values %||% list()
+  init_yes <- init$yes %||% 0
+  init_prob <- init$prob %||% 0
+  init_no <- init$no %||% 0
+  init_dk <- init$dk %||% 0
+  init_custom_ref <- init$custom_ref %||% 60
 
   yes_label <- translate_or_fallback("Yes", lang, "Yes", "Oui")
   prob_label <- translate_or_fallback("Probably", lang, "Probably", "Probablement")
@@ -50,6 +59,8 @@ exposure_module_ui <- function(id, exposure_name, ref_value, is_custom = FALSE, 
 
   div(
     class = "exposure-input-group compact",
+    role = "group",
+    `aria-label` = header_text,
     div(
       class = "exposure-header-compact",
       tags$strong(header_text),
@@ -60,19 +71,19 @@ exposure_module_ui <- function(id, exposure_name, ref_value, is_custom = FALSE, 
     if (is_custom) {
       layout_columns(
         col_widths = c(2, 3, 2, 2, 3),
-        numericInput(ns("yes"), yes_label, 0, min = 0, max = 10000, step = 1),
-        numericInput(ns("prob"), prob_label, 0, min = 0, max = 10000, step = 1),
-        numericInput(ns("no"), no_label, 0, min = 0, max = 10000, step = 1),
-        numericInput(ns("dk"), dk_label, 0, min = 0, max = 10000, step = 1),
-        numericInput(ns("custom_ref"), custom_label, value = 60, min = 0, max = 100, step = 0.1)
+        numericInput(ns("yes"), yes_label, init_yes, min = 0, max = 10000, step = 1),
+        numericInput(ns("prob"), prob_label, init_prob, min = 0, max = 10000, step = 1),
+        numericInput(ns("no"), no_label, init_no, min = 0, max = 10000, step = 1),
+        numericInput(ns("dk"), dk_label, init_dk, min = 0, max = 10000, step = 1),
+        numericInput(ns("custom_ref"), custom_label, value = init_custom_ref, min = 0, max = 100, step = 0.1)
       )
     } else {
       layout_columns(
         col_widths = c(3, 3, 3, 3),
-        numericInput(ns("yes"), yes_label, 0, min = 0, max = 10000, step = 1),
-        numericInput(ns("prob"), prob_label, 0, min = 0, max = 10000, step = 1),
-        numericInput(ns("no"), no_label, 0, min = 0, max = 10000, step = 1),
-        numericInput(ns("dk"), dk_label, 0, min = 0, max = 10000, step = 1)
+        numericInput(ns("yes"), yes_label, init_yes, min = 0, max = 10000, step = 1),
+        numericInput(ns("prob"), prob_label, init_prob, min = 0, max = 10000, step = 1),
+        numericInput(ns("no"), no_label, init_no, min = 0, max = 10000, step = 1),
+        numericInput(ns("dk"), dk_label, init_dk, min = 0, max = 10000, step = 1)
       )
     }
   )

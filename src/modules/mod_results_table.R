@@ -26,7 +26,11 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
       }
       
       tagList(
-        DTOutput(ns("results_table"), width = "100%"),
+        div(
+          role = "region",
+          `aria-label` = tr$t("Exposure analysis results"),
+          DTOutput(ns("results_table"), width = "100%")
+        ),
         helpText(tr$t("* Exposures from Foodbook 1.0"), class = "text-body-secondary", style = "font-size: 0.8rem; margin-top: 0.5rem;")
       )
     })

@@ -313,7 +313,7 @@ fb_cedars_to_foodbook_map <- function() {
     # The CEDARS P-codes need to be manually mapped to Foodbook columns
     # This mapping is based on CEDARS exposure code -> Foodbook renamed column
     # For now, return empty - CEDARS integration would require a separate mapping file
-    fb_env$cedars_to_fb_map <- stats::setNames(character(), character())
+    fb_env$cedars_to_fb_map <- rlang::set_names(character(), character())
   }
 
   fb_env$cedars_to_fb_map

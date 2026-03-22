@@ -1190,8 +1190,52 @@
       "fr": "Foodbook 1.0 (2014-2015) :"
     },
     {
-      "en": "Foodbook 2.0 (2025):",
-      "fr": "Foodbook 2.0 (2025) :"
+      "en": "Foodbook 2.0 (2023-2024):",
+      "fr": "Foodbook 2.0 (2023-2024) :"
+    },
+    {
+      "en": "Actions",
+      "fr": "Actions"
+    },
+    {
+      "en": "Observed vs Reference Exposure Rates",
+      "fr": "Taux d'exposition observés vs de référence"
+    },
+    {
+      "en": "Segments connect reference (diamond) to observed (circle) values",
+      "fr": "Les segments relient les valeurs de référence (losange) aux valeurs observées (cercle)"
+    },
+    {
+      "en": "Exposure analysis chart",
+      "fr": "Graphique d'analyse de l'exposition"
+    },
+    {
+      "en": "No data to visualize",
+      "fr": "Aucune donnée à visualiser"
+    },
+    {
+      "en": "Select exposures and enter counts in the Analysis tab to see results here.",
+      "fr": "Sélectionnez des expositions et entrez les comptes dans l'onglet Analyse pour voir les résultats ici."
+    },
+    {
+      "en": "File too large. Maximum size is 10 MB.",
+      "fr": "Fichier trop volumineux. La taille maximale est de 10 Mo."
+    },
+    {
+      "en": "custom/unmatched",
+      "fr": "personnalisé/non apparié"
+    },
+    {
+      "en": "Exposure analysis results",
+      "fr": "Résultats d'analyse de l'exposition"
+    },
+    {
+      "en": "Top Exposures by Observed Rate",
+      "fr": "Principales expositions par taux observé"
+    },
+    {
+      "en": "An error occurred while processing your file. Please check the format and try again.",
+      "fr": "Une erreur s'est produite lors du traitement de votre fichier. Veuillez vérifier le format et réessayer."
     }
   ],
   "cultural_date_format": {

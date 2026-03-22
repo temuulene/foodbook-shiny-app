@@ -10,6 +10,8 @@
   "ppm.enabled": null,
   "ppm.ignored.urls": [],
   "r.version": null,
+  "r.rpath.windows": "C:\\Program Files\\R\\R-4.5.2\\bin\\R.exe",
+  "r.rterm.windows": "C:\\Program Files\\R\\R-4.5.2\\bin\\R.exe",
   "snapshot.dev": false,
   "snapshot.type": "implicit",
   "use.cache": true,

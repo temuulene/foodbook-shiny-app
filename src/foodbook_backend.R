@@ -25,6 +25,9 @@ get_backend_dir <- function() {
 
 backend_dir <- get_backend_dir()
 
+# Source shared constants
+source(file.path(dirname(backend_dir), "constants.R"), local = FALSE)
+
 # Source sub-modules in dependency order
 # -------------------------------------
 

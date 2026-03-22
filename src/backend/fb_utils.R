@@ -32,11 +32,13 @@ suppressPackageStartupMessages({
 classify_exposure <- function(p_value, observed_prop, ref_prop) {
   ref_prop_decimal <- ref_prop / 100
   dplyr::case_when(
-    is.na(ref_prop)                                     ~ "No Reference Value",
-    is.na(p_value)                                      ~ "Insufficient Data",
-    observed_prop > ref_prop_decimal & p_value <= 0.05  ~ "Alert",
-    observed_prop > ref_prop_decimal & p_value <= 0.10  ~ "Borderline",
-    TRUE                                                ~ "Not Significant"
+    is.na(ref_prop) ~ "No Reference Value",
+    is.na(p_value) ~ "Insufficient Data",
+    observed_prop > ref_prop_decimal &
+      p_value <= FB_P_VALUE_ALERT ~ "Alert",
+    observed_prop > ref_prop_decimal &
+      p_value <= FB_P_VALUE_BORDERLINE ~ "Borderline",
+    TRUE ~ "Not Significant"
   )
 }
 

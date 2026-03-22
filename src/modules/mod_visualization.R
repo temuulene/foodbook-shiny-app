@@ -80,7 +80,7 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
       has_refs <- any(!is.na(plot_data$ref_pct))
 
       # Truncate long exposure names for y-axis readability
-      plot_data$exposure_label <- ifelse(
+      plot_data$exposure_label <- dplyr::if_else(
         nchar(plot_data$Exposure) > 30,
         paste0(substr(plot_data$Exposure, 1, 28), "\u2026"),
         plot_data$Exposure
@@ -131,7 +131,7 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
             breaks = unique(plot_data$Classification)
           ) +
           scale_shape_manual(
-            values = stats::setNames(c(16, 18), c(tr$t("Observed"), tr$t("Reference"))),
+            values = rlang::set_names(c(16, 18), c(tr$t("Observed"), tr$t("Reference"))),
             name = ""
           ) +
           scale_x_continuous(
@@ -206,8 +206,8 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
     # --- Plot Rendering ---
     output$plot_container <- renderUI({
       p <- generated_plot()
+      tr <- get_tr()
       if (is.null(p)) {
-        tr <- get_tr()
         return(
           div(
             class = "viz-empty-state",
@@ -224,13 +224,16 @@ mod_visualization_server <- function(id, results_data_reactive, get_tr) {
 
       div(
         style = "width: 100%;",
+        role = "img",
+        `aria-label` = tr$t("Exposure analysis chart"),
         plotOutput(ns("plot"), height = plot_height, width = "100%")
       )
     })
 
     output$plot <- renderPlot({
-      req(generated_plot())
-      generated_plot()
+      p <- generated_plot()
+      req(p)
+      p
     }, res = 96)
 
     # --- Download Handlers ---

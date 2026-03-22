@@ -337,7 +337,7 @@ server <- function(input, output, session) {
     # Normalize IDs
     # Warning: Input can be names or codes.
     # We need safe IDs for modules.
-    needed_ids <- unique(vapply(current_selection, make_safe_id, character(1)))
+    needed_ids <- unique(purrr::map_chr(current_selection, make_safe_id))
     
     # Update stored IDs
     exposure_module_ids(needed_ids)
@@ -347,22 +347,37 @@ server <- function(input, output, session) {
   output$exposure_modules_ui <- renderUI({
     selected <- input$exposure_select
     if (length(selected) == 0) return(NULL)
-    
+
+    # Save current module values before re-rendering (isolate to avoid deps)
+    for (id in isolate(exposure_module_ids())) {
+      mod_id <- paste0("exp_", id)
+      y <- isolate(input[[paste0(mod_id, "-yes")]])
+      if (!is.null(y)) {
+        exposure_value_store[[id]] <- list(
+          yes = y,
+          prob = isolate(input[[paste0(mod_id, "-prob")]]),
+          no = isolate(input[[paste0(mod_id, "-no")]]),
+          dk = isolate(input[[paste0(mod_id, "-dk")]]),
+          custom_ref = isolate(input[[paste0(mod_id, "-custom_ref")]])
+        )
+      }
+    }
+
     lang <- current_lang()
     tr <- get_tr()
     label_map <- fb_build_exposure_label_map(lang)
-    
+
     # Calculate reference values based on current filters
     provs <- selected_province()
     ages <- selected_age()
     months <- selected_month()
-    
+
     # Normalize filter selections to backend format
     filters <- fb_normalize_filters(provs, ages, months)
-    
+
     # Get refs
     refs <- fb_reference_percents(selected, pt_names = filters$pt, months = filters$month, age_groups = filters$age)
-    
+
     # Build UI list
     ui_list <- lapply(selected, function(exposure) {
       safe_id <- make_safe_id(exposure)
@@ -370,20 +385,31 @@ server <- function(input, output, session) {
       is_custom <- is.na(ref_val)
 
       label <- fb_resolve_exposure_label(exposure, lang, label_map)
-      
+
+      # Restore saved values for this exposure (if any)
+      saved <- if (exists(safe_id, envir = exposure_value_store)) {
+        get(safe_id, envir = exposure_value_store)
+      } else {
+        NULL
+      }
+
       exposure_module_ui(
         id = paste0("exp_", safe_id),
         exposure_name = label,
         ref_value = if (is.na(ref_val)) 60 else round(ref_val, 1),
         is_custom = is_custom,
-        lang = lang
+        lang = lang,
+        initial_values = saved
       )
     })
-    
+
     do.call(tagList, ui_list)
   })
   
   module_registry <- reactiveValues()
+
+  # Non-reactive store for preserving exposure input values across UI re-renders
+  exposure_value_store <- new.env(parent = emptyenv())
 
   # Server logic for dynamic modules
   observeEvent(exposure_module_ids(), {
@@ -431,6 +457,13 @@ server <- function(input, output, session) {
     # Server-side file type validation
     req(tools::file_ext(file_info$name) == "xlsx")
 
+    # Server-side file size validation (10 MB limit)
+    file_size <- file.info(file_info$datapath)$size
+    validate(need(
+      file_size <= FB_MAX_UPLOAD_BYTES,
+      tr$t("File too large. Maximum size is 10 MB.")
+    ))
+
     tryCatch({
       df <- readxl::read_excel(file_info$datapath)
       names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
@@ -439,8 +472,8 @@ server <- function(input, output, session) {
       # Matching logic
       foodbook_choices_en <- fb_exposure_choices("en", apply_public_exclusions = TRUE)
       foodbook_choices_fr <- fb_exposure_choices("fr", apply_public_exclusions = TRUE)
-      fb_lookup_en <- stats::setNames(foodbook_choices_en, tolower(names(foodbook_choices_en)))
-      fb_lookup_fr <- stats::setNames(foodbook_choices_fr, tolower(names(foodbook_choices_fr)))
+      fb_lookup_en <- rlang::set_names(foodbook_choices_en, tolower(names(foodbook_choices_en)))
+      fb_lookup_fr <- rlang::set_names(foodbook_choices_fr, tolower(names(foodbook_choices_fr)))
       
       matched_exposures <- character(nrow(df))
       match_count <- 0
@@ -474,7 +507,7 @@ server <- function(input, output, session) {
       custom_exposures <- fb_public_merge_custom_choices(matched_exposures, current_choices)
       if (length(custom_exposures) > 0) {
         # Add custom exposures as choices (name = value for custom)
-        custom_choices <- stats::setNames(custom_exposures, custom_exposures)
+        custom_choices <- rlang::set_names(custom_exposures, custom_exposures)
         all_choices <- c(current_choices, custom_choices)
       } else {
         all_choices <- current_choices
@@ -489,7 +522,11 @@ server <- function(input, output, session) {
       csv_needs_population(TRUE) # Trigger update
       
     }, error = function(e) {
-      showNotification(paste0(tr$t("Error"), ": ", e$message), type = "error")
+      message("[Upload Error] ", e$message)
+      showNotification(
+        tr$t("An error occurred while processing your file. Please check the format and try again."),
+        type = "error"
+      )
     })
   })
   
@@ -517,10 +554,9 @@ server <- function(input, output, session) {
     df <- fb_public_collect_exposure_inputs(exposure_codes, input)
     if (nrow(df) == 0) return(NULL)
 
-    df$ExposureLabel <- vapply(
+    df$ExposureLabel <- purrr::map_chr(
       df$Exposure,
       fb_resolve_exposure_label,
-      character(1),
       lang = lang,
       label_map = label_map
     )
@@ -556,7 +592,7 @@ server <- function(input, output, session) {
 
     fb_classify_results(df, lang = lang)
   })
-  reactive_results <- reactive_results_raw |> debounce(millis = 800)
+  reactive_results <- reactive_results_raw |> debounce(millis = FB_DEBOUNCE_MS)
 
   # Pass results to modules
   mod_results_table_server("results_table", reactive_results, get_tr)

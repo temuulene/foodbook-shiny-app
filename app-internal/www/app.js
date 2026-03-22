@@ -43,7 +43,12 @@ function registerHandlers() {
   // Custom message handler for updating accordion titles
   Shiny.addCustomMessageHandler('update-accordion-titles', function(labels) {
     if (labels.reference_settings) $('#acc-ref-settings-label').text(labels.reference_settings);
-    if (labels.upload_exposure) $('#acc-upload-label').text(labels.upload_exposure);
+    // Internal app uses CEDARS-specific label for upload accordion
+    if (labels.cedars_upload) {
+      $('#acc-upload-label').text(labels.cedars_upload);
+    } else if (labels.upload_exposure) {
+      $('#acc-upload-label').text(labels.upload_exposure);
+    }
     if (labels.actions) $('#acc-actions-label').text(labels.actions);
   });
 

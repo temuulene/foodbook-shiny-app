@@ -8,66 +8,64 @@ function registerHandlers() {
     return;
   }
 
+  // Helper: safely set text on an element if it exists
+  function setText(selector, value) {
+    if (!value) return;
+    var el = $(selector);
+    if (el.length) el.text(value);
+  }
+
   // Custom message handler for updating navbar title/brand
   Shiny.addCustomMessageHandler('update-navbar-title', function(title) {
-    $('.navbar-brand').text(title);
+    setText('.navbar-brand', title);
   });
 
   // Custom message handler for updating button labels
   Shiny.addCustomMessageHandler('update-button-labels', function(labels) {
-    $('#reset').text(labels.reset);
-    $('button[id*=bookmark]').text(labels.bookmark);
-    $('#download_plot').text(labels.download);
+    setText('#reset', labels.reset);
+    if (labels.bookmark) $('button[id*=bookmark]').text(labels.bookmark);
+    setText('#download_plot', labels.download);
   });
 
   // Custom message handler for updating tab names
   Shiny.addCustomMessageHandler('update-tab-names', function(labels) {
-    $('#nav-analysis-label').text(labels.analysis);
-    $('#nav-ref-data-label').text(labels.reference_data);
-    $('#nav-data-info-label').text(labels.data_info);
-    $('#nav-about-label').text(labels.about);
-    $('#nav-viz-label').text(labels.visualization);
-    $('#nav-results-nested-label').text(labels.results);
+    setText('#nav-analysis-label', labels.analysis);
+    setText('#nav-ref-data-label', labels.reference_data);
+    setText('#nav-data-info-label', labels.data_info);
+    setText('#nav-about-label', labels.about);
+    setText('#nav-viz-label', labels.visualization);
+    setText('#nav-results-nested-label', labels.results);
   });
 
   // Custom message handler for updating sidebar title
   Shiny.addCustomMessageHandler('update-sidebar-title', function(title) {
-    $('#sidebar-analysis-title').text(title);
+    setText('#sidebar-analysis-title', title);
   });
 
   // Custom message handler for updating accordion titles
   Shiny.addCustomMessageHandler('update-accordion-titles', function(labels) {
-    $('#acc-ref-settings-label').text(labels.reference_settings);
-    $('#acc-upload-label').text(labels.upload_exposure);
-    $('#acc-actions-label').text(labels.actions);
+    setText('#acc-ref-settings-label', labels.reference_settings);
+    setText('#acc-upload-label', labels.upload_exposure);
+    setText('#acc-actions-label', labels.actions);
   });
 
   // Custom message handler for updating card headers
   Shiny.addCustomMessageHandler('update-card-headers', function(labels) {
-    $('#card-exposure-input-label').text(labels.exposure_data_input);
-    $('#card-ref-settings-label').text(labels.reference_settings);
-    $('#card-pop-snapshot-label').text(labels.population_snapshot);
-    $('#card-cov-pt-label').text(labels.microdata_pt);
-    $('#card-cov-month-label').text(labels.microdata_month);
-    $('#card-about-label').text(labels.about_tool);
-    $('#card-ref-values-label').text(labels.reference_values);
-
-    // Nested results tab in public app
-    $('#nav-results-nested-label').text(labels.results);
+    setText('#card-exposure-input-label', labels.exposure_data_input);
+    setText('#card-ref-settings-label', labels.reference_settings);
+    setText('#card-pop-snapshot-label', labels.population_snapshot);
+    setText('#card-cov-pt-label', labels.microdata_pt);
+    setText('#card-cov-month-label', labels.microdata_month);
+    setText('#card-about-label', labels.about_tool);
+    setText('#card-ref-values-label', labels.reference_values);
+    setText('#nav-results-nested-label', labels.results);
   });
 
   // Custom message handler for updating misc labels (help text, file inputs, etc)
   Shiny.addCustomMessageHandler('update-misc-labels', function(labels) {
-    // Update help text
-    if (labels.enter_case_counts) {
-      $('#help-enter-counts').text(labels.enter_case_counts);
-    }
-    if (labels.fb1_asterisk) {
-      $('#footnote-fb1-label').text(labels.fb1_asterisk);
-    }
-    if (labels.fb1_only_asterisk) {
-      $('#footnote-fb1-only-label').text(labels.fb1_only_asterisk);
-    }
+    setText('#help-enter-counts', labels.enter_case_counts);
+    setText('#footnote-fb1-label', labels.fb1_asterisk);
+    setText('#footnote-fb1-only-label', labels.fb1_only_asterisk);
   });
 }
 

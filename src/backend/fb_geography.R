@@ -114,7 +114,7 @@ fb_normalize_pt_values <- function(pt_values) {
     val_chr
   }
 
-  vapply(pt_values, normalize_one, character(1), USE.NAMES = FALSE)
+  purrr::map_chr(pt_values, normalize_one)
 }
 
 # Extract Province/Territory values from a data frame and optionally normalize
