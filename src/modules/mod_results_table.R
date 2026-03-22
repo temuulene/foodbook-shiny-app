@@ -91,7 +91,7 @@ mod_results_table_server <- function(id, results_data_reactive, get_tr) {
 
       datatable(
         res_formatted,
-        class = "compact stripe nowrap",
+        class = "compact stripe",
         options = list(
           pageLength = 50,
           dom = 'Bfrtip',

@@ -204,6 +204,40 @@ nav.navbar {
    DataTables
    ======================================== */
 
+/* Fit table within panel without horizontal scroll */
+.dataTables_wrapper,
+table.dataTable {
+  width: 100% !important;
+  table-layout: auto;
+}
+
+table.dataTable th,
+table.dataTable td {
+  font-size: 0.8rem;
+  padding: 0.35rem 0.4rem !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* Let Reference Scope (1st col) and Exposure (2nd col) wrap */
+table.dataTable td:nth-child(1),
+table.dataTable td:nth-child(2) {
+  white-space: normal;
+  word-break: break-word;
+}
+
+/* Constrain Reference Scope column width */
+table.dataTable td:nth-child(1) {
+  max-width: 180px;
+}
+
+/* Let Exposure column have more room */
+table.dataTable td:nth-child(2) {
+  max-width: 160px;
+}
+
 .dataTables_wrapper .dt-buttons .btn {
   background: var(--bs-primary, #EB2D37);
   color: #ffffff;
