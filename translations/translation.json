@@ -102,6 +102,10 @@
       "fr": "Valeurs de reference"
     },
     {
+      "en": "Reference Values by Province/Territory",
+      "fr": "Valeurs de référence par province/territoire"
+    },
+    {
       "en": "Foodbook 1 only",
       "fr": "Foodbook 1 seulement"
     },
@@ -116,6 +120,14 @@
     {
       "en": "Sample Size (n)",
       "fr": "Taille de l'échantillon (n)"
+    },
+    {
+      "en": "Number of survey respondents per province/territory",
+      "fr": "Nombre de répondants par province/territoire"
+    },
+    {
+      "en": "Number of survey respondents per interview month",
+      "fr": "Nombre de répondants par mois d'entrevue"
     },
     {
       "en": "Select Exposures",
@@ -504,6 +516,10 @@
     {
       "en": "Respondents",
       "fr": "Répondants"
+    },
+    {
+      "en": "respondents",
+      "fr": "répondants"
     },
     {
       "en": "Province/Territory",

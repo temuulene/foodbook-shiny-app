@@ -6,7 +6,9 @@
 fb_build_exposure_label_map <- function(lang) {
   choices <- fb_toolkit_exposure_choices(lang)
   values <- unlist(choices, use.names = FALSE)
-  if (!length(values)) return(character())
+  if (!length(values)) {
+    return(character())
+  }
   rlang::set_names(names(choices), values)
 }
 
@@ -47,7 +49,9 @@ fb_classify_results <- function(df, lang = "en") {
   observed_prop <- dplyr::if_else(total > 0, y_plus_p / total, NA_real_)
 
   can_test <- total >= FB_MIN_SAMPLE_SIZE &
-    !is.na(ref_pct) & ref_pct > 0 & ref_pct <= 100
+    !is.na(ref_pct) &
+    ref_pct > 0 &
+    ref_pct <= 100
   p_value <- rep(NA_real_, nrow(df))
   if (any(can_test)) {
     p_value[can_test] <- stats::pbinom(
@@ -81,9 +85,13 @@ fb_classify_results <- function(df, lang = "en") {
 }
 
 fb_public_sanitize_count <- function(value, max_val = 10000L) {
-  if (is.null(value) || is.na(value)) return(0L)
+  if (is.null(value) || is.na(value)) {
+    return(0L)
+  }
   num <- suppressWarnings(as.numeric(value))
-  if (is.na(num)) return(0L)
+  if (is.na(num)) {
+    return(0L)
+  }
   as.integer(max(0L, min(max_val, floor(num))))
 }
 
@@ -168,8 +176,10 @@ fb_public_build_reference_table <- function(
 
   codes <- unname(unlist(choices, use.names = FALSE))
   refs <- reference_fun(
-    codes, pt_names = pt_names,
-    months = months, age_groups = age_groups
+    codes,
+    pt_names = pt_names,
+    months = months,
+    age_groups = age_groups
   )
   fb_public_reference_table_from_choices(choices, refs)
 }
@@ -205,13 +215,15 @@ fb_public_pt_coverage <- function(df, lang = "en") {
 
   if (is.numeric(pt_vals)) {
     code_to_name_num <- rlang::set_names(
-      names(fb_pt_map()), as.character(fb_pt_map())
+      names(fb_pt_map()),
+      as.character(fb_pt_map())
     )
     labels_en <- code_to_name_num[pt_labels]
   } else {
     abbr_map <- fb_pt_abbrev_map()
     code_to_name <- rlang::set_names(
-      names(abbr_map), unname(abbr_map)
+      names(abbr_map),
+      unname(abbr_map)
     )
     labels_en <- code_to_name[pt_labels]
   }
@@ -280,9 +292,113 @@ fb_public_available_pts <- function() {
 #' @param months Month selection (character or integer); "All Months" or NULL -> NULL month
 #' @return List with elements `pt`, `age`, and `month` (each NULL or specific value)
 fb_normalize_filters <- function(provs, ages, months) {
-  if (is.null(provs) || (length(provs) == 1 && provs == "Canada")) provs <- NULL
-  if (!is.null(ages) && "All Ages" %in% ages) ages <- NULL
-  if (!is.null(months) && "All Months" %in% months) months <- NULL
-  else if (!is.null(months)) months <- as.integer(months)
+  if (is.null(provs) || (length(provs) == 1 && provs == "Canada")) {
+    provs <- NULL
+  }
+  if (!is.null(ages) && "All Ages" %in% ages) {
+    ages <- NULL
+  }
+  if (!is.null(months) && "All Months" %in% months) {
+    months <- NULL
+  } else if (!is.null(months)) {
+    months <- as.integer(months)
+  }
   list(pt = provs, age = ages, month = months)
+}
+
+#' Build a wide reference table showing all exposures with per-PT percentages
+#' Always shows the full (unfiltered) pre-computed proportions for all PTs + Canada.
+#' @param lang Language code ("en" or "fr")
+#' @return Data frame: Exposure, Category, <PT columns in full names>, Canada
+fb_public_reference_table_by_pt <- function(lang = "en") {
+  if (
+    is.null(fb_env$toolkit_proportions) || is.null(fb_env$toolkit_exposures)
+  ) {
+    fb_load_toolkit_data()
+  }
+  if (
+    is.null(fb_env$toolkit_proportions) || is.null(fb_env$toolkit_exposures)
+  ) {
+    return(tibble::tibble())
+  }
+
+  props <- fb_env$toolkit_proportions
+  expos <- fb_env$toolkit_exposures
+
+  label_col <- if (lang == "fr") "exposure_fr" else "exposure_en"
+  cat_col <- if (lang == "fr") "category_fr" else "category_en"
+
+  merged <- dplyr::left_join(
+    props,
+    expos[, c("variable_name", label_col, cat_col), drop = FALSE],
+    by = "variable_name"
+  )
+
+  # PT columns in geographic order (west to east + territories)
+  pt_abbrs <- c(
+    "BC",
+    "AB",
+    "SK",
+    "MB",
+    "ON",
+    "QC",
+    "NB",
+    "NS",
+    "PE",
+    "NL",
+    "YT",
+    "NT",
+    "NU",
+    "Canada"
+  )
+  pt_cols_present <- intersect(pt_abbrs, names(merged))
+
+  # Build display labels
+  exposure_labels <- merged[[label_col]]
+  exposure_labels[is.na(exposure_labels) | exposure_labels == ""] <-
+    merged$variable_name[is.na(exposure_labels) | exposure_labels == ""]
+
+  category_labels <- merged[[cat_col]]
+  category_labels[is.na(category_labels)] <- ""
+
+  out <- tibble::tibble(
+    Exposure = exposure_labels,
+    Category = category_labels
+  )
+
+  for (pt in pt_cols_present) {
+    out[[pt]] <- round(as.numeric(merged[[pt]]), 1)
+  }
+
+  # Build abbreviation -> full name lookup for column renaming
+  # Exclude "Canada" from the PT lookup (it stays as-is)
+  abbr_map_full <- fb_pt_abbrev_map()
+  abbr_map <- abbr_map_full[names(abbr_map_full) != "Canada"]
+  pt_names_en <- names(abbr_map) # 13 full English PT names
+  pt_names_fr <- fb_pt_names("fr") # 13 full French PT names
+
+  abbr_to_full <- if (lang == "fr") {
+    rlang::set_names(pt_names_fr, unname(abbr_map))
+  } else {
+    rlang::set_names(pt_names_en, unname(abbr_map))
+  }
+
+  new_names <- names(out)
+  for (i in seq_along(new_names)) {
+    if (new_names[i] %in% names(abbr_to_full)) {
+      new_names[i] <- abbr_to_full[new_names[i]]
+    }
+  }
+  names(out) <- new_names
+
+  # Remove rows where all numeric (PT) columns are 0 or NA
+  pt_col_indices <- which(!names(out) %in% c("Exposure", "Category"))
+  row_sums <- rowSums(out[, pt_col_indices, drop = FALSE], na.rm = TRUE)
+  out <- out[row_sums > 0, , drop = FALSE]
+
+  # Also drop rows with empty category (unmatched/orphan proportions entries)
+  out <- out[!is.na(out$Category) & out$Category != "", , drop = FALSE]
+
+  out <- out[order(out$Category, out$Exposure), ]
+  out
 }

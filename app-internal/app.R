@@ -40,7 +40,9 @@ options(bslib.precompiled = TRUE)
 # --- 2. Helper Functions ---
 # Helper to find Excel sheet by required columns
 find_sheet_by_columns <- function(excel_path, required_cols) {
-  all_sheets <- tryCatch(readxl::excel_sheets(excel_path), error = function(e) character(0))
+  all_sheets <- tryCatch(readxl::excel_sheets(excel_path), error = function(e) {
+    character(0)
+  })
 
   for (sheet_name in all_sheets) {
     sheet_data <- tryCatch(
@@ -51,7 +53,11 @@ find_sheet_by_columns <- function(excel_path, required_cols) {
     if (!is.null(sheet_data)) {
       normalized_cols <- gsub("[^a-z0-9]+", "", tolower(names(sheet_data)))
       if (all(required_cols %in% normalized_cols)) {
-        return(list(sheet = sheet_name, found = TRUE, available_sheets = all_sheets))
+        return(list(
+          sheet = sheet_name,
+          found = TRUE,
+          available_sheets = all_sheets
+        ))
       }
     }
   }
@@ -60,7 +66,9 @@ find_sheet_by_columns <- function(excel_path, required_cols) {
 
 # --- 3. User Interface (UI) ---
 ui <- function(request) {
-  translator <- Translator$new(translation_json_path = "../translations/translation.json")
+  translator <- Translator$new(
+    translation_json_path = "../translations/translation.json"
+  )
   translator$set_translation_language("en")
 
   page_navbar(
@@ -82,13 +90,19 @@ ui <- function(request) {
           accordion(
             open = c("upload_panel", "ref_settings_panel"),
             accordion_panel(
-              title = span(id = "acc-upload-label", translator$t("Upload CEDARS Exposure Data")),
+              title = span(
+                id = "acc-upload-label",
+                translator$t("Upload CEDARS Exposure Data")
+              ),
               value = "upload_panel",
               icon = icon("upload"),
               uiOutput("cedars_upload_section_ui")
             ),
             accordion_panel(
-              title = span(id = "acc-ref-settings-label", translator$t("Reference Settings")),
+              title = span(
+                id = "acc-ref-settings-label",
+                translator$t("Reference Settings")
+              ),
               value = "ref_settings_panel",
               icon = icon("sliders"),
               mod_ref_settings_ui("ref_settings")
@@ -100,7 +114,25 @@ ui <- function(request) {
         card(
           card_header(uiOutput("card_results_label")),
           card_body(
-             mod_results_table_ui("results_table")
+            mod_results_table_ui("results_table")
+          )
+        )
+      )
+    ),
+
+    # Reference Data Tab
+    nav_panel(
+      title = span(id = "nav-ref-data-label", translator$t("Reference Data")),
+      icon = icon("table"),
+      card(
+        card_header(span(
+          id = "card-ref-by-pt-label",
+          uiOutput("ref_by_pt_title", inline = TRUE)
+        )),
+        card_body(
+          withSpinner(
+            DTOutput("ref_table_by_pt"),
+            type = 4
           )
         )
       )
@@ -137,7 +169,6 @@ ui <- function(request) {
 
 # --- 4. Server Logic ---
 server <- function(input, output, session) {
-  
   # Initialize shared logic
   common <- fb_init_common(session, "../translations/translation.json")
   translator <- common$translator
@@ -150,58 +181,75 @@ server <- function(input, output, session) {
   # Get unique PTs from uploaded cases for module parameters
   case_pts <- reactive({
     d <- adv_cases()
-    if (is.null(d) || !"provinceterritory" %in% names(d)) return(NULL)
+    if (is.null(d) || !"provinceterritory" %in% names(d)) {
+      return(NULL)
+    }
     unique_pts <- unique(d$provinceterritory[!is.na(d$provinceterritory)])
-    if (length(unique_pts) == 0) return(NULL)
+    if (length(unique_pts) == 0) {
+      return(NULL)
+    }
     fb_normalize_pt_values(unique_pts)
   })
-  
+
   # Available PTs wrapper
   # Returns "Canada" + any PTs found in data to Ref Settings module
   available_pts_reactive <- reactive({
     pts <- case_pts()
-    if (is.null(pts) || !length(pts)) return("Canada")
+    if (is.null(pts) || !length(pts)) {
+      return("Canada")
+    }
     fb_available_pts_from_cases(pts)
   })
 
   # Unique Age Groups from uploaded cases
   case_ages <- reactive({
     d <- adv_cases()
-    if (is.null(d) || !"age_group_raw" %in% names(d)) return(NULL)
+    if (is.null(d) || !"age_group_raw" %in% names(d)) {
+      return(NULL)
+    }
     unique(d$age_group_raw[!is.na(d$age_group_raw)])
   })
 
   # Unique Months from uploaded cases
   case_months <- reactive({
     d <- adv_cases()
-    if (is.null(d) || !"episode_date" %in% names(d)) return(NULL)
+    if (is.null(d) || !"episode_date" %in% names(d)) {
+      return(NULL)
+    }
     dates <- d$episode_date[!is.na(d$episode_date)]
-    if (length(dates) == 0) return(NULL)
-    
+    if (length(dates) == 0) {
+      return(NULL)
+    }
+
     # Try to parse date if character, otherwise assume Date/POSIXct
     # Extract month number (1-12)
     # Using format() handles Date and POSIXct
     # If character, need to be careful, but readxl usually gives POSIXct for dates
-    tryCatch({
-      m_params <- unique(as.integer(format(as.Date(dates), "%m")))
-      as.character(sort(m_params))
-    }, error = function(e) NULL)
+    tryCatch(
+      {
+        m_params <- unique(as.integer(format(as.Date(dates), "%m")))
+        as.character(sort(m_params))
+      },
+      error = function(e) NULL
+    )
   })
 
   # --- Modules ---
-  
+
   # Reference Settings Module (sidebar)
-  ref_settings <- mod_ref_settings_server("ref_settings", 
-                                          get_tr = get_tr,
-                                          available_pts_reactive = available_pts_reactive,
-                                          available_ages_reactive = case_ages,
-                                          available_months_reactive = case_months,
-                                          default_select_all = TRUE)
-  
+  ref_settings <- mod_ref_settings_server(
+    "ref_settings",
+    get_tr = get_tr,
+    available_pts_reactive = available_pts_reactive,
+    available_ages_reactive = case_ages,
+    available_months_reactive = case_months,
+    default_select_all = TRUE
+  )
+
   selected_province <- ref_settings$province
   selected_age <- ref_settings$age_group
   selected_month <- ref_settings$month
-  
+
   # About Module
   mod_about_server("about", get_tr = get_tr)
 
@@ -212,16 +260,35 @@ server <- function(input, output, session) {
     div(
       id = "cedars_upload_container",
       tooltip(
-        fileInput("cedars_file", tr$t("Choose Excel file..."), accept = c(".xlsx"), buttonLabel = tr$t("Browse"), placeholder = tr$t("No file selected")),
-        tr$t("Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information.")
+        fileInput(
+          "cedars_file",
+          tr$t("Choose Excel file..."),
+          accept = c(".xlsx"),
+          buttonLabel = tr$t("Browse"),
+          placeholder = tr$t("No file selected")
+        ),
+        tr$t(
+          "Upload your CEDARS outbreak data export. The tool will automatically extract case exposure information."
+        )
       ),
-      helpText(tr$t("The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist).")),
-      actionButton("cedars_clear", label = tr$t("Remove File"), icon = icon("trash"), class = "btn btn-outline-secondary w-100 mb-3")
+      helpText(tr$t(
+        "The app will auto-detect sheets with required columns: NationalID, ExposureCode, HasExposureOccurred (exposure data) and NationalID (linelist)."
+      )),
+      actionButton(
+        "cedars_clear",
+        label = tr$t("Remove File"),
+        icon = icon("trash"),
+        class = "btn btn-outline-secondary w-100 mb-3"
+      )
     )
   })
 
-  output$sidebar_upload_title <- renderUI({ h4(get_tr()$t("Upload CEDARS Exposure Data")) })
-  output$sidebar_parameters_title <- renderUI({ h5(get_tr()$t("Analysis Parameters")) })
+  output$sidebar_upload_title <- renderUI({
+    h4(get_tr()$t("Upload CEDARS Exposure Data"))
+  })
+  output$sidebar_parameters_title <- renderUI({
+    h5(get_tr()$t("Analysis Parameters"))
+  })
   output$card_results_label <- renderUI({
     span(id = "card-results-label", get_tr()$t("Results"))
   })
@@ -238,102 +305,156 @@ server <- function(input, output, session) {
       tr$t("File too large. Maximum size is 10 MB.")
     ))
 
-    tryCatch({
-      df <- withProgress(message = tr$t("Processing..."), value = 0, {
-        path <- input$cedars_file$datapath
-        
-        # 1. Sheet finding
-        exp_sheet <- find_sheet_by_columns(path, c("nationalid", "exposurecode", "hasexposureoccurred"))
-        validate(need(exp_sheet$found, "Missing exposure columns"))
-        
-        # 2. Reading exposure
-        df_exp <- readxl::read_excel(path, sheet = exp_sheet$sheet)
-        names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
-        df_exp <- df_exp |> transmute(natid = as.character(.data$nationalid), exposure = as.character(.data$exposurecode), val = tolower(as.character(.data$hasexposureoccurred)))
-        
-        # 3. Find Linelist
-        all_sheets <- readxl::excel_sheets(path)
-        line_sheet <- NULL
-        for (s in all_sheets) {
-            if (s == exp_sheet$sheet) next
-            d <- tryCatch(readxl::read_excel(path, sheet=s, n_max=1), error=function(e) NULL)
+    tryCatch(
+      {
+        df <- withProgress(message = tr$t("Processing..."), value = 0, {
+          path <- input$cedars_file$datapath
+
+          # 1. Sheet finding
+          exp_sheet <- find_sheet_by_columns(
+            path,
+            c("nationalid", "exposurecode", "hasexposureoccurred")
+          )
+          validate(need(exp_sheet$found, "Missing exposure columns"))
+
+          # 2. Reading exposure
+          df_exp <- readxl::read_excel(path, sheet = exp_sheet$sheet)
+          names(df_exp) <- gsub("[^a-z0-9]+", "", tolower(names(df_exp)))
+          df_exp <- df_exp |>
+            transmute(
+              natid = as.character(.data$nationalid),
+              exposure = as.character(.data$exposurecode),
+              val = tolower(as.character(.data$hasexposureoccurred))
+            )
+
+          # 3. Find Linelist
+          all_sheets <- readxl::excel_sheets(path)
+          line_sheet <- NULL
+          for (s in all_sheets) {
+            if (s == exp_sheet$sheet) {
+              next
+            }
+            d <- tryCatch(
+              readxl::read_excel(path, sheet = s, n_max = 1),
+              error = function(e) NULL
+            )
             cols <- gsub("[^a-z0-9]+", "", tolower(names(d)))
-            if (("nationalid" %in% cols || "natid" %in% cols) && !("exposurecode" %in% cols)) { line_sheet <- s; break }
+            if (
+              ("nationalid" %in% cols || "natid" %in% cols) &&
+                !("exposurecode" %in% cols)
+            ) {
+              line_sheet <- s
+              break
+            }
+          }
+          validate(need(!is.null(line_sheet), "Missing linelist sheet"))
+
+          # 4. Read Linelist
+          df_line <- readxl::read_excel(path, sheet = line_sheet)
+          names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
+
+          # 5. Filter & Merge
+          if ("casestatus" %in% names(df_line)) {
+            df_line <- df_line |>
+              filter(tolower(as.character(casestatus)) == "confirmed")
+          }
+
+          if (!"natid" %in% names(df_line)) {
+            df_line$natid <- as.character(df_line$nationalid)
+          }
+
+          pt_values <- fb_extract_provinceterritory(df_line)
+          has_agegroup <- "agegroup" %in% names(df_line)
+          has_episodedate <- "episodedate" %in% names(df_line)
+          df_line <- dplyr::transmute(
+            df_line,
+            natid = as.character(.data$natid),
+            provinceterritory = pt_values,
+            age_group_raw = if (has_agegroup) {
+              as.character(.data$agegroup)
+            } else {
+              NA_character_
+            },
+            episode_date = if (has_episodedate) .data$episodedate else NA
+          ) |>
+            distinct(natid, .keep_all = TRUE)
+
+          df <- df_exp |>
+            inner_join(df_line, by = "natid", relationship = "many-to-one")
+          validate(need(nrow(df) > 0, "No matching cases"))
+
+          showNotification(
+            paste0(
+              tr$t("Success"),
+              ": ",
+              length(unique(df$natid)),
+              " ",
+              tr$t("cases")
+            ),
+            type = "message"
+          )
+          df
+        })
+        adv_cases(df)
+      },
+      error = function(e) {
+        adv_cases(NULL)
+        shinyjs::js$resetFileInput(id = "cedars_file")
+        if (!inherits(e, "shiny.silent.error")) {
+          message("[CEDARS Upload Error] ", e$message)
+          showNotification(
+            tr$t(
+              "An error occurred while processing your file. Please check the format and try again."
+            ),
+            type = "error"
+          )
         }
-        validate(need(!is.null(line_sheet), "Missing linelist sheet"))
-        
-        # 4. Read Linelist
-        df_line <- readxl::read_excel(path, sheet=line_sheet)
-        names(df_line) <- gsub("[^a-z0-9]+", "", tolower(names(df_line)))
-        
-        # 5. Filter & Merge
-        if ("casestatus" %in% names(df_line)) df_line <- df_line |> filter(tolower(as.character(casestatus)) == "confirmed")
-        
-        if (!"natid" %in% names(df_line)) df_line$natid <- as.character(df_line$nationalid)
-        
-        pt_values <- fb_extract_provinceterritory(df_line)
-        has_agegroup <- "agegroup" %in% names(df_line)
-        has_episodedate <- "episodedate" %in% names(df_line)
-        df_line <- dplyr::transmute(
-          df_line,
-          natid = as.character(.data$natid),
-          provinceterritory = pt_values,
-          age_group_raw = if (has_agegroup) as.character(.data$agegroup) else NA_character_,
-          episode_date = if (has_episodedate) .data$episodedate else NA
-        ) |>
-          distinct(natid, .keep_all = TRUE)
-          
-        df <- df_exp |> inner_join(df_line, by="natid", relationship="many-to-one")
-        validate(need(nrow(df) > 0, "No matching cases"))
-        
-        showNotification(paste0(tr$t("Success"), ": ", length(unique(df$natid)), " ", tr$t("cases")), type="message")
-        df
-      })
-      adv_cases(df)
-    }, error = function(e) {
-      adv_cases(NULL)
-      shinyjs::js$resetFileInput(id = "cedars_file")
-      if (!inherits(e, "shiny.silent.error")) {
-        message("[CEDARS Upload Error] ", e$message)
-        showNotification(
-          tr$t("An error occurred while processing your file. Please check the format and try again."),
-          type = "error"
-        )
       }
-    })
+    )
   }) # ignoreNULL default
 
   observeEvent(input$cedars_clear, {
-      adv_cases(NULL)
-      shinyjs::js$resetFileInput(id = "cedars_file")
-      showNotification(get_tr()$t("Upload cleared"), type="message")
+    adv_cases(NULL)
+    shinyjs::js$resetFileInput(id = "cedars_file")
+    showNotification(get_tr()$t("Upload cleared"), type = "message")
   })
 
   # --- Results Calculation ---
-  
+
   adv_results <- reactive({
     d <- adv_cases()
-    if (is.null(d)) return(NULL)
+    if (is.null(d)) {
+      return(NULL)
+    }
     tr <- get_tr()
     lang <- current_lang()
-    
+
     # Get filters from module
     # These are REACTIVES from module, so we call them()
     pts_selected <- selected_province() %||% character(0)
     ages_selected <- selected_age()
     months_selected <- selected_month()
-    
+
     # Filter Logic
     d_filtered <- d
-    if ("provinceterritory" %in% names(d) && length(pts_selected) > 0 && !("Canada" %in% pts_selected)) {
-        d_filtered <- d |> filter(is.na(provinceterritory) | provinceterritory %in% pts_selected)
+    if (
+      "provinceterritory" %in%
+        names(d) &&
+        length(pts_selected) > 0 &&
+        !("Canada" %in% pts_selected)
+    ) {
+      d_filtered <- d |>
+        filter(is.na(provinceterritory) | provinceterritory %in% pts_selected)
     }
-    
+
     # Determine Reference Scope
     if ("provinceterritory" %in% names(d_filtered)) {
-      unique_case_pts <- unique(d_filtered$provinceterritory[!is.na(d_filtered$provinceterritory)])
+      unique_case_pts <- unique(d_filtered$provinceterritory[
+        !is.na(d_filtered$provinceterritory)
+      ])
       if (length(unique_case_pts) == 0) {
-        scope_label <- tr$t("Canada"); ref_pts <- "Canada"
+        scope_label <- tr$t("Canada")
+        ref_pts <- "Canada"
       } else {
         # Translate for label
         abbr_map <- fb_pt_abbrev_map()
@@ -345,30 +466,46 @@ server <- function(input, output, session) {
           map_display <- unname(fr_map[map_display])
           map_display[is.na(map_display)] <- unique_case_pts[is.na(map_display)]
         }
-        scope_label <- paste(map_display, collapse=", ")
+        scope_label <- paste(map_display, collapse = ", ")
         ref_pts <- unique_case_pts
       }
     } else {
-       scope_label <- tr$t("Canada"); ref_pts <- "Canada"
+      scope_label <- tr$t("Canada")
+      ref_pts <- "Canada"
     }
 
     # Summarize
     exposure_counts <- d_filtered |>
-      mutate(val = case_when(val == "y" ~ "Y", val == "n" ~ "N", val == "p" ~ "P", val == "dk" ~ "DK", TRUE ~ val)) |>
+      mutate(
+        val = case_when(
+          val == "y" ~ "Y",
+          val == "n" ~ "N",
+          val == "p" ~ "P",
+          val == "dk" ~ "DK",
+          TRUE ~ val
+        )
+      ) |>
       filter(val %in% c("Y", "N", "P", "DK")) |>
       distinct(natid, exposure, val) |>
       count(exposure, val) |>
       tidyr::pivot_wider(names_from = val, values_from = n, values_fill = 0)
-      
-    if (nrow(exposure_counts) == 0) return(NULL)
-    
+
+    if (nrow(exposure_counts) == 0) {
+      return(NULL)
+    }
+
     # Normalize age/month filters
     filters <- fb_normalize_filters(ref_pts, ages_selected, months_selected)
     ages_selected <- filters$age
     months_selected <- filters$month
-    
-    ref_perc <- fb_reference_percents(exposure_counts$exposure, pt_names = ref_pts, months = months_selected, age_groups = ages_selected)
-    
+
+    ref_perc <- fb_reference_percents(
+      exposure_counts$exposure,
+      pt_names = ref_pts,
+      months = months_selected,
+      age_groups = ages_selected
+    )
+
     # Build analysis input
     code_to_label <- names(fb_exposure_choices_all(lang))
     names(code_to_label) <- as.vector(fb_exposure_choices_all(lang))
@@ -376,13 +513,22 @@ server <- function(input, output, session) {
     analysis_df <- tibble::tibble(
       ExposureLabel = purrr::map_chr(
         exposure_counts$exposure,
-        function(x) sub(" \\([^)]+\\)$", "", code_to_label[x] %||% htmltools::htmlEscape(x))
+        function(x) {
+          sub(
+            " \\([^)]+\\)$",
+            "",
+            code_to_label[x] %||% htmltools::htmlEscape(x)
+          )
+        }
       ),
       Y = exposure_counts$Y %||% 0L,
       P = exposure_counts$P %||% 0L,
       N = exposure_counts$N %||% 0L,
       DK = exposure_counts$DK %||% 0L,
-      ref_pct = as.numeric(ref_perc[match(exposure_counts$exposure, names(ref_perc))]),
+      ref_pct = as.numeric(ref_perc[match(
+        exposure_counts$exposure,
+        names(ref_perc)
+      )]),
       scope_label = scope_label
     )
 
@@ -391,11 +537,13 @@ server <- function(input, output, session) {
 
   # Pass results to modules
   mod_results_table_server("results_table", adv_results, get_tr)
-  
+
   reference_table_data <- reactive({
     lang <- current_lang()
     choices <- fb_toolkit_exposure_choices(lang)
-    if (!length(choices)) return(NULL)
+    if (!length(choices)) {
+      return(NULL)
+    }
 
     provs <- selected_province()
     ages <- selected_age()
@@ -412,8 +560,58 @@ server <- function(input, output, session) {
       months = months,
       age_groups = ages
     )
-    if (!nrow(tbl)) return(NULL)
+    if (!nrow(tbl)) {
+      return(NULL)
+    }
     tbl
+  })
+
+  # --- Reference Data Tab: Per-PT Table ---
+  output$ref_by_pt_title <- renderUI({
+    get_tr()$t("Reference Values by Province/Territory")
+  })
+
+  output$ref_table_by_pt <- renderDT({
+    tr <- get_tr()
+    lang <- current_lang()
+    tbl <- fb_public_reference_table_by_pt(lang)
+    if (is.null(tbl) || !nrow(tbl)) {
+      return(NULL)
+    }
+
+    datatable(
+      tbl,
+      options = list(
+        pageLength = 25,
+        lengthMenu = c(10, 25, 50, 100),
+        scrollX = TRUE,
+        fixedColumns = list(leftColumns = 2),
+        language = list(
+          search = tr$t("Search:"),
+          lengthMenu = paste0(tr$t("Show"), " _MENU_ ", tr$t("entries")),
+          info = paste0(
+            tr$t("Showing"),
+            " _START_ ",
+            tr$t("to"),
+            " _END_ ",
+            tr$t("of"),
+            " _TOTAL_ ",
+            tr$t("entries")
+          ),
+          zeroRecords = tr$t("No data available"),
+          paginate = list(
+            previous = tr$t("Previous"),
+            `next` = tr$t("Next")
+          )
+        )
+      ),
+      extensions = "FixedColumns",
+      rownames = FALSE
+    ) |>
+      formatStyle(
+        columns = "Exposure",
+        fontWeight = "bold"
+      )
   })
 
   # Data Info (Module) -- defined after reference_table_data

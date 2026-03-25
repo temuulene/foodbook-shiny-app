@@ -42,7 +42,9 @@ options(bslib.precompiled = TRUE)
 ui <- function(request) {
   # Initialize translator for UI translation
   # Note: This is separate from the reactive translator in server
-  translator <- Translator$new(translation_json_path = "../translations/translation.json")
+  translator <- Translator$new(
+    translation_json_path = "../translations/translation.json"
+  )
   translator$set_translation_language("en")
 
   page_navbar(
@@ -50,7 +52,7 @@ ui <- function(request) {
     lang = "en",
     theme = fb_theme(),
     header = fb_commons_head(),
-    
+
     # Analysis Tab
     nav_panel(
       title = span(id = "nav-analysis-label", translator$t("Analysis")),
@@ -61,7 +63,10 @@ ui <- function(request) {
           accordion(
             open = c("ref_settings_panel"),
             accordion_panel(
-              title = span(id = "acc-ref-settings-label", translator$t("Reference Settings")),
+              title = span(
+                id = "acc-ref-settings-label",
+                translator$t("Reference Settings")
+              ),
               value = "ref_settings_panel",
               icon = icon("sliders"),
               mod_ref_settings_ui("ref_settings"),
@@ -69,7 +74,10 @@ ui <- function(request) {
               uiOutput("overanalysis_warning_ui")
             ),
             accordion_panel(
-              title = span(id = "acc-upload-label", translator$t("Upload Exposure Counts (Optional)")),
+              title = span(
+                id = "acc-upload-label",
+                translator$t("Upload Exposure Counts (Optional)")
+              ),
               value = "upload_panel",
               icon = icon("upload"),
               uiOutput("xlsx_file_input_ui"),
@@ -135,13 +143,15 @@ ui <- function(request) {
       title = span(id = "nav-ref-data-label", translator$t("Reference Data")),
       icon = icon("table"),
       card(
-        card_header(span(id = "card-ref-values-label", translator$t("Reference Values"))),
+        card_header(span(
+          id = "card-ref-by-pt-label",
+          uiOutput("ref_by_pt_title", inline = TRUE)
+        )),
         card_body(
           withSpinner(
-            DTOutput("sys_ref_table"),
+            DTOutput("ref_table_by_pt"),
             type = 4
-          ),
-          uiOutput("footnote_fb1_only_ui")
+          )
         )
       )
     ),
@@ -159,7 +169,10 @@ ui <- function(request) {
       icon = icon("info-circle"),
       card(
         class = "well-panel-about",
-        card_header(h3(span(id = "card-about-label", translator$t("About This Tool")))),
+        card_header(h3(span(
+          id = "card-about-label",
+          translator$t("About This Tool")
+        ))),
         card_body(mod_about_ui("about"))
       )
     ),
@@ -177,7 +190,6 @@ ui <- function(request) {
 
 # --- 3. Server Logic ---
 server <- function(input, output, session) {
-  
   # Initialize shared logic
   common <- fb_init_common(session, "../translations/translation.json")
   translator <- common$translator
@@ -194,20 +206,22 @@ server <- function(input, output, session) {
 
   # Load toolkit data on startup
   fb_load_toolkit_data()
-  
+
   # --- Modules ---
-  
+
   # Reference Settings Module (sidebar)
   # Public app uses "Canada" as default and available PTs are from toolkit/backend
-  ref_settings <- mod_ref_settings_server("ref_settings", 
-                                          get_tr = get_tr,
-                                          available_pts_reactive = reactive(fb_public_available_pts()))
-  
+  ref_settings <- mod_ref_settings_server(
+    "ref_settings",
+    get_tr = get_tr,
+    available_pts_reactive = reactive(fb_public_available_pts())
+  )
+
   # Helper to get selected values from module
   selected_province <- ref_settings$province
   selected_age <- ref_settings$age_group
   selected_month <- ref_settings$month
-  
+
   # About Module
   mod_about_server("about", get_tr = get_tr)
 
@@ -241,21 +255,31 @@ server <- function(input, output, session) {
   output$help_enter_counts_ui <- renderUI({
     helpText(span(
       id = "help-enter-counts",
-      get_tr()$t("Enter case counts for each exposure in each selected location.")
+      get_tr()$t(
+        "Enter case counts for each exposure in each selected location."
+      )
     ))
   })
 
   output$footnote_fb1_ui <- renderUI({
     helpText(
-      span(id = "footnote-fb1-label", get_tr()$t("* Exposures from Foodbook 1.0")),
-      class = "text-body-secondary", style = "font-size: 0.8rem; margin-top: 0.5rem;"
+      span(
+        id = "footnote-fb1-label",
+        get_tr()$t("* Exposures from Foodbook 1.0")
+      ),
+      class = "text-body-secondary",
+      style = "font-size: 0.8rem; margin-top: 0.5rem;"
     )
   })
 
   output$footnote_fb1_only_ui <- renderUI({
     helpText(
-      span(id = "footnote-fb1-only-label", get_tr()$t("* Exposures from Foodbook 1 only")),
-      class = "text-body-secondary", style = "font-size: 0.8rem; margin-top: 0.5rem;"
+      span(
+        id = "footnote-fb1-only-label",
+        get_tr()$t("* Exposures from Foodbook 1 only")
+      ),
+      class = "text-body-secondary",
+      style = "font-size: 0.8rem; margin-top: 0.5rem;"
     )
   })
 
@@ -265,49 +289,84 @@ server <- function(input, output, session) {
     div(
       class = "alert alert-warning",
       style = "font-size: 0.85rem; padding: 0.75rem; margin-top: 0.5rem;",
-      icon("exclamation-triangle"), " ",
-      tags$strong(tr$t("Data Quality Warning")), tags$br(),
-      tr$t("Please be careful not to overanalyse the data. Limiting the data to a small subset of respondents (for example, respondents ages 0-9 from PEI in March) can result in small sample sizes and make the data less reliable. This is especially important for exposures that are rare within the population.")
+      icon("exclamation-triangle"),
+      " ",
+      tags$strong(tr$t("Data Quality Warning")),
+      tags$br(),
+      tr$t(
+        "Please be careful not to overanalyse the data. Limiting the data to a small subset of respondents (for example, respondents ages 0-9 from PEI in March) can result in small sample sizes and make the data less reliable. This is especially important for exposures that are rare within the population."
+      )
     )
   })
 
   # Render XLSX inputs (same as before)
   output$xlsx_file_input_ui <- renderUI({
     tr <- get_tr()
-    fileInput("simple_xlsx_upload", label = tr$t("Upload Excel File"), accept = c(".xlsx"), buttonLabel = tr$t("Browse"), placeholder = tr$t("No file selected"))
+    fileInput(
+      "simple_xlsx_upload",
+      label = tr$t("Upload Excel File"),
+      accept = c(".xlsx"),
+      buttonLabel = tr$t("Browse"),
+      placeholder = tr$t("No file selected")
+    )
   })
 
   output$xlsx_help_text <- renderUI({
     tr <- get_tr()
-    tagList(helpText(HTML(paste0("<strong>", tr$t("Note"), ":</strong> ", tr$t("Exposure names will be matched against Foodbook database in English or French (case-insensitive). Unmatched exposures will use custom references.")))))
+    tagList(helpText(HTML(paste0(
+      "<strong>",
+      tr$t("Note"),
+      ":</strong> ",
+      tr$t(
+        "Exposure names will be matched against Foodbook database in English or French (case-insensitive). Unmatched exposures will use custom references."
+      )
+    ))))
   })
 
   output$xlsx_clear_button <- renderUI({
-    actionButton("xlsx_clear", label = get_tr()$t("Remove File"), icon = icon("trash"), class = "btn btn-outline-secondary w-100 mt-2")
+    actionButton(
+      "xlsx_clear",
+      label = get_tr()$t("Remove File"),
+      icon = icon("trash"),
+      class = "btn btn-outline-secondary w-100 mt-2"
+    )
   })
 
   output$xlsx_template_ui <- renderUI({
-    downloadLink("download_template", get_tr()$t("Download Template"), class = "btn btn-outline-primary btn-sm mt-2", style = "display: block; text-align: center;")
+    downloadLink(
+      "download_template",
+      get_tr()$t("Download Template"),
+      class = "btn btn-outline-primary btn-sm mt-2",
+      style = "display: block; text-align: center;"
+    )
   })
-  
+
   # Download handler for template file
   output$download_template <- downloadHandler(
-    filename = function() { "exposure_template.xlsx" },
+    filename = function() {
+      "exposure_template.xlsx"
+    },
     content = function(file) {
       file.copy("www/exposure_template.xlsx", file)
     }
   )
 
   # --- Exposure Selection Logic ---
-  
+
   # Dynamic Exposure Selection
   output$exposure_select_ui <- renderUI({
     lang <- current_lang()
     tr <- get_tr()
-    
+
     cat_filter <- input$category_filter
-    real_cat <- if (!is.null(cat_filter) && cat_filter != tr$t("All Categories")) cat_filter else NULL
-    
+    real_cat <- if (
+      !is.null(cat_filter) && cat_filter != tr$t("All Categories")
+    ) {
+      cat_filter
+    } else {
+      NULL
+    }
+
     all_exposures <- tryCatch(
       fb_toolkit_exposure_choices(lang, category = real_cat),
       error = function(e) {
@@ -315,38 +374,52 @@ server <- function(input, output, session) {
         list()
       }
     )
-    
+
     current_selection <- isolate(input$exposure_select)
-    
+
     selectizeInput(
-      "exposure_select", tr$t("Select Exposures:"), choices = all_exposures,
-      selected = current_selection, multiple = TRUE, width = "100%",
-      options = list(placeholder = tr$t("Start typing..."), plugins = list("remove_button"), create = TRUE)
+      "exposure_select",
+      tr$t("Select Exposures:"),
+      choices = all_exposures,
+      selected = current_selection,
+      multiple = TRUE,
+      width = "100%",
+      options = list(
+        placeholder = tr$t("Start typing..."),
+        plugins = list("remove_button"),
+        create = TRUE
+      )
     )
   })
-  
+
   # --- Dynamic Exposure Modules ---
-  
+
   # Track active module IDs
   exposure_module_ids <- reactiveVal(character(0))
-  
+
   # Observer to handle exposure selection addition/removal
-  observeEvent(input$exposure_select, {
-    current_selection <- input$exposure_select %||% character()
-    
-    # Normalize IDs
-    # Warning: Input can be names or codes.
-    # We need safe IDs for modules.
-    needed_ids <- unique(purrr::map_chr(current_selection, make_safe_id))
-    
-    # Update stored IDs
-    exposure_module_ids(needed_ids)
-  }, ignoreNULL = FALSE)
-  
+  observeEvent(
+    input$exposure_select,
+    {
+      current_selection <- input$exposure_select %||% character()
+
+      # Normalize IDs
+      # Warning: Input can be names or codes.
+      # We need safe IDs for modules.
+      needed_ids <- unique(purrr::map_chr(current_selection, make_safe_id))
+
+      # Update stored IDs
+      exposure_module_ids(needed_ids)
+    },
+    ignoreNULL = FALSE
+  )
+
   # Render exposure modules (Dynamic UI)
   output$exposure_modules_ui <- renderUI({
     selected <- input$exposure_select
-    if (length(selected) == 0) return(NULL)
+    if (length(selected) == 0) {
+      return(NULL)
+    }
 
     # Save current module values before re-rendering (isolate to avoid deps)
     for (id in isolate(exposure_module_ids())) {
@@ -376,7 +449,12 @@ server <- function(input, output, session) {
     filters <- fb_normalize_filters(provs, ages, months)
 
     # Get refs
-    refs <- fb_reference_percents(selected, pt_names = filters$pt, months = filters$month, age_groups = filters$age)
+    refs <- fb_reference_percents(
+      selected,
+      pt_names = filters$pt,
+      months = filters$month,
+      age_groups = filters$age
+    )
 
     # Build UI list
     ui_list <- lapply(selected, function(exposure) {
@@ -405,23 +483,29 @@ server <- function(input, output, session) {
 
     do.call(tagList, ui_list)
   })
-  
+
   module_registry <- reactiveValues()
 
   # Non-reactive store for preserving exposure input values across UI re-renders
   exposure_value_store <- new.env(parent = emptyenv())
 
   # Server logic for dynamic modules
-  observeEvent(exposure_module_ids(), {
-    ids <- exposure_module_ids()
-    if (!length(ids)) return()
-    existing_ids <- names(reactiveValuesToList(module_registry))
-    new_ids <- setdiff(ids, existing_ids)
-    for (id in new_ids) {
-      module_registry[[id]] <- exposure_module_server(paste0("exp_", id))
-    }
-  }, ignoreInit = TRUE)
-  
+  observeEvent(
+    exposure_module_ids(),
+    {
+      ids <- exposure_module_ids()
+      if (!length(ids)) {
+        return()
+      }
+      existing_ids <- names(reactiveValuesToList(module_registry))
+      new_ids <- setdiff(ids, existing_ids)
+      for (id in new_ids) {
+        module_registry[[id]] <- exposure_module_server(paste0("exp_", id))
+      }
+    },
+    ignoreInit = TRUE
+  )
+
   # Populate via CSV -- wait for module IDs to update before populating values
   observeEvent(exposure_module_ids(), {
     req(csv_needs_population())
@@ -438,18 +522,25 @@ server <- function(input, output, session) {
       n_val <- as.numeric(df$no[i])
       dk_val <- as.numeric(df$dk[i])
 
-      exposure_module_update(session, mod_id, yes = y_val, prob = p_val, no = n_val, dk = dk_val)
+      exposure_module_update(
+        session,
+        mod_id,
+        yes = y_val,
+        prob = p_val,
+        no = n_val,
+        dk = dk_val
+      )
     }
 
     csv_needs_population(FALSE)
   })
-  
+
   # CSV Upload Handling (from original)
   observeEvent(input$simple_xlsx_upload, {
     req(input$simple_xlsx_upload)
     # ... (Same CSV reading/matching logic as original, but using csv_data reactive) ...
     # See below for abbreviated logic since we already have shared logic? No, this is public-specific.
-    
+
     file_info <- input$simple_xlsx_upload
     lang <- current_lang()
     tr <- get_tr()
@@ -464,95 +555,143 @@ server <- function(input, output, session) {
       tr$t("File too large. Maximum size is 10 MB.")
     ))
 
-    tryCatch({
-      df <- readxl::read_excel(file_info$datapath)
-      names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
-      validate(need(all(c("exposure", "yes", "probably", "no", "dk") %in% names(df)), "Invalid columns"))
-      
-      # Matching logic
-      foodbook_choices_en <- fb_exposure_choices("en", apply_public_exclusions = TRUE)
-      foodbook_choices_fr <- fb_exposure_choices("fr", apply_public_exclusions = TRUE)
-      fb_lookup_en <- rlang::set_names(foodbook_choices_en, tolower(names(foodbook_choices_en)))
-      fb_lookup_fr <- rlang::set_names(foodbook_choices_fr, tolower(names(foodbook_choices_fr)))
-      
-      matched_exposures <- character(nrow(df))
-      match_count <- 0
-      custom_count <- 0
-      
-      for (i in seq_len(nrow(df))) {
-        csv_name <- as.character(df$exposure[i])
-        if (is.na(csv_name) || !nzchar(csv_name)) {
-          matched_exposures[i] <- csv_name
-          custom_count <- custom_count + 1
-          next
+    tryCatch(
+      {
+        df <- readxl::read_excel(file_info$datapath)
+        names(df) <- gsub("[^a-z0-9]+", "", tolower(names(df)))
+        validate(need(
+          all(c("exposure", "yes", "probably", "no", "dk") %in% names(df)),
+          "Invalid columns"
+        ))
+
+        # Matching logic
+        foodbook_choices_en <- fb_exposure_choices(
+          "en",
+          apply_public_exclusions = TRUE
+        )
+        foodbook_choices_fr <- fb_exposure_choices(
+          "fr",
+          apply_public_exclusions = TRUE
+        )
+        fb_lookup_en <- rlang::set_names(
+          foodbook_choices_en,
+          tolower(names(foodbook_choices_en))
+        )
+        fb_lookup_fr <- rlang::set_names(
+          foodbook_choices_fr,
+          tolower(names(foodbook_choices_fr))
+        )
+
+        matched_exposures <- character(nrow(df))
+        match_count <- 0
+        custom_count <- 0
+
+        for (i in seq_len(nrow(df))) {
+          csv_name <- as.character(df$exposure[i])
+          if (is.na(csv_name) || !nzchar(csv_name)) {
+            matched_exposures[i] <- csv_name
+            custom_count <- custom_count + 1
+            next
+          }
+          csv_name_lower <- tolower(csv_name)
+          if (csv_name_lower %in% names(fb_lookup_en)) {
+            matched_exposures[i] <- fb_lookup_en[[csv_name_lower]]
+            match_count <- match_count + 1
+          } else if (csv_name_lower %in% names(fb_lookup_fr)) {
+            matched_exposures[i] <- fb_lookup_fr[[csv_name_lower]]
+            match_count <- match_count + 1
+          } else {
+            matched_exposures[i] <- csv_name
+            custom_count <- custom_count + 1
+          }
         }
-        csv_name_lower <- tolower(csv_name)
-        if (csv_name_lower %in% names(fb_lookup_en)) {
-          matched_exposures[i] <- fb_lookup_en[[csv_name_lower]]
-          match_count <- match_count + 1
-        } else if (csv_name_lower %in% names(fb_lookup_fr)) {
-          matched_exposures[i] <- fb_lookup_fr[[csv_name_lower]]
-          match_count <- match_count + 1
+        df$matched_exposure <- matched_exposures
+        csv_data(df)
+
+        # For custom exposures, we need to add them to the choices
+        # Get current choices and add any custom (unmatched) exposures
+        current_choices <- fb_toolkit_exposure_choices(lang)
+        custom_exposures <- fb_public_merge_custom_choices(
+          matched_exposures,
+          current_choices
+        )
+        if (length(custom_exposures) > 0) {
+          # Add custom exposures as choices (name = value for custom)
+          custom_choices <- rlang::set_names(custom_exposures, custom_exposures)
+          all_choices <- c(current_choices, custom_choices)
         } else {
-          matched_exposures[i] <- csv_name
-          custom_count <- custom_count + 1
+          all_choices <- current_choices
         }
+
+        updateSelectizeInput(
+          session,
+          "exposure_select",
+          choices = all_choices,
+          selected = matched_exposures
+        )
+
+        msg <- paste0(
+          tr$t("Success"),
+          ": ",
+          nrow(df),
+          " ",
+          tr$t("exposures loaded")
+        )
+        if (custom_count > 0) {
+          msg <- paste0(
+            msg,
+            " (",
+            custom_count,
+            " ",
+            tr$t("custom/unmatched"),
+            ")"
+          )
+        }
+        showNotification(msg, type = "message")
+
+        csv_needs_population(TRUE) # Trigger update
+      },
+      error = function(e) {
+        message("[Upload Error] ", e$message)
+        showNotification(
+          tr$t(
+            "An error occurred while processing your file. Please check the format and try again."
+          ),
+          type = "error"
+        )
       }
-      df$matched_exposure <- matched_exposures
-      csv_data(df)
-      
-      # For custom exposures, we need to add them to the choices
-      # Get current choices and add any custom (unmatched) exposures
-      current_choices <- fb_toolkit_exposure_choices(lang)
-      custom_exposures <- fb_public_merge_custom_choices(matched_exposures, current_choices)
-      if (length(custom_exposures) > 0) {
-        # Add custom exposures as choices (name = value for custom)
-        custom_choices <- rlang::set_names(custom_exposures, custom_exposures)
-        all_choices <- c(current_choices, custom_choices)
-      } else {
-        all_choices <- current_choices
-      }
-      
-      updateSelectizeInput(session, "exposure_select", choices = all_choices, selected = matched_exposures)
-      
-      msg <- paste0(tr$t("Success"), ": ", nrow(df), " ", tr$t("exposures loaded"))
-      if (custom_count > 0) msg <- paste0(msg, " (", custom_count, " ", tr$t("custom/unmatched"), ")")
-      showNotification(msg, type = "message")
-      
-      csv_needs_population(TRUE) # Trigger update
-      
-    }, error = function(e) {
-      message("[Upload Error] ", e$message)
-      showNotification(
-        tr$t("An error occurred while processing your file. Please check the format and try again."),
-        type = "error"
-      )
-    })
+    )
   })
-  
+
   observeEvent(input$xlsx_clear, {
     csv_data(NULL)
     updateSelectizeInput(session, "exposure_select", selected = character(0))
     shinyjs::js$resetFileInput(id = "simple_xlsx_upload")
   })
-  
+
   # --- Analysis Logic ---
-  
+
   # Gather Data from Modules for Results (debounced to avoid re-render on each exposure add)
   reactive_results_raw <- reactive({
     ids <- exposure_module_ids()
-    if (length(ids) == 0) return(NULL)
+    if (length(ids) == 0) {
+      return(NULL)
+    }
 
     tr <- get_tr()
     lang <- current_lang()
     label_map <- fb_build_exposure_label_map(lang)
 
     exposure_codes <- input$exposure_select %||% character()
-    if (length(exposure_codes) == 0) return(NULL)
+    if (length(exposure_codes) == 0) {
+      return(NULL)
+    }
 
     # Convert to DF
     df <- fb_public_collect_exposure_inputs(exposure_codes, input)
-    if (nrow(df) == 0) return(NULL)
+    if (nrow(df) == 0) {
+      return(NULL)
+    }
 
     df$ExposureLabel <- purrr::map_chr(
       df$Exposure,
@@ -574,16 +713,21 @@ server <- function(input, output, session) {
 
     # Build scope label for display
     if (is.null(backend_pt)) {
-       scope_label <- tr$t("Canada")
+      scope_label <- tr$t("Canada")
     } else {
-       pt_names_loc <- fb_pt_names(lang)
-       display <- pt_names_loc[provs]
-       display[is.na(display)] <- provs[is.na(display)]
-       scope_label <- paste(display, collapse=", ")
+      pt_names_loc <- fb_pt_names(lang)
+      display <- pt_names_loc[provs]
+      display[is.na(display)] <- provs[is.na(display)]
+      scope_label <- paste(display, collapse = ", ")
     }
 
     # Calculate Refs
-    refs <- fb_reference_percents(df$Exposure, pt_names = backend_pt, months = months, age_groups = ages)
+    refs <- fb_reference_percents(
+      df$Exposure,
+      pt_names = backend_pt,
+      months = months,
+      age_groups = ages
+    )
 
     # Build analysis input: resolve reference % (system or custom fallback)
     sys_refs <- as.numeric(refs[df$Exposure])
@@ -601,7 +745,9 @@ server <- function(input, output, session) {
   reference_table_data <- reactive({
     lang <- current_lang()
     choices <- fb_toolkit_exposure_choices(lang)
-    if (!length(choices)) return(NULL)
+    if (!length(choices)) {
+      return(NULL)
+    }
 
     codes <- unname(unlist(choices, use.names = FALSE))
     provs <- selected_province()
@@ -613,39 +759,51 @@ server <- function(input, output, session) {
     ages <- filters$age
     months <- filters$month
 
-    refs <- fb_reference_percents(codes, pt_names = backend_pt, months = months, age_groups = ages)
+    refs <- fb_reference_percents(
+      codes,
+      pt_names = backend_pt,
+      months = months,
+      age_groups = ages
+    )
     tbl <- fb_public_reference_table_from_choices(choices, refs)
-    if (!nrow(tbl)) return(NULL)
+    if (!nrow(tbl)) {
+      return(NULL)
+    }
     tbl
   })
 
-  # --- Reference Data Tab (sys_ref_table stays outside module) ---
-  output$sys_ref_table <- renderDT({
+  # --- Reference Data Tab: Per-PT Table ---
+  output$ref_by_pt_title <- renderUI({
+    get_tr()$t("Reference Values by Province/Territory")
+  })
+
+  output$ref_table_by_pt <- renderDT({
     tr <- get_tr()
-    tbl <- reference_table_data()
-    if (is.null(tbl) || !nrow(tbl)) return(NULL)
-
-    tbl <- tbl[!is.na(tbl$`Reference %`), , drop = FALSE]
-    if (!nrow(tbl)) return(NULL)
-    tbl$`Reference %` <- round(tbl$`Reference %`, 2)
-
-    # Find Code column index (0-based) to hide it from display
-    code_col_idx <- which(names(tbl) == "Code") - 1
+    lang <- current_lang()
+    tbl <- fb_public_reference_table_by_pt(lang)
+    if (is.null(tbl) || !nrow(tbl)) {
+      return(NULL)
+    }
 
     datatable(
       tbl,
       options = list(
         pageLength = 25,
         lengthMenu = c(10, 25, 50, 100),
-        columnDefs = if (length(code_col_idx) > 0) {
-          list(list(visible = FALSE, targets = code_col_idx))
-        } else {
-          list()
-        },
+        scrollX = TRUE,
+        fixedColumns = list(leftColumns = 2),
         language = list(
           search = tr$t("Search:"),
           lengthMenu = paste0(tr$t("Show"), " _MENU_ ", tr$t("entries")),
-          info = paste0(tr$t("Showing"), " _START_ ", tr$t("to"), " _END_ ", tr$t("of"), " _TOTAL_ ", tr$t("entries")),
+          info = paste0(
+            tr$t("Showing"),
+            " _START_ ",
+            tr$t("to"),
+            " _END_ ",
+            tr$t("of"),
+            " _TOTAL_ ",
+            tr$t("entries")
+          ),
           zeroRecords = tr$t("No data available"),
           paginate = list(
             previous = tr$t("Previous"),
@@ -653,8 +811,13 @@ server <- function(input, output, session) {
           )
         )
       ),
+      extensions = "FixedColumns",
       rownames = FALSE
-    )
+    ) |>
+      formatStyle(
+        columns = "Exposure",
+        fontWeight = "bold"
+      )
   })
 
   # --- Data Info Tab (Module) ---
@@ -667,12 +830,16 @@ server <- function(input, output, session) {
     selected_month = selected_month,
     reference_table_data = reference_table_data
   )
-  
+
   # Reset Button
   observeEvent(input$reset, {
     updateSelectizeInput(session, "exposure_select", selected = character(0))
     csv_data(NULL)
-    updateSelectInput(session, "category_filter", selected = get_tr()$t("All Categories"))
+    updateSelectInput(
+      session,
+      "category_filter",
+      selected = get_tr()$t("All Categories")
+    )
     shinyjs::js$resetFileInput(id = "simple_xlsx_upload")
     # Reset filters
     # Can't easily reset module inputs from here without a reset method.

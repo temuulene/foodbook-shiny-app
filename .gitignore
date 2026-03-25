@@ -29,3 +29,8 @@ Rplots.pdf
 
 # Archived data (no longer used)
 archive/
+
+# renv (removed — using system library)
+renv/
+renv.lock
+.Rprofile
